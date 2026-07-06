@@ -22,10 +22,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- auth helpers ----------
 
-function hashPassword(password, salt) {
-  return crypto.scryptSync(password, salt, 32).toString('hex');
-}
-
 function setSession(res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
@@ -58,16 +54,14 @@ function requireAdmin(req, res, next) {
 }
 
 // Seed the NCYSA admin account so the association can see completions.
+// Passwordless like everything else in the demo — sign in with this email.
 (function seedAdmin() {
   const db = load();
   if (!db.users.some((u) => u.role === 'admin')) {
-    const salt = crypto.randomBytes(8).toString('hex');
     db.users.push({
       id: id('usr'),
       name: 'NCYSA Education Staff',
       email: process.env.ADMIN_EMAIL || 'admin@ncysa.org',
-      salt,
-      passHash: hashPassword(process.env.ADMIN_PASSWORD || 'ncysa-admin', salt),
       role: 'admin',
       createdAt: new Date().toISOString(),
     });
@@ -124,30 +118,34 @@ function progressSummary(course, progress) {
 
 // ---------- auth API ----------
 
+// Passwordless sign-up for the demo: name + email only, no password to create
+// or remember. (For production, add real auth — a password or an emailed
+// magic-link — before storing real learner records.)
 app.post('/api/register', (req, res) => {
-  const { name, email, password } = req.body || {};
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+  const { name, email } = req.body || {};
+  if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
   const db = load();
-  if (db.users.some((u) => u.email.toLowerCase() === email.toLowerCase()))
-    return res.status(409).json({ error: 'An account with that email already exists' });
-  const salt = crypto.randomBytes(8).toString('hex');
-  const user = {
-    id: id('usr'), name, email, salt,
-    passHash: hashPassword(password, salt),
-    role: 'learner', createdAt: new Date().toISOString(),
-  };
+  const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (existing) {
+    // Friendly: an existing email just signs back in rather than erroring.
+    setSession(res, existing.id);
+    return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
+  }
+  const user = { id: id('usr'), name, email, role: 'learner', createdAt: new Date().toISOString() };
   db.users.push(user);
   save();
   setSession(res, user.id);
   res.json({ user: { id: user.id, name, email, role: user.role } });
 });
 
+// Passwordless sign-in for the demo: enter the email you registered with.
 app.post('/api/login', (req, res) => {
-  const { email, password } = req.body || {};
+  const { email } = req.body || {};
   const db = load();
-  const user = db.users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
-  if (!user || hashPassword(password || '', user.salt) !== user.passHash)
-    return res.status(401).json({ error: 'Invalid email or password' });
+  const user = db.users.find((u) => u.email.toLowerCase() === String(email || '').toLowerCase());
+  if (!user)
+    return res.status(401).json({ error: 'No account with that email yet — use “Get started” to create one.' });
   setSession(res, user.id);
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });

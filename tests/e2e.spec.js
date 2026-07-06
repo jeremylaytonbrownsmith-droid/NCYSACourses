@@ -16,11 +16,18 @@ test('full learner journey through the coaching license course', async ({ page }
   await expect(page.locator('.course-card h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
   await page.screenshot({ path: `${SNAP}/01-landing.png`, fullPage: true });
 
-  // --- 2. Register ----------------------------------------------------------
-  await page.click('text=Get started');
+  // --- 1b. Coach/Referee split: referee path leads to its own page ----------
+  await expect(page.locator('.role-card', { hasText: 'Coaches go here' })).toBeVisible();
+  await page.locator('.role-card', { hasText: 'Referees go here' }).click();
+  await expect(page.locator('.notice-card')).toContainText('Referee courses are coming soon');
+  await page.click('.back-link');
+  await expect(page.locator('.hero h1')).toBeVisible();
+
+  // --- 2. Register (passwordless: name + email only) ------------------------
+  await page.click('.topnav a:has-text("Get started")');
+  await expect(page.locator('#password')).toHaveCount(0); // no password field
   await page.fill('#name', 'Jordan Ellis');
   await page.fill('#email', 'jordan.ellis@example.com');
-  await page.fill('#password', 'kickoff-2026');
   await page.screenshot({ path: `${SNAP}/02-register.png` });
   await page.click('button:has-text("Create account")');
   await expect(page.locator('.topnav')).toContainText('Hi, Jordan');
@@ -70,13 +77,16 @@ test('full learner journey through the coaching license course', async ({ page }
     v.playbackRate = 8;
   });
   await page.click('#playBtn');
-  await expect(page.locator('#watchLabel')).toContainText('Requirement met', { timeout: 30_000 });
+  await expect(page.locator('#watchLabel')).toContainText('Requirement met', { timeout: 90_000 });
   await expect(completeBtn).toBeEnabled();
   await page.screenshot({ path: `${SNAP}/07-video-gate-satisfied.png`, fullPage: true });
   await completeBtn.click();
 
-  // --- 7. Final reading lesson ------------------------------------------------
+  // --- 7. Remaining reading lessons (session design + resources) --------------
   await expect(page.locator('.lesson-pane h1')).toContainText('Play–Practice–Play');
+  await page.click('#completeBtn');
+  await expect(page.locator('.lesson-pane h1')).toContainText('Coaching Resources');
+  await expect(page.locator('.lesson-content a', { hasText: 'Learning Center' }).first()).toBeVisible();
   await page.click('#completeBtn');
 
   // --- 8. Final exam: fail once, then pass ------------------------------------
@@ -112,10 +122,9 @@ test('full learner journey through the coaching license course', async ({ page }
 
   // --- 10. NCYSA side: dashboard, notification, and both emails ---------------
   await page.click('#logoutBtn');
-  await page.click('text=Sign in');
+  await page.click('.topnav a:has-text("Sign in")');
   await page.fill('#email', 'admin@ncysa.org');
-  await page.fill('#password', 'ncysa-admin');
-  await page.click('button:has-text("Sign in")');
+  await page.click('button:has-text("Continue")');
   await page.click('text=NCYSA Dashboard');
 
   await expect(page.locator('.admin-table')).toContainText('Jordan Ellis');

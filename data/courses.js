@@ -101,7 +101,9 @@ module.exports = [
           (the Gfeller-Waller Act) and NCYSA policy.</p>
           <h3>Safe environment</h3>
           <p>Follow the U.S. Soccer Safe Soccer framework: two-adult rule, observable and interruptible
-          interactions, and mandatory reporting of suspected abuse.</p>`,
+          interactions, and mandatory reporting of suspected abuse. Complete your abuse-prevention
+          training at the <a href="https://uscenterforsafesport.org/" target="_blank" rel="noopener">U.S.
+          Center for SafeSport</a>.</p>`,
       },
       {
         id: 'laws',
@@ -123,7 +125,10 @@ module.exports = [
             <li><strong>Heading:</strong> banned for U11 and younger in both practice and games.</li>
             <li><strong>Sideline behavior:</strong> coaches may instruct only from their own technical area,
                 and positive encouragement beats joystick coaching every time.</li>
-          </ul>`,
+          </ul>
+          <p>Read the official, current laws for free at
+          <a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB —
+          Laws of the Game</a>.</p>`,
       },
       {
         id: 'session-video',
@@ -141,8 +146,8 @@ module.exports = [
             <li>Water breaks and safety checkpoints,</li>
             <li>The coach teaching through short “freeze” moments instead of long speeches.</li>
           </ul>
-          <p><strong>Note:</strong> skipping ahead is disabled. You must watch at least 58 seconds of
-          this 60-second video before you can continue to the next lesson.</p>`,
+          <p><strong>Note:</strong> skipping ahead is disabled. You must watch almost the entire
+          video before you can continue to the next lesson.</p>`,
       },
       {
         id: 'session-design',
@@ -166,6 +171,52 @@ module.exports = [
             <li>Talk less than 30 seconds at a time.</li>
             <li>End on time, end positive, name one thing each player did well.</li>
           </ul>`,
+      },
+      {
+        id: 'resources',
+        type: 'text',
+        title: 'Coaching Resources & Where to Learn More',
+        html: `
+          <h2>Keep Growing as a Coach</h2>
+          <p>This course is your starting point. The resources below — all free — will help you plan
+          better sessions, keep players safe, and continue your coaching education. We recommend
+          bookmarking these and returning to them throughout the season.</p>
+
+          <h3>⚽ U.S. Soccer coaching education</h3>
+          <ul>
+            <li><a href="https://learning.ussoccer.com/" target="_blank" rel="noopener">U.S. Soccer Learning Center</a>
+                — the official home for coaching licenses and courses, including the free
+                <strong>Introduction to Grassroots Coaching</strong> module.</li>
+            <li><a href="https://learning.ussoccer.com/coach/courses" target="_blank" rel="noopener">Grassroots Coaching Licenses</a>
+                — the 4v4, 7v7, 9v9, and 11v11 license pathways for youth coaches.</li>
+            <li><a href="https://www.ussoccer.com/coaching-education" target="_blank" rel="noopener">U.S. Soccer Coaching Education overview</a>
+                — how the licensing pathway fits together, from grassroots to pro.</li>
+          </ul>
+
+          <h3>🥅 Session plans &amp; activities</h3>
+          <ul>
+            <li><a href="https://www.usyouthsoccer.org/coaches/" target="_blank" rel="noopener">US Youth Soccer — Coaches Hub</a>
+                — age-appropriate drills, practice plans, and player-development guidance.</li>
+            <li><a href="https://www.ussoccer.com/coaching-education/play-practice-play" target="_blank" rel="noopener">Play–Practice–Play</a>
+                — a deeper look at the session model from this course.</li>
+          </ul>
+
+          <h3>🛡️ Player safety</h3>
+          <ul>
+            <li><a href="https://uscenterforsafesport.org/" target="_blank" rel="noopener">U.S. Center for SafeSport</a>
+                — abuse-prevention training and the standards every NCYSA coach follows.</li>
+            <li><a href="https://www.ncsoccer.org/" target="_blank" rel="noopener">NCYSA — North Carolina Youth Soccer</a>
+                — state-specific policies, background checks, and coach registration.</li>
+          </ul>
+
+          <h3>📖 Laws of the game</h3>
+          <ul>
+            <li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game</a>
+                — the official, current laws, free to read online.</li>
+          </ul>
+
+          <p style="margin-top:16px"><em>Tip: links open in a new tab so you won't lose your place here.
+          When you're ready, continue to the final exam.</em></p>`,
       },
       {
         id: 'final-exam',

@@ -280,3 +280,36 @@ a:hover { text-decoration: underline; }
 .certificate .cert-logo { height: 116px; margin-bottom: 16px; }
 .hero-logo { height: 132px; margin-bottom: 20px; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.35)); }
 .course-card .thumb .thumb-logo { height: 84px; margin-top: 12px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+
+/* ---------- role split (coach vs referee) ---------- */
+.role-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+.role-card {
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 28px 24px; text-decoration: none; color: var(--ink);
+  display: flex; flex-direction: column; gap: 6px; transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.role-card:hover { transform: translateY(-3px); border-color: var(--brand); text-decoration: none; }
+.role-card .role-emoji { font-size: 2.6rem; line-height: 1; }
+.role-card .role-emoji.big { font-size: 3.4rem; }
+.role-card h3 { font-size: 1.25rem; color: var(--brand-dark); }
+.role-card p { color: var(--ink-soft); font-size: 0.95rem; }
+.role-card .role-go { margin-top: 10px; font-weight: 700; color: var(--accent); }
+
+.role-hero { text-align: center; margin-bottom: 24px; }
+.role-hero .role-emoji { font-size: 3.6rem; }
+.role-hero h2 { margin-top: 8px; }
+.notice-card { max-width: 640px; margin: 0 auto; }
+.notice-card h3 { color: var(--brand-dark); margin-bottom: 10px; }
+.notice-card p { color: var(--ink-body); }
+.resource-links { margin: 14px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.resource-links li { color: var(--ink-body); }
+.back-link { display: inline-block; margin-bottom: 18px; font-weight: 600; }
+
+.auth-note {
+  margin-top: 14px; font-size: 0.82rem; color: var(--ink-soft);
+  background: var(--bg); border-radius: 9px; padding: 10px 12px; line-height: 1.5;
+}
+
+/* Links inside lesson reading content */
+.lesson-content a { font-weight: 600; text-decoration: underline; }
+.lesson-content a:hover { text-decoration: none; }

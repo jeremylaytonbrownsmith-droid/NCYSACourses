@@ -111,7 +111,25 @@ async function viewHome() {
       <div class="feature"><div class="fi">📨</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
     </div>
     <section class="section">
-      <h2>Course catalog</h2>
+      <h2>Which brings you here?</h2>
+      <p class="lead">NCYSA education for every role in the game — choose your path.</p>
+      <div class="role-split">
+        <a class="role-card" href="#/courses">
+          <div class="role-emoji">🧑‍🏫</div>
+          <h3>Coaches go here</h3>
+          <p>Grassroots licenses and coaching development — including the course below.</p>
+          <span class="role-go">View coach courses →</span>
+        </a>
+        <a class="role-card" href="#/referees">
+          <div class="role-emoji">🧑‍⚖️</div>
+          <h3>Referees go here</h3>
+          <p>Certification and Laws of the Game training for match officials.</p>
+          <span class="role-go">View referee courses →</span>
+        </a>
+      </div>
+    </section>
+    <section class="section" id="coach-courses">
+      <h2>Coach courses</h2>
       <p class="lead">Official NCYSA coaching education courses.</p>
       <div class="course-grid">${courses.map(courseCard).join('')}</div>
     </section>
@@ -166,7 +184,7 @@ async function viewCatalog() {
   bindCourseCards();
 }
 
-function authForm({ title, sub, fields, submitLabel, alt, onSubmit }) {
+function authForm({ title, sub, fields, submitLabel, alt, note, onSubmit }) {
   app.innerHTML = `
     <div class="auth-wrap"><div class="card">
       <h2>${title}</h2><p class="sub">${sub}</p>
@@ -179,6 +197,7 @@ function authForm({ title, sub, fields, submitLabel, alt, onSubmit }) {
         <div class="form-error" id="formError"></div>
         <button class="btn btn-primary btn-lg" style="width:100%" type="submit">${submitLabel}</button>
       </form>
+      ${note ? `<p class="auth-note">${note}</p>` : ''}
       <div class="auth-alt">${alt}</div>
     </div></div>`;
   document.getElementById('authForm').addEventListener('submit', async (e) => {
@@ -192,12 +211,12 @@ function authForm({ title, sub, fields, submitLabel, alt, onSubmit }) {
 function viewLogin() {
   authForm({
     title: 'Welcome back',
-    sub: 'Sign in to continue your coursework.',
+    sub: 'Enter your email to continue — no password needed.',
     fields: [
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
-      { name: 'password', label: 'Password', type: 'password', auto: 'current-password' },
     ],
-    submitLabel: 'Sign in',
+    submitLabel: 'Continue',
+    note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
     alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a>',
     onSubmit: async (v) => {
       await api('/api/login', { method: 'POST', body: v });
@@ -210,13 +229,13 @@ function viewLogin() {
 function viewRegister() {
   authForm({
     title: 'Create your free account',
-    sub: 'One account for all your NCYSA education courses.',
+    sub: 'Just your name and email — no password to set up.',
     fields: [
       { name: 'name', label: 'Full name', type: 'text', auto: 'name' },
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
-      { name: 'password', label: 'Password', type: 'password', auto: 'new-password' },
     ],
     submitLabel: 'Create account',
+    note: '🔒 No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
       await api('/api/register', { method: 'POST', body: v });
@@ -224,6 +243,32 @@ function viewRegister() {
       location.hash = '#/courses';
     },
   });
+}
+
+function viewReferees() {
+  app.innerHTML = `
+    <section class="section">
+      <a class="back-link" href="#/">← Back to home</a>
+      <div class="role-hero">
+        <div class="role-emoji big">🧑‍⚖️</div>
+        <h2>Referee education</h2>
+        <p class="lead">Certification and Laws of the Game training for NC match officials.</p>
+      </div>
+      <div class="card notice-card">
+        <h3>Referee courses are coming soon to NCYSA Learn</h3>
+        <p>We're building the same guided, trackable experience for referees that coaches get here —
+        entry-level certification, rules refreshers, and recertification. In the meantime, these
+        official resources will get you started:</p>
+        <ul class="resource-links">
+          <li><a href="https://www.ncsoccer.org/" target="_blank" rel="noopener">NCYSA — Referee registration &amp; clinics</a></li>
+          <li><a href="https://www.ussoccer.com/referee-program" target="_blank" rel="noopener">U.S. Soccer Referee Program</a></li>
+          <li><a href="https://learningcenter.ussoccer.com/" target="_blank" rel="noopener">U.S. Soccer Learning Center — referee courses</a></li>
+          <li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game</a></li>
+        </ul>
+        <p style="margin-top:14px">Want to be notified when referee courses launch?
+        <a href="#/register">Create a free account</a> and we'll have your profile ready.</p>
+      </div>
+    </section>`;
 }
 
 // ---------- course player ----------
@@ -599,6 +644,7 @@ async function viewAdmin() {
 const routes = [
   { re: /^#?\/?$/, fn: viewHome },
   { re: /^#\/courses$/, fn: viewCatalog },
+  { re: /^#\/referees$/, fn: viewReferees },
   { re: /^#\/login$/, fn: viewLogin },
   { re: /^#\/register$/, fn: viewRegister },
   { re: /^#\/course\/([\w-]+)$/, fn: (m) => viewCourse(m[1]) },
