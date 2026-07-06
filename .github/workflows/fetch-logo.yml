@@ -1,0 +1,25 @@
+# One-shot helper: downloads the official NCYSA logo (which the Claude Code
+# sandbox cannot reach directly) and commits it into the repo.
+name: Fetch official NCYSA logo
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download logo
+        run: |
+          curl -fL --retry 3 \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36" \
+            "https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB.png" \
+            -o public/media/ncysa-logo.png
+          file public/media/ncysa-logo.png
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/media/ncysa-logo.png
+          git commit -m "Add official NCYSA logo PNG"
+          git push

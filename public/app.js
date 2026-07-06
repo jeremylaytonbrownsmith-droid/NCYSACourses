@@ -5,7 +5,7 @@
 // repo, then the copy hosted on ncsoccer.org, then the bundled vector mark.
 const LOGO_SOURCES = [
   '/media/ncysa-logo.png',
-  'https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB-1.png',
+  'https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB.png',
   '/media/ncysa-logo.svg',
 ];
 window.logoNext = (img) => {
