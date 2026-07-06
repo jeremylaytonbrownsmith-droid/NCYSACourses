@@ -633,9 +633,117 @@ async function viewCertificate(certId) {
       <div class="seal">🏅</div>
     </div>
     <p style="text-align:center; margin-bottom:48px">
-      <button class="btn btn-primary" onclick="window.print()">Print certificate</button>
+      <button class="btn btn-primary" id="dlPdfBtn">⬇ Download PDF</button>
+      <button class="btn btn-ghost" id="printBtn" style="margin-left:10px">Print</button>
       <a class="btn btn-ghost" href="#/courses" style="margin-left:10px">Back to courses</a>
     </p>`;
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+  document.getElementById('dlPdfBtn').addEventListener('click', () => downloadCertificatePdf(c, date));
+}
+
+// ---- Client-side PDF certificate (no external library) --------------------
+// Draws the certificate on a canvas, then embeds it as a JPEG in a minimal
+// hand-built PDF and triggers a download. Fully self-contained (CSP-safe).
+async function downloadCertificatePdf(c, dateStr) {
+  const W = 1100, H = 800;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Background + gold double border
+  ctx.fillStyle = '#fffdf6'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#edc32c'; ctx.lineWidth = 6; ctx.strokeRect(28, 28, W - 56, H - 56);
+  ctx.lineWidth = 2; ctx.strokeRect(40, 40, W - 80, H - 80);
+
+  const center = (t, y, font, color, spacing) => {
+    ctx.font = font; ctx.fillStyle = color; ctx.textAlign = 'center';
+    if (spacing) {
+      ctx.save(); let total = 0; const chars = t.split('');
+      const widths = chars.map((ch) => ctx.measureText(ch).width + spacing);
+      total = widths.reduce((a, b) => a + b, 0) - spacing;
+      let x = W / 2 - total / 2; ctx.textAlign = 'left';
+      chars.forEach((ch, i) => { ctx.fillText(ch, x, y); x += widths[i]; });
+      ctx.restore();
+    } else ctx.fillText(t, W / 2, y);
+  };
+
+  // Logo (same-origin data-URI/PNG → canvas stays untainted). Fall back silently.
+  try {
+    const img = await new Promise((res, rej) => {
+      const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = LOGO_SOURCES[0];
+    });
+    const lw = 150, lh = lw * (img.height / img.width || 1.2);
+    ctx.drawImage(img, W / 2 - lw / 2, 70, lw, lh);
+  } catch { /* no logo, text-only certificate */ }
+
+  center('NORTH CAROLINA YOUTH SOCCER ASSOCIATION', 265, '600 15px Arial', '#6b645e', 3);
+  center('Certificate of Completion', 320, '800 40px Georgia, serif', '#10045a');
+  center('This certifies that', 385, '400 20px Arial', '#3d3833');
+  center(c.learner, 445, 'italic 700 46px Georgia, serif', '#1d1a18');
+  center('has successfully completed', 500, '400 20px Arial', '#3d3833');
+
+  // Course name (shrink to fit)
+  let cf = 30; ctx.font = `700 ${cf}px Arial`;
+  while (ctx.measureText(c.course).width > W - 200 && cf > 16) { cf -= 1; ctx.font = `700 ${cf}px Arial`; }
+  center(c.course, 555, `700 ${cf}px Arial`, '#10045a');
+
+  center(`Completed ${dateStr}  ·  Certificate ID ${c.certId}`, 620, '400 17px Arial', '#6b645e');
+  center('🏅', 690, '48px Arial', '#000');
+
+  // Canvas → JPEG → minimal PDF
+  const jpeg = canvas.toDataURL('image/jpeg', 0.92);
+  const bytes = atobToBytes(jpeg.split(',')[1]);
+  const pdf = jpegToPdf(bytes, W, H);
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `NCYSA-Certificate-${c.learner.replace(/[^a-z0-9]+/gi, '-')}.pdf`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function atobToBytes(b64) {
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+// Build a one-page PDF that displays a single full-page JPEG image.
+function jpegToPdf(jpegBytes, wpx, hpx) {
+  // Letter landscape points; fit the image to the page preserving aspect.
+  const pw = 792, ph = 612;
+  const scale = Math.min(pw / wpx, ph / hpx);
+  const iw = wpx * scale, ih = hpx * scale;
+  const ox = (pw - iw) / 2, oy = (ph - ih) / 2;
+
+  const enc = (s) => Array.from(s, (ch) => ch.charCodeAt(0));
+  const parts = []; const offsets = []; let len = 0;
+  const push = (bytesOrStr) => {
+    const b = typeof bytesOrStr === 'string' ? enc(bytesOrStr) : bytesOrStr;
+    parts.push(b); len += b.length;
+  };
+  const obj = (n, body) => { offsets[n] = len; push(`${n} 0 obj\n`); push(body); push('\nendobj\n'); };
+
+  push('%PDF-1.4\n');
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  // image object with the raw JPEG stream
+  offsets[4] = len;
+  push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${wpx} /Height ${hpx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+  push(jpegBytes);
+  push('\nendstream\nendobj\n');
+  const content = `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ox.toFixed(2)} ${oy.toFixed(2)} cm /Im0 Do Q`;
+  obj(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+
+  const xrefStart = len;
+  push('xref\n0 6\n0000000000 65535 f \n');
+  for (let i = 1; i <= 5; i++) push(String(offsets[i]).padStart(10, '0') + ' 00000 n \n');
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+
+  const out = new Uint8Array(len); let p = 0;
+  for (const b of parts) { out.set(b, p); p += b.length; }
+  return out;
 }
 
 async function viewNotifications() {
