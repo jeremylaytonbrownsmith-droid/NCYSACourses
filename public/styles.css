@@ -319,3 +319,7 @@ a:hover { text-decoration: underline; }
 /* Links inside lesson reading content */
 .lesson-content a { font-weight: 600; text-decoration: underline; }
 .lesson-content a:hover { text-decoration: none; }
+
+/* Staff sign-in link on the learner login card */
+.staff-link { display: inline-block; margin-top: 10px; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+.staff-link:hover { color: var(--brand); }

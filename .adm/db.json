@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "id": "usr_6c360151770e6f38",
+      "name": "NCYSA Education Staff",
+      "email": "admin@ncysa.org",
+      "role": "admin",
+      "salt": "03f30b808dc16e4b",
+      "passHash": "bfb4bc48f5ab3e227b7f440311ffd80a729e6b8b4de11ab1a9b92f7436437dc1",
+      "createdAt": "2026-07-06T22:54:02.635Z"
+    },
+    {
+      "id": "usr_600b1c0d39bc8709",
+      "name": "Lee",
+      "email": "lee@x.com",
+      "role": "learner",
+      "createdAt": "2026-07-06T22:54:03.670Z"
+    }
+  ],
+  "sessions": {
+    "8a4396ecc0683c58a462f9585e427d56ef159891c6558aa5": "usr_600b1c0d39bc8709",
+    "21a459d7456cd0ef75bf27f272130f9c77c2cb317b9d5fc4": "usr_6c360151770e6f38"
+  },
+  "enrollments": [],
+  "lessonProgress": [],
+  "notifications": [],
+  "outbox": []
+}

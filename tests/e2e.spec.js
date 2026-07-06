@@ -120,11 +120,24 @@ test('full learner journey through the coaching license course', async ({ page }
   await expect(page.locator('.notif h3')).toContainText('You completed NCYSA Grassroots Soccer Coaching License');
   await page.screenshot({ path: `${SNAP}/11-learner-notification.png` });
 
-  // --- 10. NCYSA side: dashboard, notification, and both emails ---------------
+  // --- 9b. A non-admin cannot reach the dashboard ----------------------------
+  await expect(page.locator('.topnav')).not.toContainText('NCYSA Dashboard'); // no link for learners
+  await page.goto('/#/admin'); // direct navigation is still blocked server-side
+  await expect(page.locator('#app')).toContainText('staff', { ignoreCase: true });
+  await expect(page.locator('.admin-table')).toHaveCount(0);
+
+  // --- 10. NCYSA staff sign-in requires a password ---------------------------
   await page.click('#logoutBtn');
   await page.click('.topnav a:has-text("Sign in")');
+  await expect(page.locator('.staff-link')).toBeVisible(); // staff entry point present
+  await page.goto('/#/staff');
+  await expect(page.locator('.card h2')).toContainText('staff', { ignoreCase: true });
   await page.fill('#email', 'admin@ncysa.org');
-  await page.click('button:has-text("Continue")');
+  await page.fill('#password', 'wrong-password');
+  await page.click('button:has-text("Sign in")');
+  await expect(page.locator('#formError')).toContainText('Incorrect'); // wrong password rejected
+  await page.fill('#password', 'ncysa-staff-2026');
+  await page.click('button:has-text("Sign in")');
   await page.click('text=NCYSA Dashboard');
 
   await expect(page.locator('.admin-table')).toContainText('Jordan Ellis');

@@ -22,6 +22,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- auth helpers ----------
 
+// Staff accounts are password-protected (learners remain passwordless).
+function hashPassword(password, salt) {
+  return crypto.scryptSync(String(password), salt, 32).toString('hex');
+}
+
 function setSession(res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
@@ -53,18 +58,25 @@ function requireAdmin(req, res, next) {
   });
 }
 
-// Seed the NCYSA admin account so the association can see completions.
-// Passwordless like everything else in the demo — sign in with this email.
+// Seed the NCYSA admin account. Staff sign-in requires a password so random
+// visitors can't reach the dashboard just by typing the admin email. Set a
+// strong ADMIN_PASSWORD in production; the default exists only for local/demo.
 (function seedAdmin() {
   const db = load();
-  if (!db.users.some((u) => u.role === 'admin')) {
+  const email = process.env.ADMIN_EMAIL || 'admin@ncysa.org';
+  const password = process.env.ADMIN_PASSWORD || 'ncysa-staff-2026';
+  const existing = db.users.find((u) => u.role === 'admin');
+  const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
+  const passHash = hashPassword(password, salt);
+  if (!existing) {
     db.users.push({
-      id: id('usr'),
-      name: 'NCYSA Education Staff',
-      email: process.env.ADMIN_EMAIL || 'admin@ncysa.org',
-      role: 'admin',
-      createdAt: new Date().toISOString(),
+      id: id('usr'), name: 'NCYSA Education Staff', email,
+      role: 'admin', salt, passHash, createdAt: new Date().toISOString(),
     });
+    save();
+  } else if (existing.passHash !== passHash || existing.email !== email) {
+    // Keep the seeded admin in sync with the configured credentials.
+    existing.email = email; existing.salt = salt; existing.passHash = passHash;
     save();
   }
 })();
@@ -139,13 +151,18 @@ app.post('/api/register', (req, res) => {
   res.json({ user: { id: user.id, name, email, role: user.role } });
 });
 
-// Passwordless sign-in for the demo: enter the email you registered with.
+// Sign-in. Learners are passwordless (email only). Staff/admin accounts
+// require the correct password, so only authorized staff reach the dashboard.
 app.post('/api/login', (req, res) => {
-  const { email } = req.body || {};
+  const { email, password } = req.body || {};
   const db = load();
   const user = db.users.find((u) => u.email.toLowerCase() === String(email || '').toLowerCase());
   if (!user)
     return res.status(401).json({ error: 'No account with that email yet — use “Get started” to create one.' });
+  if (user.role === 'admin') {
+    if (!password || !user.passHash || hashPassword(password, user.salt) !== user.passHash)
+      return res.status(401).json({ error: 'Incorrect staff password.', needsPassword: true });
+  }
   setSession(res, user.id);
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });

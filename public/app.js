@@ -230,11 +230,30 @@ function viewLogin() {
     ],
     submitLabel: 'Continue',
     note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
-    alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a>',
+    alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
     onSubmit: async (v) => {
       await api('/api/login', { method: 'POST', body: v });
       await refreshMe();
       location.hash = '#/courses';
+    },
+  });
+}
+
+function viewStaffLogin() {
+  authForm({
+    title: 'NCYSA staff sign-in',
+    sub: 'Authorized staff only — access to the education dashboard and completion records.',
+    fields: [
+      { name: 'email', label: 'Staff email', type: 'email', auto: 'email' },
+      { name: 'password', label: 'Staff password', type: 'password', auto: 'current-password' },
+    ],
+    submitLabel: 'Sign in',
+    note: '🔒 The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
+    alt: 'Not staff? <a href="#/login">Learner sign-in</a>',
+    onSubmit: async (v) => {
+      await api('/api/login', { method: 'POST', body: v });
+      await refreshMe();
+      location.hash = '#/admin';
     },
   });
 }
@@ -662,6 +681,7 @@ const routes = [
   { re: /^#\/courses$/, fn: viewCatalog },
   { re: /^#\/referees$/, fn: viewReferees },
   { re: /^#\/login$/, fn: viewLogin },
+  { re: /^#\/staff$/, fn: viewStaffLogin },
   { re: /^#\/register$/, fn: viewRegister },
   { re: /^#\/course\/([\w-]+)$/, fn: (m) => viewCourse(m[1]) },
   { re: /^#\/course\/([\w-]+)\/lesson\/([\w-]+)$/, fn: (m) => viewCourse(m[1], m[2]) },

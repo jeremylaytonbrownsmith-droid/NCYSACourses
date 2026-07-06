@@ -341,6 +341,10 @@ a:hover { text-decoration: underline; }
 .lesson-content a { font-weight: 600; text-decoration: underline; }
 .lesson-content a:hover { text-decoration: none; }
 
+/* Staff sign-in link on the learner login card */
+.staff-link { display: inline-block; margin-top: 10px; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+.staff-link:hover { color: var(--brand); }
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -384,7 +388,7 @@ a:hover { text-decoration: underline; }
 <div class="demo-bar">
   <span>🧪 <strong>DEMO — TEST MODE.</strong></span>
   <span><strong>To review:</strong> click <strong>Get started</strong>, enter any name &amp; email (no password — nothing is sent anywhere), then take the course.</span>
-  <span><strong>NCYSA staff view:</strong> sign in with the email <code>admin@ncysa.org</code></span>
+  <span><strong>NCYSA staff view:</strong> use <strong>staff sign-in</strong> — <code>admin@ncysa.org</code> / password <code>ncysa-staff-2026</code></span>
   <label><input type="checkbox" id="demoSpeed" /> 8× video speed</label>
   <button id="demoReset" type="button">Reset demo</button>
 </div>
@@ -684,7 +688,7 @@ function demoLoad() {
   try { return JSON.parse(localStorage.getItem(DB_KEY)) || null; } catch { return null; }
 }
 let DB = demoLoad() || {
-  users: [{ id: 'usr_admin', name: 'NCYSA Education Staff', email: 'admin@ncysa.org', role: 'admin' }],
+  users: [{ id: 'usr_admin', name: 'NCYSA Education Staff', email: 'admin@ncysa.org', role: 'admin', password: 'ncysa-staff-2026' }],
   currentUserId: null,
   enrollments: [], lessonProgress: [], notifications: [], outbox: [],
 };
@@ -787,6 +791,8 @@ function mockFetch(path, opts = {}) {
   if (path === '/api/login') {
     const u = DB.users.find((x) => x.email.toLowerCase() === String(body.email || '').toLowerCase());
     if (!u) return R(401, { error: 'No account with that email yet — use “Get started” to create one.' });
+    if (u.role === 'admin' && body.password !== u.password)
+      return R(401, { error: 'Incorrect staff password.', needsPassword: true });
     DB.currentUserId = u.id; demoSave();
     return R(200, { user: u });
   }
@@ -1159,11 +1165,30 @@ function viewLogin() {
     ],
     submitLabel: 'Continue',
     note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
-    alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a>',
+    alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
     onSubmit: async (v) => {
       await api('/api/login', { method: 'POST', body: v });
       await refreshMe();
       location.hash = '#/courses';
+    },
+  });
+}
+
+function viewStaffLogin() {
+  authForm({
+    title: 'NCYSA staff sign-in',
+    sub: 'Authorized staff only — access to the education dashboard and completion records.',
+    fields: [
+      { name: 'email', label: 'Staff email', type: 'email', auto: 'email' },
+      { name: 'password', label: 'Staff password', type: 'password', auto: 'current-password' },
+    ],
+    submitLabel: 'Sign in',
+    note: '🔒 The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
+    alt: 'Not staff? <a href="#/login">Learner sign-in</a>',
+    onSubmit: async (v) => {
+      await api('/api/login', { method: 'POST', body: v });
+      await refreshMe();
+      location.hash = '#/admin';
     },
   });
 }
@@ -1591,6 +1616,7 @@ const routes = [
   { re: /^#\/courses$/, fn: viewCatalog },
   { re: /^#\/referees$/, fn: viewReferees },
   { re: /^#\/login$/, fn: viewLogin },
+  { re: /^#\/staff$/, fn: viewStaffLogin },
   { re: /^#\/register$/, fn: viewRegister },
   { re: /^#\/course\/([\w-]+)$/, fn: (m) => viewCourse(m[1]) },
   { re: /^#\/course\/([\w-]+)\/lesson\/([\w-]+)$/, fn: (m) => viewCourse(m[1], m[2]) },

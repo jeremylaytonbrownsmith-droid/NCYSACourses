@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "id": "usr_c4c874c62a40f023",
+      "name": "NCYSA Education Staff",
+      "email": "admin@ncysa.org",
+      "role": "admin",
+      "salt": "9e086bddb8673360",
+      "passHash": "c53e1fa6c634cc0857ea2add274529dcdcb94d085534c0a44d18977abdf5f094",
+      "createdAt": "2026-07-06T22:57:19.012Z"
+    }
+  ],
+  "sessions": {},
+  "enrollments": [],
+  "lessonProgress": [],
+  "notifications": [],
+  "outbox": []
+}
