@@ -421,3 +421,12 @@ a:hover { text-decoration: underline; }
 .quiz-edit { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
 .quiz-edit .opt-row { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
 .quiz-edit .opt-row input[type="radio"] { flex: none; }
+
+/* ---------- admin dashboard filters + CSV ---------- */
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.filter-bar input, .filter-bar select { padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); }
+.filter-bar #fltSearch { flex: 1; min-width: 180px; }
+.date-flt { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
+.filter-count { margin-top: 10px; font-size: 0.82rem; color: var(--ink-soft); }

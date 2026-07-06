@@ -443,6 +443,15 @@ a:hover { text-decoration: underline; }
 .quiz-edit .opt-row { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
 .quiz-edit .opt-row input[type="radio"] { flex: none; }
 
+/* ---------- admin dashboard filters + CSV ---------- */
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.filter-bar input, .filter-bar select { padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); }
+.filter-bar #fltSearch { flex: 1; min-width: 180px; }
+.date-flt { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
+.filter-count { margin-top: 10px; font-size: 0.82rem; color: var(--ink-soft); }
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -1872,14 +1881,20 @@ async function viewAdmin() {
         ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
       <div class="admin-grid">
         <div class="admin-card">
-          <h2>🏅 Course completions (license records)</h2>
-          ${d.completions.length ? `
-            <table class="admin-table">
-              <tr><th>Learner</th><th>Email</th><th>Course</th><th>Completed</th><th>Certificate</th></tr>
-              ${d.completions.map((c) => `
-                <tr><td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
-                    <td>${new Date(c.completedAt).toLocaleString()}</td><td>${esc(c.certId)}</td></tr>`).join('')}
-            </table>` : '<p class="empty">No completions yet.</p>'}
+          <div class="card-head">
+            <h2>🏅 Course completions (license records)</h2>
+            <button class="btn btn-primary btn-sm" id="exportCsvBtn">⬇ Export CSV</button>
+          </div>
+          <div class="filter-bar">
+            <input id="fltSearch" placeholder="Search name or email…" />
+            <select id="fltCourse">
+              <option value="">All courses</option>
+              ${[...new Set(d.completions.map((c) => c.course).filter(Boolean))].map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+            </select>
+            <label class="date-flt">From <input id="fltFrom" type="date" /></label>
+            <label class="date-flt">To <input id="fltTo" type="date" /></label>
+          </div>
+          <div id="completionsTable"></div>
         </div>
         <div class="admin-card">
           <h2>🔔 NCYSA notifications</h2>
@@ -1901,6 +1916,61 @@ async function viewAdmin() {
         </div>
       </div>
     </div>`;
+
+  // ---- completions: search, filter, and CSV export ----
+  const rows = d.completions;
+  const els = {
+    search: document.getElementById('fltSearch'),
+    course: document.getElementById('fltCourse'),
+    from: document.getElementById('fltFrom'),
+    to: document.getElementById('fltTo'),
+    table: document.getElementById('completionsTable'),
+  };
+  function filtered() {
+    const q = els.search.value.trim().toLowerCase();
+    const course = els.course.value;
+    const from = els.from.value ? new Date(els.from.value + 'T00:00:00') : null;
+    const to = els.to.value ? new Date(els.to.value + 'T23:59:59') : null;
+    return rows.filter((c) => {
+      if (q && !((c.learner || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))) return false;
+      if (course && c.course !== course) return false;
+      const when = new Date(c.completedAt);
+      if (from && when < from) return false;
+      if (to && when > to) return false;
+      return true;
+    });
+  }
+  function renderTable() {
+    const list = filtered();
+    els.table.innerHTML = list.length ? `
+      <table class="admin-table">
+        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Completed</th><th>Certificate</th></tr>
+        ${list.map((c) => `<tr><td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
+          <td>${new Date(c.completedAt).toLocaleString()}</td><td>${esc(c.certId)}</td></tr>`).join('')}
+      </table>
+      <p class="filter-count">${list.length} of ${rows.length} completion${rows.length === 1 ? '' : 's'}</p>`
+      : '<p class="empty">No completions match these filters.</p>';
+  }
+  if (els.table) {
+    ['input', 'change'].forEach((ev) => {
+      els.search.addEventListener(ev, renderTable); els.course.addEventListener(ev, renderTable);
+      els.from.addEventListener(ev, renderTable); els.to.addEventListener(ev, renderTable);
+    });
+    renderTable();
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const list = filtered();
+      const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csv = [['Learner', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
+        .concat(list.map((c) => [c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
+        .join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ncysa-completions-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    });
+  }
 }
 
 // ---------- admin course editor ----------
