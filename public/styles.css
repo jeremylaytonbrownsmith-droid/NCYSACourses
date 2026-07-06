@@ -273,5 +273,8 @@ a:hover { text-decoration: underline; }
 .footer { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 40px 20px; }
 
 /* ---------- brand mark ---------- */
-.topnav .logo .brandmark { height: 44px; width: auto; display: block; }
+.topnav .logo .brandmark {
+  height: 48px; width: auto; display: block;
+  background: #fff; border-radius: 8px; padding: 4px 8px;
+}
 .certificate .cert-logo { height: 86px; margin-bottom: 14px; }

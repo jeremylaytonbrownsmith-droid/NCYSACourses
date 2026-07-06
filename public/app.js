@@ -1,10 +1,21 @@
 /* NCYSA Learn — single-page app.
    Hash routing keeps the whole product one static bundle behind one Express server. */
 
-// Official NCYSA logo, hotlinked from ncsoccer.org; falls back to the bundled
-// vector mark if the remote image is unavailable.
-const LOGO_URL = 'https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB-1.png';
-const LOGO_FALLBACK = "this.onerror=null;this.src='/media/ncysa-logo.svg'";
+// Official NCYSA logo. Preference order: the official PNG committed to this
+// repo, then the copy hosted on ncsoccer.org, then the bundled vector mark.
+const LOGO_SOURCES = [
+  '/media/ncysa-logo.png',
+  'https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB-1.png',
+  '/media/ncysa-logo.svg',
+];
+window.logoNext = (img) => {
+  const i = Number(img.dataset.idx) + 1;
+  if (i < LOGO_SOURCES.length) { img.dataset.idx = i; img.src = LOGO_SOURCES[i]; }
+  else img.onerror = null;
+};
+function logoImg(cls) {
+  return `<img class="${cls}" src="${LOGO_SOURCES[0]}" data-idx="0" onerror="logoNext(this)" alt="NC Youth Soccer logo" />`;
+}
 
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
@@ -49,7 +60,7 @@ function renderNav() {
   const user = me?.user;
   topnav.innerHTML = `
     <a class="logo" href="#/">
-      <img class="brandmark" src="${LOGO_URL}" onerror="${LOGO_FALLBACK}" alt="NC Youth Soccer logo" />
+      ${logoImg('brandmark')}
       <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
     </a>
     <span class="spacer"></span>
@@ -495,7 +506,7 @@ async function viewCertificate(certId) {
   const date = new Date(c.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   app.innerHTML = `
     <div class="certificate">
-      <img class="cert-logo" src="${LOGO_URL}" onerror="${LOGO_FALLBACK}" alt="NC Youth Soccer logo" />
+      ${logoImg('cert-logo')}
       <div class="org">North Carolina Youth Soccer Association</div>
       <h1>Certificate of Completion</h1>
       <p>This certifies that</p>
