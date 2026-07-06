@@ -1,0 +1,21 @@
+{
+  "name": "ncysa-learn",
+  "version": "1.0.0",
+  "description": "NCYSA Learn - self-hosted coaching education platform for the North Carolina Youth Soccer Association",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeremylaytonbrownsmith-droid/NCYSACourses"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "express": "^4.22.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}
