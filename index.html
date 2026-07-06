@@ -359,6 +359,62 @@ a:hover { text-decoration: underline; }
 .resume-meta { font-size: 0.82rem; color: #dcd7f5; }
 .resume-btn { white-space: nowrap; }
 
+/* ============================================================
+   Mobile responsiveness (phones ~390px and up)
+   ============================================================ */
+@media (max-width: 600px) {
+  :root { font-size: 15px; }
+
+  /* Nav: keep it on one row and inside the viewport */
+  .topnav { padding: 0 12px; gap: 8px; height: 58px; }
+  .topnav .logo .sub { display: none; }          /* drop subtitle on phones */
+  .topnav .logo span { font-size: 1.02rem; }
+  .topnav .brandmark { height: 40px; padding: 2px 4px; }
+  .topnav .navlink { padding: 6px 6px; font-size: 0.92rem; }
+  .topnav .greeting { display: none; }            /* greeting is non-essential */
+  .topnav .nav-courses { display: none; }         /* Courses lives on the home page */
+  .topnav .btn { padding: 8px 12px; font-size: 0.9rem; }
+  .topnav .bell { padding: 4px 6px; }
+
+  /* Generic section padding */
+  .section { padding: 36px 16px; }
+  .hero { padding: 48px 18px 60px; }
+  .feature-strip { margin-top: -30px; padding: 0 16px; gap: 12px; }
+
+  /* Resume banner stacks */
+  .resume-inner { padding: 16px; }
+  .resume-btn { width: 100%; text-align: center; }
+
+  /* Course player: lesson content first, curriculum below (both full width) */
+  .player-layout { display: flex; flex-direction: column; }
+  .lesson-pane { order: -1; padding: 26px 18px; }
+  .lesson-pane h1 { font-size: 1.4rem; }
+  .curriculum { padding: 8px 0 20px; }
+
+  /* Video controls comfortable to tap */
+  .v-controls button { font-size: 1.4rem; padding: 8px 10px; }
+
+  /* Certificate fits the screen */
+  .certificate { padding: 32px 20px; margin: 24px auto; }
+  .certificate h1 { font-size: 1.5rem; }
+  .certificate .learner-name { font-size: 1.7rem; }
+  .certificate .course-name { font-size: 1.05rem; }
+
+  /* Auth + notifications full-bleed-ish */
+  .auth-wrap { margin: 32px auto; }
+  .admin-wrap, .notif-list { padding: 0 14px; }
+
+  /* Wide tables scroll inside their card, never the page body */
+  .admin-card { padding: 16px; }
+  .lesson-content table { font-size: 0.85rem; }
+}
+
+/* Larger tap targets on any touch device */
+@media (hover: none) {
+  .btn, .lesson-item, .bell, .v-controls button, .quiz-opt { min-height: 44px; }
+  .quiz-opt { align-items: center; }
+}
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -1026,11 +1082,11 @@ function renderNav() {
       <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
     </a>
     <span class="spacer"></span>
-    <a class="navlink" href="#/courses">Courses</a>
+    <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
-      ${user.role === 'admin' ? '<a class="navlink" href="#/admin">NCYSA Dashboard</a>' : ''}
+      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
-      <span class="navlink" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
+      <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
     ` : `
       <a class="navlink" href="#/login">Sign in</a>
@@ -1301,6 +1357,7 @@ async function viewCourse(courseId, lessonId) {
           <div class="prog-label">${progress.completedLessons} of ${progress.totalLessons} lessons complete · ${progress.percent}%</div>
           <div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div>
         </div>
+        <div class="curriculum-lessons">
         ${course.lessons.map((l, i) => {
           const st = progress.lessons.find((p) => p.id === l.id);
           const cls = ['lesson-item', l.id === lesson.id ? 'active' : '', st.unlocked ? '' : 'locked'].join(' ');
@@ -1310,6 +1367,7 @@ async function viewCourse(courseId, lessonId) {
             <span class="l-title">${esc(l.title)}<span class="l-type">${typeLabel[l.type] || l.type}</span></span>
           </button>`;
         }).join('')}
+        </div>
       </aside>
       <section class="lesson-pane" id="lessonPane"></section>
     </div>`;

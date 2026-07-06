@@ -77,11 +77,11 @@ function renderNav() {
       <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
     </a>
     <span class="spacer"></span>
-    <a class="navlink" href="#/courses">Courses</a>
+    <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
-      ${user.role === 'admin' ? '<a class="navlink" href="#/admin">NCYSA Dashboard</a>' : ''}
+      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
-      <span class="navlink" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
+      <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
     ` : `
       <a class="navlink" href="#/login">Sign in</a>
@@ -352,6 +352,7 @@ async function viewCourse(courseId, lessonId) {
           <div class="prog-label">${progress.completedLessons} of ${progress.totalLessons} lessons complete · ${progress.percent}%</div>
           <div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div>
         </div>
+        <div class="curriculum-lessons">
         ${course.lessons.map((l, i) => {
           const st = progress.lessons.find((p) => p.id === l.id);
           const cls = ['lesson-item', l.id === lesson.id ? 'active' : '', st.unlocked ? '' : 'locked'].join(' ');
@@ -361,6 +362,7 @@ async function viewCourse(courseId, lessonId) {
             <span class="l-title">${esc(l.title)}<span class="l-type">${typeLabel[l.type] || l.type}</span></span>
           </button>`;
         }).join('')}
+        </div>
       </aside>
       <section class="lesson-pane" id="lessonPane"></section>
     </div>`;
