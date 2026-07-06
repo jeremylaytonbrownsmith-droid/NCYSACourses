@@ -134,11 +134,11 @@ module.exports = [
         id: 'session-video',
         type: 'video',
         title: 'Video: A Grassroots Training Session in Action',
-        videoUrl: '/media/lesson-video.webm',
-        durationSeconds: 60,
+        videoUrl: '/media/lesson-video.mp4',
+        durationSeconds: 93,
         // The watch gate: for a 60s video the learner must watch 58s of real
         // playback. Generalized as duration - 2 seconds.
-        minWatchSeconds: 58,
+        minWatchSeconds: 91,
         html: `
           <p>Watch this training session demonstration from start to finish. As you watch, look for:</p>
           <ul>
