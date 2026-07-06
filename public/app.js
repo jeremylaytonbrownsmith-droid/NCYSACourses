@@ -1,6 +1,11 @@
 /* NCYSA Learn — single-page app.
    Hash routing keeps the whole product one static bundle behind one Express server. */
 
+// Official NCYSA logo, hotlinked from ncsoccer.org; falls back to the bundled
+// vector mark if the remote image is unavailable.
+const LOGO_URL = 'https://www.ncsoccer.org/wp-content/uploads/sites/167/2026/02/cropped-USYS_NCYSA_50th_RGB-1.png';
+const LOGO_FALLBACK = "this.onerror=null;this.src='/media/ncysa-logo.svg'";
+
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
 let me = null;        // { user, unread }
@@ -44,7 +49,7 @@ function renderNav() {
   const user = me?.user;
   topnav.innerHTML = `
     <a class="logo" href="#/">
-      <img class="brandmark" src="/media/ncysa-logo.svg" alt="NC Youth Soccer logo" />
+      <img class="brandmark" src="${LOGO_URL}" onerror="${LOGO_FALLBACK}" alt="NC Youth Soccer logo" />
       <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
     </a>
     <span class="spacer"></span>
@@ -490,7 +495,7 @@ async function viewCertificate(certId) {
   const date = new Date(c.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   app.innerHTML = `
     <div class="certificate">
-      <img class="cert-logo" src="/media/ncysa-logo.svg" alt="NC Youth Soccer logo" />
+      <img class="cert-logo" src="${LOGO_URL}" onerror="${LOGO_FALLBACK}" alt="NC Youth Soccer logo" />
       <div class="org">North Carolina Youth Soccer Association</div>
       <h1>Certificate of Completion</h1>
       <p>This certifies that</p>
