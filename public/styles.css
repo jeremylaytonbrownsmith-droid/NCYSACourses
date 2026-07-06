@@ -279,4 +279,4 @@ a:hover { text-decoration: underline; }
 }
 .certificate .cert-logo { height: 116px; margin-bottom: 16px; }
 .hero-logo { height: 132px; margin-bottom: 20px; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.35)); }
-.course-card .thumb .thumb-logo { height: 112px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+.course-card .thumb .thumb-logo { height: 84px; margin-top: 12px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }

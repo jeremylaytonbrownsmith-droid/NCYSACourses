@@ -191,7 +191,7 @@ function authForm({ title, sub, fields, submitLabel, alt, onSubmit }) {
 
 function viewLogin() {
   authForm({
-    title: 'Welcome back, Coach',
+    title: 'Welcome back',
     sub: 'Sign in to continue your coursework.',
     fields: [
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
@@ -210,7 +210,7 @@ function viewLogin() {
 function viewRegister() {
   authForm({
     title: 'Create your free account',
-    sub: 'One account for all your NCYSA coaching education.',
+    sub: 'One account for all your NCYSA education courses.',
     fields: [
       { name: 'name', label: 'Full name', type: 'text', auto: 'name' },
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
@@ -355,19 +355,26 @@ function renderVideoLesson(pane, course, lesson, lp) {
   const muteBtn = document.getElementById('muteBtn');
   const completeBtn = document.getElementById('completeBtn');
 
-  let serverWatched = lp.watchedSeconds || 0; // seconds the server has credited
-  let pending = 0;                            // accrued locally, not yet reported
-  let lastT = null;                           // last observed currentTime while playing
-  let maxPlayed = serverWatched;              // furthest point legitimately reached
+  // We credit watch time by the furthest point the learner has legitimately
+  // reached through real playback (a high-water mark), not by summing per-tick
+  // deltas — the latter silently loses fractional seconds and could strand a
+  // diligent viewer just short of the requirement. Because seeking forward is
+  // blocked (see below), maxPlayed only advances during genuine playback, so
+  // it is both lossless and cheat-resistant. The server clamps how far this can
+  // jump per heartbeat, so a forged request still can't skip the whole video.
+  let serverWatched = lp.watchedSeconds || 0; // furthest point the server has credited
+  let maxPlayed = serverWatched;              // furthest point reached via real playback
+  let lastReported = serverWatched;           // last position sent to the server
   let satisfied = lp.completed || serverWatched >= required;
   let sending = false;
 
   function updateMeter() {
-    const total = Math.min(required, serverWatched + pending);
+    const total = Math.min(required, Math.max(serverWatched, maxPlayed));
     document.getElementById('watchFill').style.width = `${Math.min(100, (total / required) * 100)}%`;
     const label = document.getElementById('watchLabel');
     label.textContent = `${Math.floor(total)}s / ${required}s`;
-    if (satisfied) {
+    if (satisfied || maxPlayed >= required) {
+      satisfied = true;
       label.innerHTML = `<span class="ok">✓ Requirement met</span>`;
       if (completeBtn) {
         completeBtn.disabled = false;
@@ -378,34 +385,29 @@ function renderVideoLesson(pane, course, lesson, lp) {
   }
 
   async function flushWatch(force = false) {
-    if (sending || satisfied || (pending < 4 && !force) || pending <= 0) return;
+    // Report the furthest point played. Skip if nothing new to report.
+    if (sending || (!force && maxPlayed - lastReported < 4)) return;
+    if (maxPlayed <= lastReported && !force) return;
     sending = true;
-    const send = pending;
-    pending = 0;
+    const position = maxPlayed;
     try {
       const r = await api(`/api/courses/${course.id}/lessons/${lesson.id}/watch`, {
-        method: 'POST', body: { secondsWatched: send },
+        method: 'POST', body: { position },
       });
       serverWatched = r.watchedSeconds;
+      lastReported = position;
       if (r.satisfied) satisfied = true;
-    } catch { pending += send; } // report again on next flush
+    } catch { /* keep lastReported; retry on next flush */ }
     sending = false;
     updateMeter();
   }
 
   video.addEventListener('timeupdate', () => {
-    if (!video.paused && lastT != null) {
-      const delta = video.currentTime - lastT;
-      // Normal playback advances in small steps; a big jump means a seek.
-      // Threshold scales with playback rate so late timeupdate events on a
-      // busy tab aren't misread as seeks (which would silently drop credit).
-      const maxStep = Math.max(5, (video.playbackRate || 1) * 1.5);
-      if (delta > 0 && delta < maxStep) {
-        pending += delta;
-        maxPlayed = Math.max(maxPlayed, video.currentTime);
-      }
+    // Advance the high-water mark only during real playback. Seeking forward is
+    // blocked, so currentTime can only exceed maxPlayed by playing through.
+    if (!video.paused && video.currentTime > maxPlayed) {
+      maxPlayed = Math.min(video.duration || lesson.durationSeconds, video.currentTime);
     }
-    lastT = video.currentTime;
     document.getElementById('vFill').style.width = `${(video.currentTime / (video.duration || lesson.durationSeconds)) * 100}%`;
     document.getElementById('vTime').textContent = `${fmtTime(video.currentTime)} / ${fmtTime(video.duration || lesson.durationSeconds)}`;
     updateMeter();
@@ -418,11 +420,18 @@ function renderVideoLesson(pane, course, lesson, lp) {
       video.currentTime = maxPlayed;
       toast('⏩ Skipping ahead is disabled for this lesson.', true);
     }
-    lastT = video.currentTime;
   });
-  video.addEventListener('play', () => { lastT = video.currentTime; });
-  video.addEventListener('pause', () => { lastT = null; flushWatch(true); });
-  video.addEventListener('ended', () => { playBtn.textContent = '▶'; flushWatch(true); });
+  video.addEventListener('pause', () => flushWatch(true));
+  video.addEventListener('ended', () => {
+    playBtn.textContent = '▶';
+    // Reaching the end is only possible by playing through (seeking forward is
+    // blocked), so the learner has watched the whole video — credit its full
+    // length, including the final seconds that pause between the last
+    // timeupdate and this event.
+    maxPlayed = video.duration || lesson.durationSeconds;
+    updateMeter();
+    flushWatch(true);
+  });
 
   playBtn.addEventListener('click', () => {
     if (video.paused) { video.play(); playBtn.textContent = '⏸'; }
@@ -494,7 +503,7 @@ async function showCourseComplete(course, certId, score) {
   app.innerHTML = `
     <div class="complete-hero">
       <div class="big">🏆</div>
-      <h1>Congratulations, Coach!</h1>
+      <h1>Congratulations!</h1>
       <p>You have completed <strong>${esc(course.title)}</strong>${score != null ? ` with a final exam score of <strong>${score}%</strong>` : ''}.</p>
       <div>
         <span class="notice-sent">📨 A completion notice has been sent to you and to NCYSA</span>

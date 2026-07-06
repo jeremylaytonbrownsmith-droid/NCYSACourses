@@ -242,9 +242,12 @@ function upsertProgress(db, userId, courseId, lessonId) {
   return rec;
 }
 
-// Video heartbeat: the player reports real playback in small increments.
-// Increments are capped server-side so a client can't claim a whole video in
-// one call. (Cap is generous enough for 2x playback + timer jitter.)
+// Video heartbeat. The player reports `position` — the furthest point it has
+// reached through real playback. The server credits watch time up to that point
+// but never lets it jump more than WATCH_STEP_CAP seconds in a single call, so a
+// forged request still can't skip the whole video (it would take many calls over
+// real time). Legacy `secondsWatched` (a delta) is still accepted for safety.
+const WATCH_STEP_CAP = 30;
 app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, res) => {
   const found = findLesson(req, res);
   if (!found) return;
@@ -253,12 +256,20 @@ app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, re
   const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id);
   if (!st.unlocked) return res.status(403).json({ error: 'This lesson is locked. Complete the previous lessons first.' });
 
-  const delta = Number(req.body?.secondsWatched) || 0;
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
-  rec.watchedSeconds = Math.min(
-    lesson.durationSeconds,
-    rec.watchedSeconds + Math.max(0, Math.min(delta, 30))
-  );
+  const position = Number(req.body?.position);
+  if (Number.isFinite(position)) {
+    rec.watchedSeconds = Math.min(
+      lesson.durationSeconds,
+      Math.max(rec.watchedSeconds, Math.min(position, rec.watchedSeconds + WATCH_STEP_CAP))
+    );
+  } else {
+    const delta = Number(req.body?.secondsWatched) || 0;
+    rec.watchedSeconds = Math.min(
+      lesson.durationSeconds,
+      rec.watchedSeconds + Math.max(0, Math.min(delta, WATCH_STEP_CAP))
+    );
+  }
   save();
   res.json({
     watchedSeconds: rec.watchedSeconds,

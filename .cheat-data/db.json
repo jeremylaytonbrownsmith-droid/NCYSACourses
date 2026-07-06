@@ -1,0 +1,92 @@
+{
+  "users": [
+    {
+      "id": "usr_cddb524a43de9f70",
+      "name": "NCYSA Education Staff",
+      "email": "admin@ncysa.org",
+      "salt": "b07f2a9df33393e9",
+      "passHash": "5f20d972ba77d667f0b11206ed8a18c14176d0c9db6dad4bfaaf727da8086882",
+      "role": "admin",
+      "createdAt": "2026-07-06T20:24:57.832Z"
+    },
+    {
+      "id": "usr_1537c7f6951963b6",
+      "name": "Cheat Test",
+      "email": "c@c.com",
+      "salt": "355ed70252c00211",
+      "passHash": "3bf523cd59ab4694a3741613a2a11ffe53a1091c582042667a06e5782c92ddf2",
+      "role": "learner",
+      "createdAt": "2026-07-06T20:24:58.928Z"
+    }
+  ],
+  "sessions": {
+    "607afb1a3747d9516bb92a479ccf1737dec8e976518da2b1": "usr_1537c7f6951963b6"
+  },
+  "enrollments": [
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "startedAt": "2026-07-06T20:24:58.943Z",
+      "completedAt": null,
+      "certId": null
+    }
+  ],
+  "lessonProgress": [
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "welcome",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-06T20:24:58.953Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "role-of-coach",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-06T20:24:58.963Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "player-development",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-06T20:24:58.972Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "safety",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-06T20:24:58.982Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "laws",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-06T20:24:58.990Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_1537c7f6951963b6",
+      "courseId": "grassroots-coaching-license",
+      "lessonId": "session-video",
+      "watchedSeconds": 58,
+      "completed": false,
+      "completedAt": null,
+      "quizScore": null
+    }
+  ],
+  "notifications": [],
+  "outbox": []
+}
