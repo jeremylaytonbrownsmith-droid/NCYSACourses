@@ -373,7 +373,10 @@ function renderVideoLesson(pane, course, lesson, lp) {
     ${lessonHeader(lesson)}
     <div class="lesson-content">${lesson.html}</div>
     <div class="video-shell">
-      <video id="lessonVideo" src="${lesson.videoUrl}" preload="metadata" playsinline></video>
+      <video id="lessonVideo" preload="metadata" playsinline>
+        ${lesson.videoUrl ? `<source src="${lesson.videoUrl}" type="video/mp4" />` : ''}
+        ${lesson.videoUrlWebm ? `<source src="${lesson.videoUrlWebm}" type="video/webm" />` : ''}
+      </video>
       <div class="v-controls">
         <button id="playBtn" title="Play / pause">▶</button>
         <div class="v-track"><div class="v-fill" id="vFill"></div></div>
