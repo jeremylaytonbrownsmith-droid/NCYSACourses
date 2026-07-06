@@ -44,7 +44,7 @@ function renderNav() {
   const user = me?.user;
   topnav.innerHTML = `
     <a class="logo" href="#/">
-      <span class="ball">⚽</span>
+      <img class="brandmark" src="/media/ncysa-logo.svg" alt="NC Youth Soccer logo" />
       <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
     </a>
     <span class="spacer"></span>
@@ -490,6 +490,7 @@ async function viewCertificate(certId) {
   const date = new Date(c.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   app.innerHTML = `
     <div class="certificate">
+      <img class="cert-logo" src="/media/ncysa-logo.svg" alt="NC Youth Soccer logo" />
       <div class="org">North Carolina Youth Soccer Association</div>
       <h1>Certificate of Completion</h1>
       <p>This certifies that</p>

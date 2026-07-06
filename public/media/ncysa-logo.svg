@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 200" role="img" aria-label="NC Youth Soccer">
+  <!-- Vector interpretation of the NCYSA mark: gold-ringed ball, red swoosh,
+       navy NC wordmark. Replace with the official PNG when available. -->
+  <defs>
+    <clipPath id="ballClip"><circle cx="78" cy="78" r="48"/></clipPath>
+  </defs>
+
+  <!-- red swoosh sweeping from the ball to the upper right -->
+  <path d="M 100 52 C 160 6 260 2 330 30 C 268 26 224 38 196 54 L 240 56 C 186 64 144 74 118 88 Z"
+        fill="#b82f2f"/>
+
+  <!-- gold-ringed circle, navy left half -->
+  <circle cx="78" cy="78" r="54" fill="#edc32c"/>
+  <circle cx="78" cy="78" r="48" fill="#ffffff"/>
+  <g clip-path="url(#ballClip)">
+    <rect x="24" y="24" width="54" height="108" fill="#10045a"/>
+  </g>
+
+  <!-- soccer ball -->
+  <circle cx="78" cy="78" r="34" fill="#ffffff" stroke="#1d1a18" stroke-width="3"/>
+  <g fill="#1d1a18">
+    <polygon points="78,62 92,72 87,88 69,88 64,72"/>
+    <polygon points="78,44 85,50 78,55 71,50"/>
+    <polygon points="48,70 55,65 60,72 55,79"/>
+    <polygon points="108,70 101,65 96,72 101,79"/>
+    <polygon points="60,104 67,97 74,102 71,109"/>
+    <polygon points="96,104 89,97 82,102 85,109"/>
+  </g>
+  <g stroke="#1d1a18" stroke-width="2.5" fill="none">
+    <path d="M 78 55 L 78 62"/><path d="M 64 72 L 55 72"/><path d="M 92 72 L 101 72"/>
+    <path d="M 69 88 L 65 100"/><path d="M 87 88 L 91 100"/>
+  </g>
+
+  <!-- NC wordmark with navy wedge beneath -->
+  <text x="150" y="118" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="78" fill="#10045a" letter-spacing="2">NC</text>
+  <path d="M 150 136 L 334 112 L 334 136 Z" fill="#10045a"/>
+
+  <!-- YOUTH SOCCER line -->
+  <text x="24" y="182" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="31" fill="#10045a" letter-spacing="4">YOUTH SOCCER</text>
+</svg>
