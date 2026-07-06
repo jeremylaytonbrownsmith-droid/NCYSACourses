@@ -274,7 +274,9 @@ a:hover { text-decoration: underline; }
 
 /* ---------- brand mark ---------- */
 .topnav .logo .brandmark {
-  height: 48px; width: auto; display: block;
-  background: #fff; border-radius: 8px; padding: 4px 8px;
+  height: 50px; width: auto; display: block;
+  background: var(--logo-plate, transparent); border-radius: 6px; padding: 2px;
 }
-.certificate .cert-logo { height: 86px; margin-bottom: 14px; }
+.certificate .cert-logo { height: 116px; margin-bottom: 16px; }
+.hero-logo { height: 132px; margin-bottom: 20px; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.35)); }
+.course-card .thumb .thumb-logo { height: 112px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }

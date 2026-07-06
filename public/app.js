@@ -93,6 +93,7 @@ async function viewHome() {
   const { courses } = await api('/api/courses');
   app.innerHTML = `
     <section class="hero">
+      ${logoImg('hero-logo')}
       <h1>Coaching education, built by NCYSA for North Carolina soccer.</h1>
       <p>Take your required licenses and professional development courses online — free,
          self-paced, and tracked automatically with NCYSA.</p>
@@ -121,7 +122,7 @@ async function viewHome() {
 function courseCard(c) {
   return `
     <div class="course-card">
-      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${c.heroEmoji}</div>
+      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
         <div class="meta">${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included</div>
@@ -396,7 +397,10 @@ function renderVideoLesson(pane, course, lesson, lp) {
     if (!video.paused && lastT != null) {
       const delta = video.currentTime - lastT;
       // Normal playback advances in small steps; a big jump means a seek.
-      if (delta > 0 && delta < 5) {
+      // Threshold scales with playback rate so late timeupdate events on a
+      // busy tab aren't misread as seeks (which would silently drop credit).
+      const maxStep = Math.max(5, (video.playbackRate || 1) * 1.5);
+      if (delta > 0 && delta < maxStep) {
         pending += delta;
         maxPlayed = Math.max(maxPlayed, video.currentTime);
       }
@@ -416,6 +420,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
     }
     lastT = video.currentTime;
   });
+  video.addEventListener('play', () => { lastT = video.currentTime; });
   video.addEventListener('pause', () => { lastT = null; flushWatch(true); });
   video.addEventListener('ended', () => { playBtn.textContent = '▶'; flushWatch(true); });
 
