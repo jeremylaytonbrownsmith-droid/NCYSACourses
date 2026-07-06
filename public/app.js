@@ -232,9 +232,16 @@ function viewLogin() {
     note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
     alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
     onSubmit: async (v) => {
-      await api('/api/login', { method: 'POST', body: v });
-      await refreshMe();
-      location.hash = '#/courses';
+      try {
+        const r = await api('/api/login', { method: 'POST', body: v });
+        await refreshMe();
+        // Admins (e.g. admin@ncysa.org) go straight to the dashboard.
+        location.hash = r.user.role === 'admin' ? '#/admin' : '#/courses';
+      } catch (err) {
+        // Production: a staff email needs a password — send them to staff sign-in.
+        if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
+        throw err;
+      }
     },
   });
 }

@@ -388,7 +388,7 @@ a:hover { text-decoration: underline; }
 <div class="demo-bar">
   <span>🧪 <strong>DEMO — TEST MODE.</strong></span>
   <span><strong>To review:</strong> click <strong>Get started</strong>, enter any name &amp; email (no password — nothing is sent anywhere), then take the course.</span>
-  <span><strong>NCYSA staff view:</strong> use <strong>staff sign-in</strong> — <code>admin@ncysa.org</code> / password <code>ncysa-staff-2026</code></span>
+  <span><strong>NCYSA staff view:</strong> click <strong>Sign in</strong> and enter <code>admin@ncysa.org</code> (no password needed in the demo)</span>
   <label><input type="checkbox" id="demoSpeed" /> 8× video speed</label>
   <button id="demoReset" type="button">Reset demo</button>
 </div>
@@ -789,10 +789,10 @@ function mockFetch(path, opts = {}) {
     return R(200, { user: u });
   }
   if (path === '/api/login') {
+    // Demo: admin signs in with email only (matches what Colin was told). The
+    // production server still enforces a staff password — see server.js.
     const u = DB.users.find((x) => x.email.toLowerCase() === String(body.email || '').toLowerCase());
     if (!u) return R(401, { error: 'No account with that email yet — use “Get started” to create one.' });
-    if (u.role === 'admin' && body.password !== u.password)
-      return R(401, { error: 'Incorrect staff password.', needsPassword: true });
     DB.currentUserId = u.id; demoSave();
     return R(200, { user: u });
   }
@@ -1167,9 +1167,16 @@ function viewLogin() {
     note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
     alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
     onSubmit: async (v) => {
-      await api('/api/login', { method: 'POST', body: v });
-      await refreshMe();
-      location.hash = '#/courses';
+      try {
+        const r = await api('/api/login', { method: 'POST', body: v });
+        await refreshMe();
+        // Admins (e.g. admin@ncysa.org) go straight to the dashboard.
+        location.hash = r.user.role === 'admin' ? '#/admin' : '#/courses';
+      } catch (err) {
+        // Production: a staff email needs a password — send them to staff sign-in.
+        if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
+        throw err;
+      }
     },
   });
 }

@@ -12,7 +12,7 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 
-const { load, save, id } = require('./lib/store');
+const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted } = require('./lib/notifier');
 const courses = require('./data/courses');
 
@@ -432,6 +432,10 @@ app.get(/^(?!\/api\/).*/, (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
+  // Seed in-memory state from the cloud (if Firestore is configured) before
+  // accepting traffic, so progress persists across restarts and instances.
+  initFromCloud().finally(() => {
+    app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
+  });
 }
 module.exports = app;
