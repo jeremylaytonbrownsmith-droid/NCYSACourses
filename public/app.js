@@ -17,6 +17,19 @@ function logoImg(cls) {
   return `<img class="${cls}" src="${LOGO_SOURCES[0]}" data-idx="0" onerror="logoNext(this)" alt="NC Youth Soccer logo" />`;
 }
 
+// Professional inline SVG role icons (crisp, theme-agnostic on their navy badge).
+const ICON_COACH = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+  <rect x="19" y="5" width="10" height="6" rx="2" fill="#fff"/>
+  <path d="M17 8 H12 a3 3 0 0 0-3 3 V40 a3 3 0 0 0 3 3 H36 a3 3 0 0 0 3-3 V11 a3 3 0 0 0-3-3 H31" stroke="#fff" stroke-width="2.6" fill="none" stroke-linejoin="round"/>
+  <path d="M15 33 C19 23 29 29 31 17" stroke="#edc32c" stroke-width="2.4" stroke-dasharray="3.5 3.2" fill="none" stroke-linecap="round"/>
+  <circle cx="15" cy="33" r="2.8" fill="#edc32c"/>
+  <path d="M31 17 l-4 2.5 M31 17 l1.5 4.2" stroke="#edc32c" stroke-width="2.4" stroke-linecap="round"/>
+</svg>`;
+const ICON_REFEREE = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+  <rect x="10" y="12" width="16" height="24" rx="2.6" fill="#edc32c" transform="rotate(-11 18 24)"/>
+  <rect x="22" y="14" width="16" height="24" rx="2.6" fill="#d8332f" transform="rotate(10 30 26)"/>
+</svg>`;
+
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
 let me = null;        // { user, unread }
@@ -115,13 +128,13 @@ async function viewHome() {
       <p class="lead">NCYSA education for every role in the game — choose your path.</p>
       <div class="role-split">
         <a class="role-card" href="#/courses">
-          <div class="role-emoji">📋⚽</div>
+          <div class="role-icon">${ICON_COACH}</div>
           <h3>Coaches go here</h3>
           <p>Grassroots licenses and coaching development — including the course below.</p>
           <span class="role-go">View coach courses →</span>
         </a>
         <a class="role-card" href="#/referees">
-          <div class="role-emoji">🟨🟥</div>
+          <div class="role-icon">${ICON_REFEREE}</div>
           <h3>Referees go here</h3>
           <p>Certification and Laws of the Game training for match officials.</p>
           <span class="role-go">View referee courses →</span>
@@ -250,7 +263,7 @@ function viewReferees() {
     <section class="section">
       <a class="back-link" href="#/">← Back to home</a>
       <div class="role-hero">
-        <div class="role-emoji big">🟨🟥</div>
+        <div class="role-icon big">${ICON_REFEREE}</div>
         <h2>Referee education</h2>
         <p class="lead">Certification and Laws of the Game training for NC match officials.</p>
       </div>
