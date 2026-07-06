@@ -104,7 +104,20 @@ async function refreshMe() {
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
+  const resume = me?.user ? courses.find((c) => c.enrolled && !c.completedAt) : null;
   app.innerHTML = `
+    ${resume ? `
+    <section class="resume-strip">
+      <div class="resume-inner">
+        <div class="resume-text">
+          <span class="resume-kicker">Welcome back, ${esc(me.user.name.split(' ')[0])}</span>
+          <span class="resume-title">Pick up where you left off — ${esc(resume.title)}</span>
+          <div class="resume-track"><div class="resume-fill" style="width:${resume.percent}%"></div></div>
+          <span class="resume-meta">${resume.percent}% complete</span>
+        </div>
+        <a class="btn btn-accent btn-lg resume-btn" href="#/course/${resume.id}">Resume where you left off →</a>
+      </div>
+    </section>` : ''}
     <section class="hero">
       ${logoImg('hero-logo')}
       <h1>Coaching education, built by NCYSA for North Carolina soccer.</h1>

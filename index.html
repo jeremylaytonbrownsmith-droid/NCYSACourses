@@ -345,6 +345,20 @@ a:hover { text-decoration: underline; }
 .staff-link { display: inline-block; margin-top: 10px; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
 .staff-link:hover { color: var(--brand); }
 
+/* ---------- resume-where-you-left-off banner ---------- */
+.resume-strip { background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: #fff; }
+.resume-inner {
+  max-width: 1020px; margin: 0 auto; padding: 20px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.resume-text { display: flex; flex-direction: column; gap: 4px; min-width: 240px; flex: 1; }
+.resume-kicker { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); font-weight: 700; }
+.resume-title { font-size: 1.15rem; font-weight: 700; }
+.resume-track { background: rgba(255,255,255,0.22); border-radius: 999px; height: 7px; overflow: hidden; max-width: 340px; margin-top: 4px; }
+.resume-fill { background: var(--gold); height: 100%; border-radius: 999px; }
+.resume-meta { font-size: 0.82rem; color: #dcd7f5; }
+.resume-btn { white-space: nowrap; }
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -1039,7 +1053,20 @@ async function refreshMe() {
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
+  const resume = me?.user ? courses.find((c) => c.enrolled && !c.completedAt) : null;
   app.innerHTML = `
+    ${resume ? `
+    <section class="resume-strip">
+      <div class="resume-inner">
+        <div class="resume-text">
+          <span class="resume-kicker">Welcome back, ${esc(me.user.name.split(' ')[0])}</span>
+          <span class="resume-title">Pick up where you left off — ${esc(resume.title)}</span>
+          <div class="resume-track"><div class="resume-fill" style="width:${resume.percent}%"></div></div>
+          <span class="resume-meta">${resume.percent}% complete</span>
+        </div>
+        <a class="btn btn-accent btn-lg resume-btn" href="#/course/${resume.id}">Resume where you left off →</a>
+      </div>
+    </section>` : ''}
     <section class="hero">
       ${logoImg('hero-logo')}
       <h1>Coaching education, built by NCYSA for North Carolina soccer.</h1>
