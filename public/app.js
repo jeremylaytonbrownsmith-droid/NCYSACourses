@@ -115,13 +115,13 @@ async function viewHome() {
       <p class="lead">NCYSA education for every role in the game — choose your path.</p>
       <div class="role-split">
         <a class="role-card" href="#/courses">
-          <div class="role-emoji">🧑‍🏫</div>
+          <div class="role-emoji">📋⚽</div>
           <h3>Coaches go here</h3>
           <p>Grassroots licenses and coaching development — including the course below.</p>
           <span class="role-go">View coach courses →</span>
         </a>
         <a class="role-card" href="#/referees">
-          <div class="role-emoji">🧑‍⚖️</div>
+          <div class="role-emoji">🟨🟥</div>
           <h3>Referees go here</h3>
           <p>Certification and Laws of the Game training for match officials.</p>
           <span class="role-go">View referee courses →</span>
@@ -250,7 +250,7 @@ function viewReferees() {
     <section class="section">
       <a class="back-link" href="#/">← Back to home</a>
       <div class="role-hero">
-        <div class="role-emoji big">🧑‍⚖️</div>
+        <div class="role-emoji big">🟨🟥</div>
         <h2>Referee education</h2>
         <p class="lead">Certification and Laws of the Game training for NC match officials.</p>
       </div>
