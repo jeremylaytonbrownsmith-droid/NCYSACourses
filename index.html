@@ -415,6 +415,34 @@ a:hover { text-decoration: underline; }
   .quiz-opt { align-items: center; }
 }
 
+/* ---------- admin course editor ---------- */
+.admin-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.btn-sm { padding: 7px 12px; font-size: 0.85rem; }
+.editor-msg { min-height: 1.2em; font-weight: 600; font-size: 0.9rem; margin: 6px 0; }
+.editor-msg.ok { color: var(--success-dark); }
+.editor-msg.err { color: var(--danger); }
+.course-admin-list { display: flex; flex-direction: column; gap: 18px; margin-top: 16px; }
+.course-admin-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.course-admin-head h2 { font-size: 1.15rem; margin: 4px 0; }
+.course-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge-inline { display: inline-block; background: var(--gold); color: #5b4708; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 2px 9px; }
+.admin-lessons { margin: 14px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.admin-lessons li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.admin-lesson-actions { display: flex; gap: 12px; flex: none; }
+.linkbtn { background: none; border: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; padding: 2px; }
+.linkbtn.danger { color: var(--danger); }
+.linkbtn:hover { text-decoration: underline; }
+.editor-form { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.editor-form h3 { font-size: 1rem; }
+.editor-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85rem; }
+.editor-form input, .editor-form textarea, .editor-form select { padding: 9px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; font-weight: 400; background: var(--card); color: var(--ink); }
+.editor-form .form-row { display: flex; gap: 12px; }
+.editor-form .form-row label { flex: 1; }
+.editor-form .form-actions { margin-top: 4px; }
+.quiz-edit { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.quiz-edit .opt-row { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+.quiz-edit .opt-row input[type="radio"] { flex: none; }
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -760,11 +788,32 @@ function demoLoad() {
 let DB = demoLoad() || {
   users: [{ id: 'usr_admin', name: 'NCYSA Education Staff', email: 'admin@ncysa.org', role: 'admin', password: 'ncysa-staff-2026' }],
   currentUserId: null,
+  courses: [],
   enrollments: [], lessonProgress: [], notifications: [], outbox: [],
 };
+// Courses live in the (localStorage) DB so the demo admin can edit them too.
+if (!DB.courses || !DB.courses.length) DB.courses = JSON.parse(JSON.stringify(COURSES));
 function demoSave() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 function demoId(p) { return p + '_' + Math.random().toString(16).slice(2, 10); }
 function demoUser() { return DB.users.find((u) => u.id === DB.currentUserId) || null; }
+function mockCourses() { return DB.courses; }
+function demoSlug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'course'; }
+function demoBuildLesson(body) {
+  const type = ['text', 'video', 'quiz'].includes(body.type) ? body.type : 'text';
+  const base = { id: body.id || demoSlug(body.title) + '-' + demoId('l').slice(2, 7), type, title: String(body.title || 'Untitled lesson') };
+  if (type === 'text') return { ...base, html: String(body.html || '') };
+  if (type === 'video') {
+    const d = Math.max(1, Number(body.durationSeconds) || 60);
+    return { ...base, html: String(body.html || ''), videoUrl: String(body.videoUrl || ''),
+      videoUrlWebm: body.videoUrlWebm || undefined, durationSeconds: d,
+      minWatchSeconds: Math.min(d, Math.max(1, Number(body.minWatchSeconds) || Math.max(1, d - 2))) };
+  }
+  const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
+    id: q.id || 'q' + (i + 1), prompt: String(q.prompt || ''),
+    options: (Array.isArray(q.options) ? q.options : []).map(String).filter(Boolean), answer: Number(q.answer) || 0,
+  })).filter((q) => q.prompt && q.options.length >= 2);
+  return { ...base, html: String(body.html || ''), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
+}
 
 function mockProgress(userId, courseId) {
   return DB.lessonProgress.filter((p) => p.userId === userId && p.courseId === courseId);
@@ -783,7 +832,7 @@ function mockSummary(course, progress) {
   return {
     completedLessons: done,
     totalLessons: course.lessons.length,
-    percent: Math.round((done / course.lessons.length) * 100),
+    percent: course.lessons.length ? Math.round((done / course.lessons.length) * 100) : 0,
     lessons: course.lessons.map((l) => {
       const st = mockLessonState(course, progress, l.id);
       const rec = progress.find((p) => p.lessonId === l.id);
@@ -814,7 +863,7 @@ function mockMaybeComplete(user, course) {
   const enr = DB.enrollments.find((e) => e.userId === user.id && e.courseId === course.id);
   if (!enr || enr.completedAt) return null;
   const progress = mockProgress(user.id, course.id);
-  if (!course.lessons.every((l) => progress.some((p) => p.lessonId === l.id && p.completed))) return null;
+  if (!course.lessons.length || !course.lessons.every((l) => progress.some((p) => p.lessonId === l.id && p.completed))) return null;
   enr.completedAt = new Date().toISOString();
   enr.certId = 'NCYSA-' + Math.random().toString(16).slice(2, 10).toUpperCase();
   const quiz = progress.find((p) => p.quizScore != null);
@@ -869,7 +918,7 @@ function mockFetch(path, opts = {}) {
   if (path === '/api/logout') { DB.currentUserId = null; demoSave(); return R(200, { ok: true }); }
 
   if (path === '/api/courses') {
-    return R(200, { courses: COURSES.map((c) => {
+    return R(200, { courses: mockCourses().map((c) => {
       const enr = user && DB.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? mockSummary(c, mockProgress(user.id, c.id)) : null;
       return { id: c.id, title: c.title, tagline: c.tagline, description: c.description,
@@ -881,7 +930,7 @@ function mockFetch(path, opts = {}) {
 
   if ((m = path.match(/^\/api\/courses\/([\w-]+)\/enroll$/))) {
     if (!user) return need();
-    const course = COURSES.find((c) => c.id === m[1]);
+    const course = mockCourses().find((c) => c.id === m[1]);
     if (!course) return R(404, { error: 'Course not found' });
     if (!DB.enrollments.some((e) => e.userId === user.id && e.courseId === course.id)) {
       DB.enrollments.push({ userId: user.id, courseId: course.id, startedAt: new Date().toISOString(), completedAt: null, certId: null });
@@ -892,7 +941,7 @@ function mockFetch(path, opts = {}) {
 
   if ((m = path.match(/^\/api\/courses\/([\w-]+)$/))) {
     if (!user) return need();
-    const course = COURSES.find((c) => c.id === m[1]);
+    const course = mockCourses().find((c) => c.id === m[1]);
     if (!course) return R(404, { error: 'Course not found' });
     const enr = DB.enrollments.find((e) => e.userId === user.id && e.courseId === course.id);
     if (!enr) return R(403, { error: 'Enroll in this course first' });
@@ -901,7 +950,7 @@ function mockFetch(path, opts = {}) {
 
   if ((m = path.match(/^\/api\/courses\/([\w-]+)\/lessons\/([\w-]+)\/(watch|quiz|complete)$/))) {
     if (!user) return need();
-    const course = COURSES.find((c) => c.id === m[1]);
+    const course = mockCourses().find((c) => c.id === m[1]);
     const lesson = course?.lessons.find((l) => l.id === m[2]);
     if (!course || !lesson) return R(404, { error: 'Lesson not found' });
     const progress = mockProgress(user.id, course.id);
@@ -966,7 +1015,7 @@ function mockFetch(path, opts = {}) {
     const enr = DB.enrollments.find((e) => e.certId === m[1]);
     if (!enr || (enr.userId !== user.id && user.role !== 'admin')) return R(404, { error: 'Certificate not found' });
     const owner = DB.users.find((u) => u.id === enr.userId);
-    const course = COURSES.find((c) => c.id === enr.courseId);
+    const course = mockCourses().find((c) => c.id === enr.courseId);
     return R(200, { certId: enr.certId, learner: owner.name, course: course.title, completedAt: enr.completedAt });
   }
   if (path === '/api/admin/overview') {
@@ -976,7 +1025,7 @@ function mockFetch(path, opts = {}) {
       completions: DB.enrollments.filter((e) => e.completedAt).map((e) => ({
         learner: DB.users.find((u) => u.id === e.userId)?.name,
         email: DB.users.find((u) => u.id === e.userId)?.email,
-        course: COURSES.find((c) => c.id === e.courseId)?.title,
+        course: mockCourses().find((c) => c.id === e.courseId)?.title,
         completedAt: e.completedAt, certId: e.certId,
       })).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
       ncysaNotifications: DB.notifications.filter((n) => n.audience === 'ncysa').sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -984,6 +1033,48 @@ function mockFetch(path, opts = {}) {
       learnerCount: DB.users.filter((u) => u.role === 'learner').length,
     });
   }
+
+  // ---- admin course editor ----
+  const adminOnly = () => user && user.role === 'admin';
+  if (path === '/api/admin/courses' && opts.method === 'POST') {
+    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    if (!body.title) return R(400, { error: 'Course title is required' });
+    const course = { id: demoSlug(body.title) + '-' + demoId('c').slice(2, 8), title: String(body.title),
+      tagline: String(body.tagline || ''), description: String(body.description || ''),
+      badge: String(body.badge || 'Course'), estMinutes: Math.max(1, Number(body.estMinutes) || 30),
+      heroEmoji: String(body.heroEmoji || '⚽'), lessons: [] };
+    DB.courses.push(course); demoSave();
+    return R(200, { course });
+  }
+  if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)$/))) {
+    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    const course = DB.courses.find((c) => c.id === m[1]);
+    if (!course) return R(404, { error: 'Course not found' });
+    if (opts.method === 'PUT') {
+      for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji']) if (body[f] != null) course[f] = String(body[f]);
+      if (body.estMinutes != null) course.estMinutes = Math.max(1, Number(body.estMinutes) || course.estMinutes);
+      demoSave(); return R(200, { course });
+    }
+    if (opts.method === 'DELETE') { DB.courses = DB.courses.filter((c) => c.id !== m[1]); demoSave(); return R(200, { ok: true }); }
+    return R(200, { course }); // GET (full, with answers) for the editor
+  }
+  if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)\/lessons$/)) && opts.method === 'POST') {
+    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    const course = DB.courses.find((c) => c.id === m[1]);
+    if (!course) return R(404, { error: 'Course not found' });
+    const lesson = demoBuildLesson(body); course.lessons.push(lesson); demoSave();
+    return R(200, { lesson });
+  }
+  if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)\/lessons\/([\w-]+)$/))) {
+    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    const course = DB.courses.find((c) => c.id === m[1]);
+    if (!course) return R(404, { error: 'Course not found' });
+    const idx = course.lessons.findIndex((l) => l.id === m[2]);
+    if (idx < 0) return R(404, { error: 'Lesson not found' });
+    if (opts.method === 'PUT') { course.lessons[idx] = demoBuildLesson({ ...body, id: m[2] }); demoSave(); return R(200, { lesson: course.lessons[idx] }); }
+    if (opts.method === 'DELETE') { course.lessons.splice(idx, 1); demoSave(); return R(200, { ok: true }); }
+  }
+
   return R(404, { error: 'Not found: ' + path });
 }
 const fetch = (path, opts) => Promise.resolve(mockFetch(path, opts));
@@ -1665,7 +1756,10 @@ async function viewAdmin() {
   const d = await api('/api/admin/overview');
   app.innerHTML = `
     <div class="admin-wrap">
-      <h1>NCYSA Education Dashboard</h1>
+      <div class="admin-head">
+        <h1>NCYSA Education Dashboard</h1>
+        <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+      </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
         ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
       <div class="admin-grid">
@@ -1701,6 +1795,183 @@ async function viewAdmin() {
     </div>`;
 }
 
+// ---------- admin course editor ----------
+
+async function viewCourseAdmin(flash) {
+  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  const { courses } = await api('/api/courses');
+  const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
+  const list = full.filter(Boolean);
+
+  const typeLabel = { text: '📖 Reading', video: '🎬 Video', quiz: '📝 Exam' };
+  app.innerHTML = `
+    <div class="admin-wrap">
+      <div class="admin-head">
+        <div><a class="back-link" href="#/admin">← Dashboard</a><h1>Manage courses</h1></div>
+        <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
+      </div>
+      <div id="editorMsg" class="editor-msg"></div>
+      <div id="newCoursePanel"></div>
+      <div class="course-admin-list">
+        ${list.map((c) => `
+          <div class="admin-card course-admin" data-course="${c.id}">
+            <div class="course-admin-head">
+              <div>
+                <span class="badge-inline">${esc(c.badge)}</span>
+                <h2>${esc(c.title)}</h2>
+                <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
+              </div>
+              <div class="course-admin-actions">
+                <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
+                <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
+              </div>
+            </div>
+            <ol class="admin-lessons">
+              ${c.lessons.map((l) => `
+                <li>
+                  <span>${typeLabel[l.type] || l.type} — <strong>${esc(l.title)}</strong></span>
+                  <span class="admin-lesson-actions">
+                    <button class="linkbtn edit-lesson" data-course="${c.id}" data-lesson="${l.id}">Edit</button>
+                    <button class="linkbtn danger del-lesson" data-course="${c.id}" data-lesson="${l.id}">Delete</button>
+                  </span>
+                </li>`).join('') || '<li class="empty">No lessons yet — click “Add lesson”.</li>'}
+            </ol>
+            <div class="panel-slot" data-course="${c.id}"></div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const msg = (t, err) => { const e = document.getElementById('editorMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
+  if (typeof flash === 'string' && flash) msg(flash); // survive re-render after a save
+
+  document.getElementById('newCourseBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = courseForm();
+    bindCourseForm(null);
+  });
+  document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = courseForm(c);
+    bindCourseForm(c);
+  }));
+  document.querySelectorAll('.add-lesson').forEach((b) => b.addEventListener('click', () => {
+    document.querySelector(`.panel-slot[data-course="${b.dataset.course}"]`).innerHTML = lessonForm(b.dataset.course, null);
+    bindLessonForm(b.dataset.course, null);
+  }));
+  document.querySelectorAll('.edit-lesson').forEach((b) => b.addEventListener('click', () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const l = c.lessons.find((x) => x.id === b.dataset.lesson);
+    document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = lessonForm(c.id, l);
+    bindLessonForm(c.id, l);
+  }));
+  document.querySelectorAll('.del-lesson').forEach((b) => b.addEventListener('click', async () => {
+    await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}`, { method: 'DELETE' });
+    viewCourseAdmin('Lesson deleted.');
+  }));
+
+  function courseForm(c) {
+    return `<form class="editor-form" id="courseForm">
+      <h3>${c ? 'Edit course details' : 'New course'}</h3>
+      <label>Title<input name="title" value="${c ? esc(c.title) : ''}" required /></label>
+      <label>Tagline<input name="tagline" value="${c ? esc(c.tagline || '') : ''}" /></label>
+      <label>Description<textarea name="description" rows="2">${c ? esc(c.description || '') : ''}</textarea></label>
+      <div class="form-row">
+        <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
+        <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
+    </form>`;
+  }
+  function bindCourseForm(c) {
+    document.getElementById('courseForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        if (c) await api(`/api/admin/courses/${c.id}`, { method: 'PUT', body: v });
+        else await api('/api/admin/courses', { method: 'POST', body: v });
+        viewCourseAdmin(c ? 'Course updated.' : 'Course created.');
+      } catch (err) { msg(err.message, true); }
+    });
+  }
+
+  function lessonForm(courseId, l) {
+    const t = l ? l.type : 'text';
+    return `<form class="editor-form" id="lessonForm" data-course="${courseId}">
+      <h3>${l ? 'Edit lesson' : 'Add lesson'}</h3>
+      <label>Lesson type
+        <select name="type" id="lessonType" ${l ? 'disabled' : ''}>
+          <option value="text" ${t === 'text' ? 'selected' : ''}>Reading</option>
+          <option value="video" ${t === 'video' ? 'selected' : ''}>Video</option>
+          <option value="quiz" ${t === 'quiz' ? 'selected' : ''}>Exam / quiz</option>
+        </select>
+      </label>
+      <label>Title<input name="title" value="${l ? esc(l.title) : ''}" required /></label>
+      <div id="typeFields"></div>
+      <div class="form-actions"><button class="btn btn-accent" type="submit">${l ? 'Save lesson' : 'Add lesson'}</button></div>
+    </form>`;
+  }
+  function typeFields(type, l) {
+    if (type === 'video') return `
+      <label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+      <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
+      <div class="form-row">
+        <label>Duration (seconds)<input name="durationSeconds" type="number" value="${l ? l.durationSeconds : 60}" /></label>
+        <label>Must-watch (seconds)<input name="minWatchSeconds" type="number" value="${l ? l.minWatchSeconds : ''}" placeholder="auto = duration − 2" /></label>
+      </div>`;
+    if (type === 'quiz') {
+      const qs = l ? l.questions : [{ prompt: '', options: ['', ''], answer: 0 }];
+      return `<label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+        <label>Pass mark (%)<input name="passPercent" type="number" value="${l ? l.passPercent : 80}" /></label>
+        <div id="quizQs">${qs.map((q, i) => quizQ(q, i)).join('')}</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="addQ">＋ Add question</button>`;
+    }
+    return `<label>Content (HTML)<textarea name="html" rows="5">${l ? esc(l.html || '') : ''}</textarea></label>`;
+  }
+  function quizQ(q, i) {
+    return `<div class="quiz-edit" data-qi="${i}">
+      <label>Question ${i + 1}<input name="q_prompt_${i}" value="${esc(q.prompt || '')}" /></label>
+      ${[0, 1, 2, 3].map((oi) => `<label class="opt-row"><input type="radio" name="q_answer_${i}" value="${oi}" ${Number(q.answer) === oi ? 'checked' : ''} /> <input name="q_opt_${i}_${oi}" value="${esc((q.options || [])[oi] || '')}" placeholder="Option ${oi + 1}" /></label>`).join('')}
+    </div>`;
+  }
+  function bindLessonForm(courseId, l) {
+    const form = document.getElementById('lessonForm');
+    const sel = document.getElementById('lessonType');
+    const render = () => {
+      document.getElementById('typeFields').innerHTML = typeFields(sel.value, l);
+      const addQ = document.getElementById('addQ');
+      if (addQ) addQ.addEventListener('click', () => {
+        const qs = document.getElementById('quizQs');
+        qs.insertAdjacentHTML('beforeend', quizQ({ prompt: '', options: ['', ''], answer: 0 }, qs.children.length));
+      });
+    };
+    sel.addEventListener('change', render);
+    render();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const type = l ? l.type : fd.get('type');
+      const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
+      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
+      if (type === 'quiz') {
+        payload.passPercent = fd.get('passPercent');
+        const qEls = form.querySelectorAll('.quiz-edit');
+        payload.questions = Array.from(qEls).map((el) => {
+          const i = el.dataset.qi;
+          return {
+            prompt: fd.get(`q_prompt_${i}`),
+            answer: fd.get(`q_answer_${i}`),
+            options: [0, 1, 2, 3].map((oi) => fd.get(`q_opt_${i}_${oi}`)).filter((x) => x && x.trim()),
+          };
+        });
+      }
+      try {
+        if (l) await api(`/api/admin/courses/${courseId}/lessons/${l.id}`, { method: 'PUT', body: payload });
+        else await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: payload });
+        viewCourseAdmin('Lesson saved.');
+      } catch (err) { msg(err.message, true); }
+    });
+  }
+}
+
 // ---------- router ----------
 
 const routes = [
@@ -1715,6 +1986,7 @@ const routes = [
   { re: /^#\/cert\/([\w-]+)$/, fn: (m) => viewCertificate(m[1]) },
   { re: /^#\/notifications$/, fn: viewNotifications },
   { re: /^#\/admin$/, fn: viewAdmin },
+  { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
 ];
 
 async function route() {

@@ -393,3 +393,31 @@ a:hover { text-decoration: underline; }
   .btn, .lesson-item, .bell, .v-controls button, .quiz-opt { min-height: 44px; }
   .quiz-opt { align-items: center; }
 }
+
+/* ---------- admin course editor ---------- */
+.admin-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.btn-sm { padding: 7px 12px; font-size: 0.85rem; }
+.editor-msg { min-height: 1.2em; font-weight: 600; font-size: 0.9rem; margin: 6px 0; }
+.editor-msg.ok { color: var(--success-dark); }
+.editor-msg.err { color: var(--danger); }
+.course-admin-list { display: flex; flex-direction: column; gap: 18px; margin-top: 16px; }
+.course-admin-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.course-admin-head h2 { font-size: 1.15rem; margin: 4px 0; }
+.course-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge-inline { display: inline-block; background: var(--gold); color: #5b4708; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 2px 9px; }
+.admin-lessons { margin: 14px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.admin-lessons li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.admin-lesson-actions { display: flex; gap: 12px; flex: none; }
+.linkbtn { background: none; border: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; padding: 2px; }
+.linkbtn.danger { color: var(--danger); }
+.linkbtn:hover { text-decoration: underline; }
+.editor-form { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.editor-form h3 { font-size: 1rem; }
+.editor-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85rem; }
+.editor-form input, .editor-form textarea, .editor-form select { padding: 9px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; font-weight: 400; background: var(--card); color: var(--ink); }
+.editor-form .form-row { display: flex; gap: 12px; }
+.editor-form .form-row label { flex: 1; }
+.editor-form .form-actions { margin-top: 4px; }
+.quiz-edit { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.quiz-edit .opt-row { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+.quiz-edit .opt-row input[type="radio"] { flex: none; }

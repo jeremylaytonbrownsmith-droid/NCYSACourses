@@ -14,7 +14,18 @@ const path = require('path');
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted } = require('./lib/notifier');
-const courses = require('./data/courses');
+const courseSeed = require('./data/courses');
+
+// Courses live in the persisted store so admins can edit them at runtime.
+// Seed from the static catalog on first boot.
+function allCourses() { return load().courses; }
+(function seedCourses() {
+  const db = load();
+  if (!db.courses || db.courses.length === 0) {
+    db.courses = structuredClone(courseSeed);
+    save();
+  }
+})();
 
 const app = express();
 app.use(express.json());
@@ -113,7 +124,7 @@ function progressSummary(course, progress) {
   return {
     completedLessons: done,
     totalLessons: course.lessons.length,
-    percent: Math.round((done / course.lessons.length) * 100),
+    percent: course.lessons.length ? Math.round((done / course.lessons.length) * 100) : 0,
     lessons: course.lessons.map((l) => {
       const st = lessonState(course, progress, l.id);
       const rec = progress.find((p) => p.lessonId === l.id);
@@ -191,7 +202,7 @@ app.get('/api/courses', (req, res) => {
   const user = currentUser(req);
   const db = load();
   res.json({
-    courses: courses.map((c) => {
+    courses: allCourses().map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
@@ -206,7 +217,7 @@ app.get('/api/courses', (req, res) => {
 });
 
 app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
-  const course = courses.find((c) => c.id === req.params.courseId);
+  const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   const db = load();
   if (!db.enrollments.some((e) => e.userId === req.user.id && e.courseId === course.id)) {
@@ -220,7 +231,7 @@ app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
 });
 
 app.get('/api/courses/:courseId', requireAuth, (req, res) => {
-  const course = courses.find((c) => c.id === req.params.courseId);
+  const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   const db = load();
   const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
@@ -235,7 +246,7 @@ app.get('/api/courses/:courseId', requireAuth, (req, res) => {
 // ---------- lesson progression (the gate) ----------
 
 function findLesson(req, res) {
-  const course = courses.find((c) => c.id === req.params.courseId);
+  const course = allCourses().find((c) => c.id === req.params.courseId);
   const lesson = course?.lessons.find((l) => l.id === req.params.lessonId);
   if (!course || !lesson) { res.status(404).json({ error: 'Lesson not found' }); return null; }
   const db = load();
@@ -357,7 +368,7 @@ async function maybeCompleteCourse(user, course) {
   const enr = db.enrollments.find((e) => e.userId === user.id && e.courseId === course.id);
   if (!enr || enr.completedAt) return null;
   const progress = getProgress(db, user.id, course.id);
-  const allDone = course.lessons.every((l) => progress.some((p) => p.lessonId === l.id && p.completed));
+  const allDone = course.lessons.length > 0 && course.lessons.every((l) => progress.some((p) => p.lessonId === l.id && p.completed));
   if (!allDone) return null;
 
   enr.completedAt = new Date().toISOString();
@@ -395,7 +406,7 @@ app.get('/api/certificate/:certId', requireAuth, (req, res) => {
   if (!enr || (enr.userId !== req.user.id && req.user.role !== 'admin'))
     return res.status(404).json({ error: 'Certificate not found' });
   const user = db.users.find((u) => u.id === enr.userId);
-  const course = courses.find((c) => c.id === enr.courseId);
+  const course = allCourses().find((c) => c.id === enr.courseId);
   res.json({
     certId: enr.certId, learner: user.name, course: course.title,
     completedAt: enr.completedAt,
@@ -412,7 +423,7 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
       .map((e) => ({
         learner: db.users.find((u) => u.id === e.userId)?.name,
         email: db.users.find((u) => u.id === e.userId)?.email,
-        course: courses.find((c) => c.id === e.courseId)?.title,
+        course: allCourses().find((c) => c.id === e.courseId)?.title,
         completedAt: e.completedAt,
         certId: e.certId,
       }))
@@ -423,6 +434,115 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
+});
+
+// ---------- admin course editor (create/edit courses & lessons, no code) ----
+
+function slugify(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'course';
+}
+
+// Normalize a lesson payload from the editor into a stored lesson.
+function buildLesson(body) {
+  const type = ['text', 'video', 'quiz'].includes(body.type) ? body.type : 'text';
+  const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
+  if (type === 'text') return { ...base, html: String(body.html || '') };
+  if (type === 'video') {
+    const duration = Math.max(1, Number(body.durationSeconds) || 60);
+    return {
+      ...base, html: String(body.html || ''),
+      videoUrl: String(body.videoUrl || ''),
+      videoUrlWebm: body.videoUrlWebm ? String(body.videoUrlWebm) : undefined,
+      durationSeconds: duration,
+      minWatchSeconds: Math.min(duration, Math.max(1, Number(body.minWatchSeconds) || Math.max(1, duration - 2))),
+    };
+  }
+  // quiz
+  const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
+    id: q.id || 'q' + (i + 1),
+    prompt: String(q.prompt || ''),
+    options: (Array.isArray(q.options) ? q.options : []).map(String).filter(Boolean),
+    answer: Number(q.answer) || 0,
+  })).filter((q) => q.prompt && q.options.length >= 2);
+  return { ...base, html: String(body.html || ''), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
+}
+
+app.post('/api/admin/courses', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  if (!b.title) return res.status(400).json({ error: 'Course title is required' });
+  const db = load();
+  const course = {
+    id: slugify(b.title) + '-' + crypto.randomBytes(3).toString('hex'),
+    title: String(b.title),
+    tagline: String(b.tagline || ''),
+    description: String(b.description || ''),
+    badge: String(b.badge || 'Course'),
+    estMinutes: Math.max(1, Number(b.estMinutes) || 30),
+    heroEmoji: String(b.heroEmoji || '⚽'),
+    lessons: [],
+  };
+  db.courses.push(course);
+  save();
+  res.json({ course });
+});
+
+app.put('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const b = req.body || {};
+  for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji']) if (b[f] != null) course[f] = String(b[f]);
+  if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
+  save();
+  res.json({ course });
+});
+
+app.delete('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+  const db = load();
+  const i = db.courses.findIndex((c) => c.id === req.params.courseId);
+  if (i < 0) return res.status(404).json({ error: 'Course not found' });
+  db.courses.splice(i, 1);
+  save();
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/courses/:courseId/lessons', requireAdmin, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const lesson = buildLesson(req.body || {});
+  course.lessons.push(lesson);
+  save();
+  res.json({ lesson });
+});
+
+app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const idx = course.lessons.findIndex((l) => l.id === req.params.lessonId);
+  if (idx < 0) return res.status(404).json({ error: 'Lesson not found' });
+  course.lessons[idx] = buildLesson({ ...req.body, id: req.params.lessonId });
+  save();
+  res.json({ lesson: course.lessons[idx] });
+});
+
+app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const i = course.lessons.findIndex((l) => l.id === req.params.lessonId);
+  if (i < 0) return res.status(404).json({ error: 'Lesson not found' });
+  course.lessons.splice(i, 1);
+  save();
+  res.json({ ok: true });
+});
+
+// Full course (with quiz answers) for the admin editor.
+app.get('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+  const course = allCourses().find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  res.json({ course });
 });
 
 // SPA fallback

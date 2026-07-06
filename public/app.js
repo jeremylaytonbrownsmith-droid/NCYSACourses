@@ -660,7 +660,10 @@ async function viewAdmin() {
   const d = await api('/api/admin/overview');
   app.innerHTML = `
     <div class="admin-wrap">
-      <h1>NCYSA Education Dashboard</h1>
+      <div class="admin-head">
+        <h1>NCYSA Education Dashboard</h1>
+        <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+      </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
         ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
       <div class="admin-grid">
@@ -696,6 +699,183 @@ async function viewAdmin() {
     </div>`;
 }
 
+// ---------- admin course editor ----------
+
+async function viewCourseAdmin(flash) {
+  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  const { courses } = await api('/api/courses');
+  const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
+  const list = full.filter(Boolean);
+
+  const typeLabel = { text: '📖 Reading', video: '🎬 Video', quiz: '📝 Exam' };
+  app.innerHTML = `
+    <div class="admin-wrap">
+      <div class="admin-head">
+        <div><a class="back-link" href="#/admin">← Dashboard</a><h1>Manage courses</h1></div>
+        <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
+      </div>
+      <div id="editorMsg" class="editor-msg"></div>
+      <div id="newCoursePanel"></div>
+      <div class="course-admin-list">
+        ${list.map((c) => `
+          <div class="admin-card course-admin" data-course="${c.id}">
+            <div class="course-admin-head">
+              <div>
+                <span class="badge-inline">${esc(c.badge)}</span>
+                <h2>${esc(c.title)}</h2>
+                <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
+              </div>
+              <div class="course-admin-actions">
+                <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
+                <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
+              </div>
+            </div>
+            <ol class="admin-lessons">
+              ${c.lessons.map((l) => `
+                <li>
+                  <span>${typeLabel[l.type] || l.type} — <strong>${esc(l.title)}</strong></span>
+                  <span class="admin-lesson-actions">
+                    <button class="linkbtn edit-lesson" data-course="${c.id}" data-lesson="${l.id}">Edit</button>
+                    <button class="linkbtn danger del-lesson" data-course="${c.id}" data-lesson="${l.id}">Delete</button>
+                  </span>
+                </li>`).join('') || '<li class="empty">No lessons yet — click “Add lesson”.</li>'}
+            </ol>
+            <div class="panel-slot" data-course="${c.id}"></div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const msg = (t, err) => { const e = document.getElementById('editorMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
+  if (typeof flash === 'string' && flash) msg(flash); // survive re-render after a save
+
+  document.getElementById('newCourseBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = courseForm();
+    bindCourseForm(null);
+  });
+  document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = courseForm(c);
+    bindCourseForm(c);
+  }));
+  document.querySelectorAll('.add-lesson').forEach((b) => b.addEventListener('click', () => {
+    document.querySelector(`.panel-slot[data-course="${b.dataset.course}"]`).innerHTML = lessonForm(b.dataset.course, null);
+    bindLessonForm(b.dataset.course, null);
+  }));
+  document.querySelectorAll('.edit-lesson').forEach((b) => b.addEventListener('click', () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const l = c.lessons.find((x) => x.id === b.dataset.lesson);
+    document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = lessonForm(c.id, l);
+    bindLessonForm(c.id, l);
+  }));
+  document.querySelectorAll('.del-lesson').forEach((b) => b.addEventListener('click', async () => {
+    await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}`, { method: 'DELETE' });
+    viewCourseAdmin('Lesson deleted.');
+  }));
+
+  function courseForm(c) {
+    return `<form class="editor-form" id="courseForm">
+      <h3>${c ? 'Edit course details' : 'New course'}</h3>
+      <label>Title<input name="title" value="${c ? esc(c.title) : ''}" required /></label>
+      <label>Tagline<input name="tagline" value="${c ? esc(c.tagline || '') : ''}" /></label>
+      <label>Description<textarea name="description" rows="2">${c ? esc(c.description || '') : ''}</textarea></label>
+      <div class="form-row">
+        <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
+        <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
+    </form>`;
+  }
+  function bindCourseForm(c) {
+    document.getElementById('courseForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        if (c) await api(`/api/admin/courses/${c.id}`, { method: 'PUT', body: v });
+        else await api('/api/admin/courses', { method: 'POST', body: v });
+        viewCourseAdmin(c ? 'Course updated.' : 'Course created.');
+      } catch (err) { msg(err.message, true); }
+    });
+  }
+
+  function lessonForm(courseId, l) {
+    const t = l ? l.type : 'text';
+    return `<form class="editor-form" id="lessonForm" data-course="${courseId}">
+      <h3>${l ? 'Edit lesson' : 'Add lesson'}</h3>
+      <label>Lesson type
+        <select name="type" id="lessonType" ${l ? 'disabled' : ''}>
+          <option value="text" ${t === 'text' ? 'selected' : ''}>Reading</option>
+          <option value="video" ${t === 'video' ? 'selected' : ''}>Video</option>
+          <option value="quiz" ${t === 'quiz' ? 'selected' : ''}>Exam / quiz</option>
+        </select>
+      </label>
+      <label>Title<input name="title" value="${l ? esc(l.title) : ''}" required /></label>
+      <div id="typeFields"></div>
+      <div class="form-actions"><button class="btn btn-accent" type="submit">${l ? 'Save lesson' : 'Add lesson'}</button></div>
+    </form>`;
+  }
+  function typeFields(type, l) {
+    if (type === 'video') return `
+      <label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+      <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
+      <div class="form-row">
+        <label>Duration (seconds)<input name="durationSeconds" type="number" value="${l ? l.durationSeconds : 60}" /></label>
+        <label>Must-watch (seconds)<input name="minWatchSeconds" type="number" value="${l ? l.minWatchSeconds : ''}" placeholder="auto = duration − 2" /></label>
+      </div>`;
+    if (type === 'quiz') {
+      const qs = l ? l.questions : [{ prompt: '', options: ['', ''], answer: 0 }];
+      return `<label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+        <label>Pass mark (%)<input name="passPercent" type="number" value="${l ? l.passPercent : 80}" /></label>
+        <div id="quizQs">${qs.map((q, i) => quizQ(q, i)).join('')}</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="addQ">＋ Add question</button>`;
+    }
+    return `<label>Content (HTML)<textarea name="html" rows="5">${l ? esc(l.html || '') : ''}</textarea></label>`;
+  }
+  function quizQ(q, i) {
+    return `<div class="quiz-edit" data-qi="${i}">
+      <label>Question ${i + 1}<input name="q_prompt_${i}" value="${esc(q.prompt || '')}" /></label>
+      ${[0, 1, 2, 3].map((oi) => `<label class="opt-row"><input type="radio" name="q_answer_${i}" value="${oi}" ${Number(q.answer) === oi ? 'checked' : ''} /> <input name="q_opt_${i}_${oi}" value="${esc((q.options || [])[oi] || '')}" placeholder="Option ${oi + 1}" /></label>`).join('')}
+    </div>`;
+  }
+  function bindLessonForm(courseId, l) {
+    const form = document.getElementById('lessonForm');
+    const sel = document.getElementById('lessonType');
+    const render = () => {
+      document.getElementById('typeFields').innerHTML = typeFields(sel.value, l);
+      const addQ = document.getElementById('addQ');
+      if (addQ) addQ.addEventListener('click', () => {
+        const qs = document.getElementById('quizQs');
+        qs.insertAdjacentHTML('beforeend', quizQ({ prompt: '', options: ['', ''], answer: 0 }, qs.children.length));
+      });
+    };
+    sel.addEventListener('change', render);
+    render();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const type = l ? l.type : fd.get('type');
+      const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
+      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
+      if (type === 'quiz') {
+        payload.passPercent = fd.get('passPercent');
+        const qEls = form.querySelectorAll('.quiz-edit');
+        payload.questions = Array.from(qEls).map((el) => {
+          const i = el.dataset.qi;
+          return {
+            prompt: fd.get(`q_prompt_${i}`),
+            answer: fd.get(`q_answer_${i}`),
+            options: [0, 1, 2, 3].map((oi) => fd.get(`q_opt_${i}_${oi}`)).filter((x) => x && x.trim()),
+          };
+        });
+      }
+      try {
+        if (l) await api(`/api/admin/courses/${courseId}/lessons/${l.id}`, { method: 'PUT', body: payload });
+        else await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: payload });
+        viewCourseAdmin('Lesson saved.');
+      } catch (err) { msg(err.message, true); }
+    });
+  }
+}
+
 // ---------- router ----------
 
 const routes = [
@@ -710,6 +890,7 @@ const routes = [
   { re: /^#\/cert\/([\w-]+)$/, fn: (m) => viewCertificate(m[1]) },
   { re: /^#\/notifications$/, fn: viewNotifications },
   { re: /^#\/admin$/, fn: viewAdmin },
+  { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
 ];
 
 async function route() {
