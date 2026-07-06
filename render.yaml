@@ -1,0 +1,26 @@
+# One-click deploy on Render (https://render.com):
+# New + > Blueprint > point it at this repo. The persistent disk keeps
+# learner records across restarts and deploys.
+services:
+  - type: web
+    name: ncysa-learn
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/courses
+    disk:
+      name: ncysa-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: ADMIN_EMAIL
+        value: education@ncysa.org
+      - key: ADMIN_PASSWORD
+        generateValue: true # shown once in the Render dashboard
+      - key: NCYSA_NOTIFY_EMAIL
+        value: education@ncysa.org
+      - key: NOTIFY_WEBHOOK_URL
+        sync: false # optional: paste a Zapier/Make webhook to deliver emails

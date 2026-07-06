@@ -58,6 +58,25 @@ emails on the NCYSA dashboard:
 npm test           # Playwright, writes screenshots/ along the way
 ```
 
+
+## Deploying (production in an afternoon)
+
+The app is a single Node.js process — any host that runs Node works.
+
+**Easiest: Render.** This repo includes `render.yaml`. On [render.com](https://render.com):
+New + → Blueprint → select this repo → deploy. You get an HTTPS URL immediately;
+add a custom domain (e.g. `learn.ncysa.org`) with one CNAME record. The included
+persistent disk keeps learner records across deploys. (~$7/mo starter instance
++ $0.25/mo disk.)
+
+**Also works:** Railway, Fly.io, or any $5 VPS — a `Dockerfile` is included.
+Set `DATA_DIR` to a persisted path so records survive restarts.
+
+**Real email in 10 minutes:** create a free [Zapier](https://zapier.com) or
+[Make](https://make.com) webhook that forwards to Gmail/Outlook, and set it as
+`NOTIFY_WEBHOOK_URL`. Every completion notice then lands in real inboxes; the
+in-app outbox keeps a copy regardless.
+
 ## Architecture
 
 ```
