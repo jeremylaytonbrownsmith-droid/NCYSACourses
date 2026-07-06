@@ -12,6 +12,7 @@
   --success-dark: #1f8a52;
   --ink: #1d1a18;
   --ink-soft: #6b645e;
+  --ink-body: #3d3833;
   --line: #e9e4dd;
   --bg: #f9f7f7;
   --card: #ffffff;
@@ -174,7 +175,7 @@ a:hover { text-decoration: underline; }
 .lesson-pane h1 { font-size: 1.75rem; letter-spacing: -0.01em; margin: 6px 0 20px; }
 .lesson-content h2 { font-size: 1.3rem; margin: 22px 0 10px; }
 .lesson-content h3 { font-size: 1.08rem; margin: 18px 0 8px; }
-.lesson-content p, .lesson-content li { color: #33414f; }
+.lesson-content p, .lesson-content li { color: var(--ink-body); }
 .lesson-content ul, .lesson-content ol { padding-left: 24px; margin: 10px 0; }
 .lesson-content li { margin: 6px 0; }
 .lesson-content blockquote {
@@ -245,7 +246,7 @@ a:hover { text-decoration: underline; }
 .notif.unread { border-left-color: var(--danger); }
 .notif h3 { font-size: 1rem; }
 .notif time { font-size: 0.78rem; color: var(--ink-soft); }
-.notif p { font-size: 0.92rem; color: #33414f; margin-top: 6px; }
+.notif p { font-size: 0.92rem; color: var(--ink-body); margin-top: 6px; }
 
 .admin-wrap { max-width: 1020px; margin: 36px auto; padding: 0 20px; }
 .admin-wrap h1 { margin-bottom: 4px; }
@@ -257,7 +258,7 @@ a:hover { text-decoration: underline; }
 .admin-table th { color: var(--ink-soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
-.mail pre { white-space: pre-wrap; font: inherit; color: #33414f; }
+.mail pre { white-space: pre-wrap; font: inherit; color: var(--ink-body); }
 .empty { color: var(--ink-soft); font-size: 0.9rem; }
 
 /* ---------- toast ---------- */
