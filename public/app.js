@@ -80,7 +80,7 @@ function renderNav() {
     <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a>' : ''}
-      <button class="bell" id="bellBtn" title="Notifications">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
+      <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
     ` : `
@@ -427,15 +427,15 @@ function renderVideoLesson(pane, course, lesson, lp) {
     ${lessonHeader(lesson)}
     <div class="lesson-content">${lesson.html}</div>
     <div class="video-shell">
-      <video id="lessonVideo" preload="metadata" playsinline>
+      <video id="lessonVideo" preload="metadata" playsinline aria-label="Lesson video: ${esc(lesson.title)}">
         ${lesson.videoUrl ? `<source src="${lesson.videoUrl}" type="video/mp4" />` : ''}
         ${lesson.videoUrlWebm ? `<source src="${lesson.videoUrlWebm}" type="video/webm" />` : ''}
       </video>
       <div class="v-controls">
-        <button id="playBtn" title="Play / pause">▶</button>
+        <button id="playBtn" title="Play / pause" aria-label="Play or pause the video">▶</button>
         <div class="v-track"><div class="v-fill" id="vFill"></div></div>
         <span class="v-time" id="vTime">0:00 / ${fmtTime(lesson.durationSeconds)}</span>
-        <button id="muteBtn" title="Mute / unmute">🔊</button>
+        <button id="muteBtn" title="Mute / unmute" aria-label="Mute or unmute">🔊</button>
       </div>
     </div>
     <div class="watch-meter">
@@ -1062,16 +1062,30 @@ const routes = [
   { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
 ];
 
+function startLoading() {
+  const bar = document.getElementById('loadbar');
+  if (bar) { bar.classList.add('active'); bar.style.width = '45%'; requestAnimationFrame(() => (bar.style.width = '75%')); }
+  // Show a spinner only if the view is slow to load (avoids flicker on instant/local data).
+  return setTimeout(() => { app.innerHTML = '<div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><span>Loading…</span></div>'; }, 200);
+}
+function stopLoading(spinnerTimer) {
+  clearTimeout(spinnerTimer);
+  const bar = document.getElementById('loadbar');
+  if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.classList.remove('active'); bar.style.width = '0'; }, 250); }
+}
+
 async function route() {
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
   for (const r of routes) {
     const m = hash.match(r.re);
     if (m) {
+      const spinnerTimer = startLoading();
       try { await r.fn(m); } catch (e) {
-        if (e.status === 401) { location.hash = '#/login'; return; }
+        if (e.status === 401) { stopLoading(spinnerTimer); location.hash = '#/login'; return; }
         app.innerHTML = `<div class="section"><div class="card"><h2>Something went wrong</h2><p class="sub">${esc(e.message)}</p></div></div>`;
       }
+      stopLoading(spinnerTimer);
       window.scrollTo(0, 0);
       return;
     }
@@ -1081,6 +1095,16 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 (async function init() {
+  // Accessibility + loading chrome (added once, works in product and demo builds).
+  if (!document.getElementById('loadbar')) {
+    const bar = document.createElement('div'); bar.id = 'loadbar'; document.body.appendChild(bar);
+    const skip = document.createElement('a'); skip.href = '#main'; skip.className = 'skip-link'; skip.textContent = 'Skip to content';
+    document.body.insertBefore(skip, document.body.firstChild);
+    app.id = 'app'; app.setAttribute('tabindex', '-1');
+    if (!app.getAttribute('id')) app.id = 'app';
+    app.setAttribute('role', 'main');
+    const anchor = document.createElement('span'); anchor.id = 'main'; app.parentNode.insertBefore(anchor, app);
+  }
   await refreshMe();
   await route();
 })();
