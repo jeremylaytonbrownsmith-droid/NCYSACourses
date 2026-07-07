@@ -208,6 +208,7 @@ app.get('/api/courses', (req, res) => {
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
         badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji,
+        audience: c.audience || 'everyone',
         lessonCount: c.lessons.length,
         enrolled: !!enr, completedAt: enr?.completedAt || null, certId: enr?.certId || null,
         percent: prog?.percent ?? 0,
@@ -477,6 +478,7 @@ app.post('/api/admin/courses', requireAdmin, (req, res) => {
     tagline: String(b.tagline || ''),
     description: String(b.description || ''),
     badge: String(b.badge || 'Course'),
+    audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
     heroEmoji: String(b.heroEmoji || '⚽'),
     lessons: [],
@@ -492,6 +494,7 @@ app.put('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
   if (!course) return res.status(404).json({ error: 'Course not found' });
   const b = req.body || {};
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji']) if (b[f] != null) course[f] = String(b[f]);
+  if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
   save();
   res.json({ course });

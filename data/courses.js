@@ -286,4 +286,88 @@ module.exports = [
       },
     ],
   },
+
+  // ---- Staff / volunteer training (audience: 'staff') ---------------------
+  {
+    id: 'staff-onboarding',
+    title: 'NCYSA Staff Onboarding & Policies',
+    tagline: 'Required orientation for NCYSA staff, board members, and office volunteers.',
+    description:
+      'A short onboarding for everyone who works or volunteers with the North Carolina Youth ' +
+      'Soccer Association. It covers our mission, the SafeSport and mandatory-reporting policies ' +
+      'every staff member must follow, and how we handle member data. Finish with a short check ' +
+      'for understanding and receive your completion certificate.',
+    badge: 'Staff Training',
+    audience: 'staff',
+    estMinutes: 20,
+    heroEmoji: '🗂️',
+    lessons: [
+      {
+        id: 'staff-welcome',
+        type: 'text',
+        title: 'Welcome to the NCYSA Team',
+        html: `
+          <h2>Welcome aboard!</h2>
+          <p>Whether you're on staff, on the board, or volunteering in the office, you're part of the
+          team that makes youth soccer happen across North Carolina. This short onboarding gets you
+          set up with the essentials.</p>
+          <h3>Our mission</h3>
+          <p>NCYSA develops and promotes the game of soccer for the youth of North Carolina — building
+          players, coaches, referees, and communities. Every role in the association exists to keep
+          kids playing, safe, and having fun.</p>
+          <p>Mark this lesson complete to continue.</p>`,
+      },
+      {
+        id: 'staff-safesport',
+        type: 'text',
+        title: 'SafeSport & Mandatory Reporting',
+        html: `
+          <h2>Keeping Every Participant Safe</h2>
+          <p>All NCYSA staff and volunteers operate under the U.S. Center for SafeSport standards:</p>
+          <ul>
+            <li><strong>Two-adult rule</strong> — interactions with minors are observable and interruptible.</li>
+            <li><strong>Background screening</strong> — required for anyone in a covered role.</li>
+            <li><strong>Mandatory reporting</strong> — suspected abuse or misconduct must be reported
+                immediately. When in doubt, report.</li>
+          </ul>
+          <p>Complete your training and review the standards at the
+          <a href="https://uscenterforsafesport.org/" target="_blank" rel="noopener">U.S. Center for SafeSport</a>.</p>
+          <h3>Data &amp; privacy</h3>
+          <p>Member data (names, contact info, registrations) is confidential. Access only what your role
+          requires, never share it outside NCYSA business, and report any suspected data exposure to
+          the office right away.</p>`,
+      },
+      {
+        id: 'staff-check',
+        type: 'quiz',
+        title: 'Onboarding Check',
+        passPercent: 100,
+        html: `<p>A quick two-question check. You need <strong>100%</strong> — you can retake it.</p>`,
+        questions: [
+          {
+            id: 'q1',
+            prompt: 'You suspect a child may be being harmed. What is the NCYSA expectation?',
+            options: [
+              'Wait to see if it happens again before doing anything',
+              'Report it immediately — when in doubt, report',
+              'Only tell another volunteer',
+              'Handle it yourself privately',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q2',
+            prompt: 'How should NCYSA member data be treated?',
+            options: [
+              'Shared freely to get work done faster',
+              'Confidential — accessed only as your role requires and never shared outside NCYSA',
+              'Posted publicly for transparency',
+              'Kept on personal devices without restriction',
+            ],
+            answer: 1,
+          },
+        ],
+      },
+    ],
+  },
 ];

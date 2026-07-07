@@ -500,6 +500,11 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   .resume-strip, .role-hero, .lesson-content, .spinner { animation: none; }
 }
 
+/* Staff Training + dashboard header actions */
+.admin-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.topnav .nav-training { display: inline-block; }
+@media (max-width: 600px) { .topnav .nav-training { display: none; } }
+
 
 /* ---------- demo bar ---------- */
 .demo-bar {
@@ -832,6 +837,90 @@ const COURSES = [
       },
     ],
   },
+
+  // ---- Staff / volunteer training (audience: 'staff') ---------------------
+  {
+    id: 'staff-onboarding',
+    title: 'NCYSA Staff Onboarding & Policies',
+    tagline: 'Required orientation for NCYSA staff, board members, and office volunteers.',
+    description:
+      'A short onboarding for everyone who works or volunteers with the North Carolina Youth ' +
+      'Soccer Association. It covers our mission, the SafeSport and mandatory-reporting policies ' +
+      'every staff member must follow, and how we handle member data. Finish with a short check ' +
+      'for understanding and receive your completion certificate.',
+    badge: 'Staff Training',
+    audience: 'staff',
+    estMinutes: 20,
+    heroEmoji: '🗂️',
+    lessons: [
+      {
+        id: 'staff-welcome',
+        type: 'text',
+        title: 'Welcome to the NCYSA Team',
+        html: `
+          <h2>Welcome aboard!</h2>
+          <p>Whether you're on staff, on the board, or volunteering in the office, you're part of the
+          team that makes youth soccer happen across North Carolina. This short onboarding gets you
+          set up with the essentials.</p>
+          <h3>Our mission</h3>
+          <p>NCYSA develops and promotes the game of soccer for the youth of North Carolina — building
+          players, coaches, referees, and communities. Every role in the association exists to keep
+          kids playing, safe, and having fun.</p>
+          <p>Mark this lesson complete to continue.</p>`,
+      },
+      {
+        id: 'staff-safesport',
+        type: 'text',
+        title: 'SafeSport & Mandatory Reporting',
+        html: `
+          <h2>Keeping Every Participant Safe</h2>
+          <p>All NCYSA staff and volunteers operate under the U.S. Center for SafeSport standards:</p>
+          <ul>
+            <li><strong>Two-adult rule</strong> — interactions with minors are observable and interruptible.</li>
+            <li><strong>Background screening</strong> — required for anyone in a covered role.</li>
+            <li><strong>Mandatory reporting</strong> — suspected abuse or misconduct must be reported
+                immediately. When in doubt, report.</li>
+          </ul>
+          <p>Complete your training and review the standards at the
+          <a href="https://uscenterforsafesport.org/" target="_blank" rel="noopener">U.S. Center for SafeSport</a>.</p>
+          <h3>Data &amp; privacy</h3>
+          <p>Member data (names, contact info, registrations) is confidential. Access only what your role
+          requires, never share it outside NCYSA business, and report any suspected data exposure to
+          the office right away.</p>`,
+      },
+      {
+        id: 'staff-check',
+        type: 'quiz',
+        title: 'Onboarding Check',
+        passPercent: 100,
+        html: `<p>A quick two-question check. You need <strong>100%</strong> — you can retake it.</p>`,
+        questions: [
+          {
+            id: 'q1',
+            prompt: 'You suspect a child may be being harmed. What is the NCYSA expectation?',
+            options: [
+              'Wait to see if it happens again before doing anything',
+              'Report it immediately — when in doubt, report',
+              'Only tell another volunteer',
+              'Handle it yourself privately',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q2',
+            prompt: 'How should NCYSA member data be treated?',
+            options: [
+              'Shared freely to get work done faster',
+              'Confidential — accessed only as your role requires and never shared outside NCYSA',
+              'Posted publicly for transparency',
+              'Kept on personal devices without restriction',
+            ],
+            answer: 1,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ---- Demo mock backend -----------------------------------------------------
@@ -849,7 +938,10 @@ let DB = demoLoad() || {
   enrollments: [], lessonProgress: [], notifications: [], outbox: [],
 };
 // Courses live in the (localStorage) DB so the demo admin can edit them too.
-if (!DB.courses || !DB.courses.length) DB.courses = JSON.parse(JSON.stringify(COURSES));
+// Merge in any built-in courses not already present (so returning demo visitors
+// pick up newly added seed courses like the staff training without losing data).
+if (!DB.courses) DB.courses = [];
+for (const c of COURSES) if (!DB.courses.some((x) => x.id === c.id)) DB.courses.push(JSON.parse(JSON.stringify(c)));
 function demoSave() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 function demoId(p) { return p + '_' + Math.random().toString(16).slice(2, 10); }
 function demoUser() { return DB.users.find((u) => u.id === DB.currentUserId) || null; }
@@ -979,7 +1071,7 @@ function mockFetch(path, opts = {}) {
       const enr = user && DB.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? mockSummary(c, mockProgress(user.id, c.id)) : null;
       return { id: c.id, title: c.title, tagline: c.tagline, description: c.description,
-        badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji, lessonCount: c.lessons.length,
+        badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji, audience: c.audience || 'everyone', lessonCount: c.lessons.length,
         enrolled: !!enr, completedAt: enr?.completedAt || null, certId: enr?.certId || null,
         percent: prog?.percent ?? 0 };
     }) });
@@ -1098,7 +1190,7 @@ function mockFetch(path, opts = {}) {
     if (!body.title) return R(400, { error: 'Course title is required' });
     const course = { id: demoSlug(body.title) + '-' + demoId('c').slice(2, 8), title: String(body.title),
       tagline: String(body.tagline || ''), description: String(body.description || ''),
-      badge: String(body.badge || 'Course'), estMinutes: Math.max(1, Number(body.estMinutes) || 30),
+      badge: String(body.badge || 'Course'), audience: ['everyone','coaches','referees','staff'].includes(body.audience) ? body.audience : 'everyone', estMinutes: Math.max(1, Number(body.estMinutes) || 30),
       heroEmoji: String(body.heroEmoji || '⚽'), lessons: [] };
     DB.courses.push(course); demoSave();
     return R(200, { course });
@@ -1109,6 +1201,7 @@ function mockFetch(path, opts = {}) {
     if (!course) return R(404, { error: 'Course not found' });
     if (opts.method === 'PUT') {
       for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji']) if (body[f] != null) course[f] = String(body[f]);
+      if (body.audience && ['everyone','coaches','referees','staff'].includes(body.audience)) course.audience = body.audience;
       if (body.estMinutes != null) course.estMinutes = Math.max(1, Number(body.estMinutes) || course.estMinutes);
       demoSave(); return R(200, { course });
     }
@@ -1232,7 +1325,7 @@ function renderNav() {
     <span class="spacer"></span>
     <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
-      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a>' : ''}
+      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
@@ -1254,6 +1347,10 @@ async function refreshMe() {
 }
 
 // ---------- views ----------
+
+// Course audience helpers: staff-only trainings don't show in the coach catalog.
+const isCoachCourse = (c) => !c.audience || c.audience === 'everyone' || c.audience === 'coaches';
+const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone';
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
@@ -1310,7 +1407,7 @@ async function viewHome() {
     <section class="section" id="coach-courses">
       <h2>Coach courses</h2>
       <p class="lead">Official NCYSA coaching education courses.</p>
-      <div class="course-grid">${courses.map(courseCard).join('')}</div>
+      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
     </section>
     <footer class="footer">North Carolina Youth Soccer Association · NCYSA Learn · Built in-house, no per-seat fees.</footer>`;
   bindCourseCards();
@@ -1358,7 +1455,26 @@ async function viewCatalog() {
     <section class="section">
       <h2>Course catalog</h2>
       <p class="lead">Official NCYSA coaching education courses. Enroll free with your NCYSA Learn account.</p>
-      <div class="course-grid">${courses.map(courseCard).join('')}</div>
+      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
+    </section>`;
+  bindCourseCards();
+}
+
+// Staff training area: staff sign in and take their own required trainings.
+async function viewStaffTraining() {
+  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  const { courses } = await api('/api/courses');
+  const staffCourses = courses.filter(isStaffCourse);
+  app.innerHTML = `
+    <section class="section">
+      <a class="back-link" href="#/admin">← Dashboard</a>
+      <h2>Staff Training</h2>
+      <p class="lead">Required and optional trainings for NCYSA staff, board members, and office
+        volunteers. Complete a training to earn your certificate — your completion is recorded
+        automatically, just like a coach's.</p>
+      ${staffCourses.length
+        ? `<div class="course-grid">${staffCourses.map(courseCard).join('')}</div>`
+        : '<p class="empty">No staff trainings yet. Add one from “Manage courses” and set its audience to Staff.</p>'}
     </section>`;
   bindCourseCards();
 }
@@ -1923,7 +2039,10 @@ async function viewAdmin() {
     <div class="admin-wrap">
       <div class="admin-head">
         <h1>NCYSA Education Dashboard</h1>
-        <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+        <div class="admin-head-actions">
+          <a class="btn btn-ghost" href="#/staff-training">🎓 Staff Training</a>
+          <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+        </div>
       </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
         ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
@@ -2104,6 +2223,12 @@ async function viewCourseAdmin(flash) {
         <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
         <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
       </div>
+      <label>Audience
+        <select name="audience">
+          ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
+            .map(([v, t]) => `<option value="${v}" ${(c ? (c.audience || 'everyone') : 'everyone') === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
       <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
     </form>`;
   }
@@ -2213,6 +2338,7 @@ const routes = [
   { re: /^#\/notifications$/, fn: viewNotifications },
   { re: /^#\/admin$/, fn: viewAdmin },
   { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
+  { re: /^#\/staff-training$/, fn: viewStaffTraining },
 ];
 
 function startLoading() {

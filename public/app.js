@@ -79,7 +79,7 @@ function renderNav() {
     <span class="spacer"></span>
     <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
-      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a>' : ''}
+      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
@@ -101,6 +101,10 @@ async function refreshMe() {
 }
 
 // ---------- views ----------
+
+// Course audience helpers: staff-only trainings don't show in the coach catalog.
+const isCoachCourse = (c) => !c.audience || c.audience === 'everyone' || c.audience === 'coaches';
+const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone';
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
@@ -157,7 +161,7 @@ async function viewHome() {
     <section class="section" id="coach-courses">
       <h2>Coach courses</h2>
       <p class="lead">Official NCYSA coaching education courses.</p>
-      <div class="course-grid">${courses.map(courseCard).join('')}</div>
+      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
     </section>
     <footer class="footer">North Carolina Youth Soccer Association · NCYSA Learn · Built in-house, no per-seat fees.</footer>`;
   bindCourseCards();
@@ -205,7 +209,26 @@ async function viewCatalog() {
     <section class="section">
       <h2>Course catalog</h2>
       <p class="lead">Official NCYSA coaching education courses. Enroll free with your NCYSA Learn account.</p>
-      <div class="course-grid">${courses.map(courseCard).join('')}</div>
+      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
+    </section>`;
+  bindCourseCards();
+}
+
+// Staff training area: staff sign in and take their own required trainings.
+async function viewStaffTraining() {
+  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  const { courses } = await api('/api/courses');
+  const staffCourses = courses.filter(isStaffCourse);
+  app.innerHTML = `
+    <section class="section">
+      <a class="back-link" href="#/admin">← Dashboard</a>
+      <h2>Staff Training</h2>
+      <p class="lead">Required and optional trainings for NCYSA staff, board members, and office
+        volunteers. Complete a training to earn your certificate — your completion is recorded
+        automatically, just like a coach's.</p>
+      ${staffCourses.length
+        ? `<div class="course-grid">${staffCourses.map(courseCard).join('')}</div>`
+        : '<p class="empty">No staff trainings yet. Add one from “Manage courses” and set its audience to Staff.</p>'}
     </section>`;
   bindCourseCards();
 }
@@ -770,7 +793,10 @@ async function viewAdmin() {
     <div class="admin-wrap">
       <div class="admin-head">
         <h1>NCYSA Education Dashboard</h1>
-        <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+        <div class="admin-head-actions">
+          <a class="btn btn-ghost" href="#/staff-training">🎓 Staff Training</a>
+          <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+        </div>
       </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
         ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
@@ -951,6 +977,12 @@ async function viewCourseAdmin(flash) {
         <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
         <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
       </div>
+      <label>Audience
+        <select name="audience">
+          ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
+            .map(([v, t]) => `<option value="${v}" ${(c ? (c.audience || 'everyone') : 'everyone') === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
       <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
     </form>`;
   }
@@ -1060,6 +1092,7 @@ const routes = [
   { re: /^#\/notifications$/, fn: viewNotifications },
   { re: /^#\/admin$/, fn: viewAdmin },
   { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
+  { re: /^#\/staff-training$/, fn: viewStaffTraining },
 ];
 
 function startLoading() {

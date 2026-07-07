@@ -478,3 +478,8 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   .lesson-pane, .section, .admin-wrap, .auth-wrap, .certificate, .notif-list,
   .resume-strip, .role-hero, .lesson-content, .spinner { animation: none; }
 }
+
+/* Staff Training + dashboard header actions */
+.admin-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.topnav .nav-training { display: inline-block; }
+@media (max-width: 600px) { .topnav .nav-training { display: none; } }
