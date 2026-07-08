@@ -130,8 +130,8 @@ async function viewHome() {
     <section class="hero">
       ${logoImg('hero-logo')}
       <h1>Coaching education, built by NCYSA for North Carolina soccer.</h1>
-      <p>Take your required licenses and professional development courses online — free,
-         self-paced, and tracked automatically with NCYSA.</p>
+      <p>Take your required licenses and professional development courses online —
+         self-paced, with your progress tracked automatically by NCYSA.</p>
       <div class="cta-row">
         ${me?.user
           ? `<a class="btn btn-accent btn-lg" href="#/courses">Browse courses</a>`
@@ -141,7 +141,7 @@ async function viewHome() {
     </section>
     <div class="feature-strip">
       <div class="feature"><div class="fi">📚</div><h3>Self-paced lessons</h3><p>Reading, video, and exams that unlock in order — no skipping ahead.</p></div>
-      <div class="feature"><div class="fi">🎬</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so licenses mean something.</p></div>
+      <div class="feature"><div class="fi">🎬</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so completed licenses reflect genuine training.</p></div>
       <div class="feature"><div class="fi">🏅</div><h3>Instant certificates</h3><p>Finish a course and your certificate is issued on the spot.</p></div>
       <div class="feature"><div class="fi">📨</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
     </div>
@@ -168,7 +168,7 @@ async function viewHome() {
       <p class="lead">Official NCYSA coaching education courses.</p>
       <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
     </section>
-    <footer class="footer">North Carolina Youth Soccer Association · NCYSA Learn · Built in-house, no per-seat fees.</footer>`;
+    <footer class="footer">© ${new Date().getFullYear()} North Carolina Youth Soccer Association · NCYSA Learn</footer>`;
   bindCourseCards();
 }
 
