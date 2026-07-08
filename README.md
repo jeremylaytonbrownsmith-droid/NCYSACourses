@@ -66,8 +66,18 @@ The app is a single Node.js process — any host that runs Node works.
 **Easiest: Render.** This repo includes `render.yaml`. On [render.com](https://render.com):
 New + → Blueprint → select this repo → deploy. You get an HTTPS URL immediately;
 add a custom domain (e.g. `learn.ncysa.org`) with one CNAME record. The included
-persistent disk keeps learner records across deploys. (~$7/mo starter instance
-+ $0.25/mo disk.)
+persistent disk keeps courses and learner records across deploys. (~$7/mo
+starter instance + $0.25/mo disk.)
+
+During the Blueprint deploy Render prompts for three secrets (none are stored in
+git; if a password env var is left unset in production the app locks that
+account with a random secret rather than shipping a known default):
+
+| Variable | What it is |
+|---|---|
+| `ADMIN_PASSWORD` | Password for the NCYSA staff dashboard (`admin@ncysa.org`) |
+| `EDITOR_PASSWORD` | Password for the course designer (`DA@ncsoccer.org`) — a value you choose |
+| `NOTIFY_WEBHOOK_URL` | Optional: a Zapier/Make webhook that delivers completion emails |
 
 **Also works:** Railway, Fly.io, or any $5 VPS — a `Dockerfile` is included.
 Set `DATA_DIR` to a persisted path so records survive restarts.

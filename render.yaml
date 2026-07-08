@@ -1,6 +1,12 @@
 # One-click deploy on Render (https://render.com):
 # New + > Blueprint > point it at this repo. The persistent disk keeps
-# learner records across restarts and deploys.
+# courses and learner records across restarts and deploys.
+#
+# You will be prompted to enter three values in the Render dashboard (they are
+# NOT stored in this file, so no password is ever committed to git):
+#   ADMIN_PASSWORD     — password for the NCYSA staff dashboard (admin@ncysa.org)
+#   EDITOR_PASSWORD    — password for the course designer (DA@ncsoccer.org / Colin)
+#   NOTIFY_WEBHOOK_URL — optional: a Zapier/Make webhook to deliver completion emails
 services:
   - type: web
     name: ncysa-learn
@@ -14,12 +20,18 @@ services:
       mountPath: /data
       sizeGB: 1
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: DATA_DIR
         value: /data
       - key: ADMIN_EMAIL
         value: education@ncysa.org
       - key: ADMIN_PASSWORD
-        generateValue: true # shown once in the Render dashboard
+        sync: false # you type this in the Render dashboard (never committed)
+      - key: EDITOR_EMAIL
+        value: DA@ncsoccer.org
+      - key: EDITOR_PASSWORD
+        sync: false # Colin's course-designer password — a value you choose
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       - key: NOTIFY_WEBHOOK_URL

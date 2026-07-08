@@ -38,6 +38,19 @@ function hashPassword(password, salt) {
   return crypto.scryptSync(String(password), salt, 32).toString('hex');
 }
 
+// Resolve a seeded account's password WITHOUT baking a usable secret into the
+// production build. In production the env var is required; if it's missing we
+// fall back to a random, unguessable value (so no known default password is
+// ever live) and warn. Locally/tests we use a friendly default for convenience.
+function seedPassword(envVar, devDefault) {
+  if (process.env[envVar]) return process.env[envVar];
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(`[auth] ${envVar} is not set — that account is locked with a random password until you set it.`);
+    return crypto.randomBytes(24).toString('hex');
+  }
+  return devDefault; // local/demo/test only
+}
+
 function setSession(res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
@@ -85,7 +98,7 @@ function requireEditor(req, res, next) {
 (function seedAdmin() {
   const db = load();
   const email = process.env.ADMIN_EMAIL || 'admin@ncysa.org';
-  const password = process.env.ADMIN_PASSWORD || 'ncysa-staff-2026';
+  const password = seedPassword('ADMIN_PASSWORD', 'ncysa-staff-2026');
   const existing = db.users.find((u) => u.role === 'admin');
   const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
   const passHash = hashPassword(password, salt);
@@ -107,7 +120,7 @@ function requireEditor(req, res, next) {
 (function seedEditor() {
   const db = load();
   const email = process.env.EDITOR_EMAIL || 'DA@ncsoccer.org';
-  const password = process.env.EDITOR_PASSWORD || 'ncysa-designer-2026';
+  const password = seedPassword('EDITOR_PASSWORD', 'ncysa-designer-2026');
   const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
   const passHash = hashPassword(password, salt);

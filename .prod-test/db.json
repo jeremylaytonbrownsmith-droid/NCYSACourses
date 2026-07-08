@@ -1,0 +1,323 @@
+{
+  "courses": [
+    {
+      "id": "grassroots-coaching-license",
+      "title": "NCYSA Grassroots Soccer Coaching License",
+      "tagline": "The required entry-level license for every NCYSA youth coach.",
+      "description": "This course prepares new and returning volunteers to coach youth soccer in North Carolina. You will learn the role of the grassroots coach, how kids develop as players, how to keep every player safe, the laws of the small-sided game, and how to design a practice using the Play–Practice–Play model. The course ends with a graded final exam and an official certificate of completion.",
+      "badge": "Coaching License",
+      "estMinutes": 45,
+      "heroEmoji": "⚽",
+      "lessons": [
+        {
+          "id": "welcome",
+          "type": "text",
+          "title": "Welcome & How This Course Works",
+          "html": "\n          <h2>Welcome, Coach!</h2>\n          <p>On behalf of the <strong>North Carolina Youth Soccer Association</strong>, thank you for\n          stepping up to coach. Youth coaches are the single biggest influence on whether a child\n          falls in love with the game — this course exists to set you (and your players) up for success.</p>\n          <h3>How this course works</h3>\n          <ul>\n            <li>Lessons unlock <strong>in order</strong>. You must complete each lesson before the next one opens.</li>\n            <li>The video lesson requires you to actually watch it — skipping ahead is disabled and\n                you must watch nearly the entire video before you can continue.</li>\n            <li>The course ends with a <strong>final exam</strong>. You need <strong>80%</strong> to pass.</li>\n            <li>When you finish, you will receive a certificate, and NCYSA is automatically notified\n                so your license can be recorded.</li>\n          </ul>\n          <p>Mark this lesson complete to begin.</p>"
+        },
+        {
+          "id": "role-of-coach",
+          "type": "text",
+          "title": "The Role of the Grassroots Coach",
+          "html": "\n          <h2>Your Job Is Bigger Than Soccer</h2>\n          <p>A grassroots coach wears four hats:</p>\n          <ol>\n            <li><strong>Safety officer</strong> — every player goes home healthy.</li>\n            <li><strong>Environment builder</strong> — practices are fun, active, and welcoming.</li>\n            <li><strong>Teacher of the game</strong> — small, age-appropriate lessons, not lectures.</li>\n            <li><strong>Role model</strong> — players copy how you treat referees, opponents, and mistakes.</li>\n          </ol>\n          <h3>The 3 F's of grassroots soccer</h3>\n          <p><strong>Fun. Freedom. Fair play.</strong> Kids quit organized sports primarily because it\n          stops being fun. Your success is measured by how many of your players sign up again next season.</p>\n          <blockquote>“Ask yourself after every practice: did every kid touch the ball a lot,\n          smile a lot, and learn one thing?”</blockquote>"
+        },
+        {
+          "id": "player-development",
+          "type": "text",
+          "title": "Player Development & Age-Appropriate Training",
+          "html": "\n          <h2>Coach the Kid in Front of You</h2>\n          <p>Children are not miniature adults. Training must match their stage of development:</p>\n          <h3>U6–U8: “Me and my ball”</h3>\n          <ul><li>Maximum touches; every player has a ball.</li>\n              <li>Games disguised as fun (tag, sharks &amp; minnows).</li>\n              <li>Short attention spans — change activities every 5–8 minutes.</li></ul>\n          <h3>U9–U12: “The golden age of learning”</h3>\n          <ul><li>Skill acquisition peaks — dribbling, passing, receiving under light pressure.</li>\n              <li>Small-sided games (4v4 to 7v7) maximize decisions and touches.</li></ul>\n          <h3>U13+: “Training to compete”</h3>\n          <ul><li>Introduce team shape, roles, and game-model concepts.</li>\n              <li>Growth spurts affect coordination — be patient with temporary awkwardness.</li></ul>\n          <p>Rule of thumb: in any activity, every player should be <strong>active more than 70% of the\n          time</strong>. Lines, laps, and lectures are the enemies of development.</p>"
+        },
+        {
+          "id": "safety",
+          "type": "text",
+          "title": "Player Health, Safety & Risk Management",
+          "html": "\n          <h2>Safety Is Non-Negotiable</h2>\n          <h3>Before every session</h3>\n          <ul>\n            <li>Inspect the field: holes, glass, unanchored goals. <strong>Unanchored goals kill —\n                never let players hang on goals.</strong></li>\n            <li>Have your emergency action plan: phone, first-aid kit, and each player's emergency contact.</li>\n          </ul>\n          <h3>Heat &amp; hydration</h3>\n          <ul><li>Mandatory water breaks at least every 20–30 minutes; more in summer.</li>\n              <li>Know the signs of heat illness: cramps, dizziness, confusion, no sweating.</li></ul>\n          <h3>Concussions — when in doubt, sit them out</h3>\n          <p>Any player with a suspected head injury must be removed immediately and may not return\n          the same day. Return to play requires written medical clearance. This is North Carolina law\n          (the Gfeller-Waller Act) and NCYSA policy.</p>\n          <h3>Safe environment</h3>\n          <p>Follow the U.S. Soccer Safe Soccer framework: two-adult rule, observable and interruptible\n          interactions, and mandatory reporting of suspected abuse. Complete your abuse-prevention\n          training at the <a href=\"https://uscenterforsafesport.org/\" target=\"_blank\" rel=\"noopener\">U.S.\n          Center for SafeSport</a>.</p>"
+        },
+        {
+          "id": "laws",
+          "type": "text",
+          "title": "Laws of the Game for Small-Sided Play",
+          "html": "\n          <h2>Small-Sided Games, Simplified Laws</h2>\n          <table>\n            <tr><th>Age</th><th>Format</th><th>Ball</th><th>Notes</th></tr>\n            <tr><td>U6–U8</td><td>4v4, no GK</td><td>Size 3</td><td>No heading, build-out line n/a</td></tr>\n            <tr><td>U9–U10</td><td>7v7</td><td>Size 4</td><td>Build-out line, no punting, no heading</td></tr>\n            <tr><td>U11–U12</td><td>9v9</td><td>Size 4</td><td>Offside enforced</td></tr>\n            <tr><td>U13+</td><td>11v11</td><td>Size 5</td><td>Full FIFA Laws of the Game</td></tr>\n          </table>\n          <h3>Key points every coach gets wrong</h3>\n          <ul>\n            <li><strong>Build-out line (7v7):</strong> when the goalkeeper has the ball, opponents retreat\n                behind the line until the ball is put into play. Encourages playing out of the back.</li>\n            <li><strong>Heading:</strong> banned for U11 and younger in both practice and games.</li>\n            <li><strong>Sideline behavior:</strong> coaches may instruct only from their own technical area,\n                and positive encouragement beats joystick coaching every time.</li>\n          </ul>\n          <p>Read the official, current laws for free at\n          <a href=\"https://www.theifab.com/laws-of-the-game-documents/\" target=\"_blank\" rel=\"noopener\">IFAB —\n          Laws of the Game</a>.</p>"
+        },
+        {
+          "id": "session-video",
+          "type": "video",
+          "title": "Video: A Grassroots Training Session in Action",
+          "videoUrl": "/media/lesson-video.mp4",
+          "videoUrlWebm": "/media/lesson-video.webm",
+          "durationSeconds": 93,
+          "minWatchSeconds": 91,
+          "html": "\n          <p>Watch this training session demonstration from start to finish. As you watch, look for:</p>\n          <ul>\n            <li>How quickly players get a ball at their feet (no lines, no laps, no lectures),</li>\n            <li>Water breaks and safety checkpoints,</li>\n            <li>The coach teaching through short “freeze” moments instead of long speeches.</li>\n          </ul>\n          <p><strong>Note:</strong> skipping ahead is disabled. You must watch almost the entire\n          video before you can continue to the next lesson.</p>"
+        },
+        {
+          "id": "session-design",
+          "type": "text",
+          "title": "Designing Your Practice: Play–Practice–Play",
+          "html": "\n          <h2>The Play–Practice–Play Model</h2>\n          <p>U.S. Soccer's grassroots methodology structures every session in three phases:</p>\n          <ol>\n            <li><strong>Play (15 min):</strong> players arrive and immediately play small-sided soccer.\n                No warm-up lines — the game is the warm-up.</li>\n            <li><strong>Practice (30 min):</strong> a focused activity targeting one theme\n                (e.g., dribbling to beat a defender). Keep it game-like: direction, opponents, goals.</li>\n            <li><strong>Play (15 min):</strong> finish with the game again. Let them play — observe,\n                and save your coaching for one or two teachable moments.</li>\n          </ol>\n          <h3>Session checklist</h3>\n          <ul>\n            <li>One theme per session — not five.</li>\n            <li>Every activity has a ball, a decision, and a way to “win.”</li>\n            <li>Talk less than 30 seconds at a time.</li>\n            <li>End on time, end positive, name one thing each player did well.</li>\n          </ul>"
+        },
+        {
+          "id": "resources",
+          "type": "text",
+          "title": "Coaching Resources & Where to Learn More",
+          "html": "\n          <h2>Keep Growing as a Coach</h2>\n          <p>This course is your starting point. The resources below — all free — will help you plan\n          better sessions, keep players safe, and continue your coaching education. We recommend\n          bookmarking these and returning to them throughout the season.</p>\n\n          <h3>⚽ U.S. Soccer coaching education</h3>\n          <ul>\n            <li><a href=\"https://learning.ussoccer.com/\" target=\"_blank\" rel=\"noopener\">U.S. Soccer Learning Center</a>\n                — the official home for coaching licenses and courses, including the free\n                <strong>Introduction to Grassroots Coaching</strong> module.</li>\n            <li><a href=\"https://learning.ussoccer.com/coach/courses\" target=\"_blank\" rel=\"noopener\">Grassroots Coaching Licenses</a>\n                — the 4v4, 7v7, 9v9, and 11v11 license pathways for youth coaches.</li>\n            <li><a href=\"https://www.ussoccer.com/coaching-education\" target=\"_blank\" rel=\"noopener\">U.S. Soccer Coaching Education overview</a>\n                — how the licensing pathway fits together, from grassroots to pro.</li>\n          </ul>\n\n          <h3>🥅 Session plans &amp; activities</h3>\n          <ul>\n            <li><a href=\"https://www.usyouthsoccer.org/coaches/\" target=\"_blank\" rel=\"noopener\">US Youth Soccer — Coaches Hub</a>\n                — age-appropriate drills, practice plans, and player-development guidance.</li>\n            <li><a href=\"https://www.ussoccer.com/coaching-education/play-practice-play\" target=\"_blank\" rel=\"noopener\">Play–Practice–Play</a>\n                — a deeper look at the session model from this course.</li>\n          </ul>\n\n          <h3>🛡️ Player safety</h3>\n          <ul>\n            <li><a href=\"https://uscenterforsafesport.org/\" target=\"_blank\" rel=\"noopener\">U.S. Center for SafeSport</a>\n                — abuse-prevention training and the standards every NCYSA coach follows.</li>\n            <li><a href=\"https://www.ncsoccer.org/\" target=\"_blank\" rel=\"noopener\">NCYSA — North Carolina Youth Soccer</a>\n                — state-specific policies, background checks, and coach registration.</li>\n          </ul>\n\n          <h3>📖 Laws of the game</h3>\n          <ul>\n            <li><a href=\"https://www.theifab.com/laws-of-the-game-documents/\" target=\"_blank\" rel=\"noopener\">IFAB — Laws of the Game</a>\n                — the official, current laws, free to read online.</li>\n          </ul>\n\n          <p style=\"margin-top:16px\"><em>Tip: links open in a new tab so you won't lose your place here.\n          When you're ready, continue to the final exam.</em></p>"
+        },
+        {
+          "id": "final-exam",
+          "type": "quiz",
+          "title": "Final Exam",
+          "passPercent": 80,
+          "html": "<p>Answer all questions. You need <strong>80% or higher</strong> to pass and earn your\n               license certificate. You may retake the exam if needed.</p>",
+          "questions": [
+            {
+              "id": "q1",
+              "prompt": "A player takes a knock to the head and seems dizzy. What must you do?",
+              "options": [
+                "Give them water and let them play if they say they feel fine",
+                "Remove them immediately; no return the same day without medical clearance",
+                "Have them play goalkeeper for the rest of the game",
+                "Let a parent decide whether they keep playing"
+              ],
+              "answer": 1
+            },
+            {
+              "id": "q2",
+              "prompt": "In the Play–Practice–Play model, how should a session begin?",
+              "options": [
+                "Warm-up laps and static stretching",
+                "A tactics lecture with a whiteboard",
+                "Players immediately playing small-sided soccer",
+                "Fitness testing"
+              ],
+              "answer": 2
+            },
+            {
+              "id": "q3",
+              "prompt": "Heading the ball is prohibited for which players?",
+              "options": [
+                "U11 and younger, in both practices and games",
+                "Only U6 players",
+                "Only in games, practice heading is fine at any age",
+                "No age group — heading is always allowed"
+              ],
+              "answer": 0
+            },
+            {
+              "id": "q4",
+              "prompt": "What is the best measure of success for a grassroots coach?",
+              "options": [
+                "Winning the league",
+                "How many players return to play next season",
+                "How disciplined the players stand in line",
+                "Number of drills covered per practice"
+              ],
+              "answer": 1
+            },
+            {
+              "id": "q5",
+              "prompt": "At 7v7 (U9–U10), what does the build-out line require?",
+              "options": [
+                "Goalkeepers must punt the ball past midfield",
+                "Defenders must stay behind it at all times",
+                "Opponents retreat behind it until the goalkeeper puts the ball in play",
+                "All goal kicks are taken from the midfield line"
+              ],
+              "answer": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "staff-onboarding",
+      "title": "NCYSA Staff Onboarding & Policies",
+      "tagline": "Required orientation for NCYSA staff, board members, and office volunteers.",
+      "description": "A short onboarding for everyone who works or volunteers with the North Carolina Youth Soccer Association. It covers our mission, the SafeSport and mandatory-reporting policies every staff member must follow, and how we handle member data. Finish with a short check for understanding and receive your completion certificate.",
+      "badge": "Staff Training",
+      "audience": "staff",
+      "estMinutes": 20,
+      "heroEmoji": "🗂️",
+      "lessons": [
+        {
+          "id": "staff-welcome",
+          "type": "text",
+          "title": "Welcome to the NCYSA Team",
+          "html": "\n          <h2>Welcome aboard!</h2>\n          <p>Whether you're on staff, on the board, or volunteering in the office, you're part of the\n          team that makes youth soccer happen across North Carolina. This short onboarding gets you\n          set up with the essentials.</p>\n          <h3>Our mission</h3>\n          <p>NCYSA develops and promotes the game of soccer for the youth of North Carolina — building\n          players, coaches, referees, and communities. Every role in the association exists to keep\n          kids playing, safe, and having fun.</p>\n          <p>Mark this lesson complete to continue.</p>"
+        },
+        {
+          "id": "staff-safesport",
+          "type": "text",
+          "title": "SafeSport & Mandatory Reporting",
+          "html": "\n          <h2>Keeping Every Participant Safe</h2>\n          <p>All NCYSA staff and volunteers operate under the U.S. Center for SafeSport standards:</p>\n          <ul>\n            <li><strong>Two-adult rule</strong> — interactions with minors are observable and interruptible.</li>\n            <li><strong>Background screening</strong> — required for anyone in a covered role.</li>\n            <li><strong>Mandatory reporting</strong> — suspected abuse or misconduct must be reported\n                immediately. When in doubt, report.</li>\n          </ul>\n          <p>Complete your training and review the standards at the\n          <a href=\"https://uscenterforsafesport.org/\" target=\"_blank\" rel=\"noopener\">U.S. Center for SafeSport</a>.</p>\n          <h3>Data &amp; privacy</h3>\n          <p>Member data (names, contact info, registrations) is confidential. Access only what your role\n          requires, never share it outside NCYSA business, and report any suspected data exposure to\n          the office right away.</p>"
+        },
+        {
+          "id": "staff-check",
+          "type": "quiz",
+          "title": "Onboarding Check",
+          "passPercent": 100,
+          "html": "<p>A quick two-question check. You need <strong>100%</strong> — you can retake it.</p>",
+          "questions": [
+            {
+              "id": "q1",
+              "prompt": "You suspect a child may be being harmed. What is the NCYSA expectation?",
+              "options": [
+                "Wait to see if it happens again before doing anything",
+                "Report it immediately — when in doubt, report",
+                "Only tell another volunteer",
+                "Handle it yourself privately"
+              ],
+              "answer": 1
+            },
+            {
+              "id": "q2",
+              "prompt": "How should NCYSA member data be treated?",
+              "options": [
+                "Shared freely to get work done faster",
+                "Confidential — accessed only as your role requires and never shared outside NCYSA",
+                "Posted publicly for transparency",
+                "Kept on personal devices without restriction"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sideline-management-cf9d6e",
+      "title": "Sideline Management",
+      "tagline": "",
+      "description": "",
+      "badge": "Course",
+      "audience": "coaches",
+      "estMinutes": 30,
+      "heroEmoji": "⚽",
+      "lessons": [
+        {
+          "id": "technical-area-45e3f5",
+          "type": "video",
+          "title": "Technical area",
+          "html": "",
+          "videoUrl": "https://www.ncsoccer.org/wp-content/uploads/sideline.mp4",
+          "durationSeconds": 120,
+          "minWatchSeconds": 118
+        },
+        {
+          "id": "check-48433c",
+          "type": "quiz",
+          "title": "Check",
+          "html": "",
+          "passPercent": 80,
+          "questions": [
+            {
+              "id": "q1",
+              "prompt": "Where may a coach instruct from?",
+              "options": [
+                "Technical area",
+                "Center circle"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "usr_f3168e1a7d17a8eb",
+      "name": "NCYSA Education Staff",
+      "email": "admin@ncysa.org",
+      "role": "admin",
+      "salt": "cf404b18b6d414e3",
+      "passHash": "16568012af58cca8b3c347b2584fd4cba102a0740604d0537c305067a80ca316",
+      "createdAt": "2026-07-08T15:07:12.523Z"
+    },
+    {
+      "id": "usr_ba9d73901fd9bc26",
+      "name": "Course Designer",
+      "email": "DA@ncsoccer.org",
+      "role": "editor",
+      "salt": "7da27e04c26d6e02",
+      "passHash": "289eee958d38cbf66a5ad48213d0ed5dfd0b2d565528d40346e02b73fbf9b807",
+      "createdAt": "2026-07-08T15:07:12.574Z"
+    },
+    {
+      "id": "usr_f314d41c3f4b8157",
+      "name": "Dana Coach",
+      "email": "dana@club.com",
+      "role": "learner",
+      "createdAt": "2026-07-08T15:07:14.278Z"
+    }
+  ],
+  "sessions": {
+    "c658a867714c0e8ee6df0c4488e9aef55f944a4a2a89cce4": "usr_ba9d73901fd9bc26",
+    "507b27bfd070ce8197dfb6f2da57e835d22782433c504394": "usr_f314d41c3f4b8157"
+  },
+  "enrollments": [
+    {
+      "userId": "usr_f314d41c3f4b8157",
+      "courseId": "sideline-management-cf9d6e",
+      "startedAt": "2026-07-08T15:07:14.292Z",
+      "completedAt": "2026-07-08T15:07:14.427Z",
+      "certId": "NCYSA-8D2874A2"
+    }
+  ],
+  "lessonProgress": [
+    {
+      "userId": "usr_f314d41c3f4b8157",
+      "courseId": "sideline-management-cf9d6e",
+      "lessonId": "technical-area-45e3f5",
+      "watchedSeconds": 120,
+      "completed": true,
+      "completedAt": "2026-07-08T15:07:14.387Z",
+      "quizScore": null
+    },
+    {
+      "userId": "usr_f314d41c3f4b8157",
+      "courseId": "sideline-management-cf9d6e",
+      "lessonId": "check-48433c",
+      "watchedSeconds": 0,
+      "completed": true,
+      "completedAt": "2026-07-08T15:07:14.427Z",
+      "quizScore": 100
+    }
+  ],
+  "notifications": [
+    {
+      "id": "ntf_22aac5a58d1b203b",
+      "audience": "user",
+      "userId": "usr_f314d41c3f4b8157",
+      "title": "🎉 You completed Sideline Management!",
+      "body": "Congratulations, Dana Coach! Your certificate (NCYSA-8D2874A2) is ready. Final exam score: 100%.",
+      "createdAt": "2026-07-08T15:07:14.447Z",
+      "read": false
+    },
+    {
+      "id": "ntf_bdb43e50135af88d",
+      "audience": "ncysa",
+      "userId": null,
+      "title": "Course completion: Sideline Management",
+      "body": "Dana Coach (dana@club.com) completed the course on 7/8/2026, 11:07:14 AM. Certificate NCYSA-8D2874A2. Final exam score: 100%.",
+      "createdAt": "2026-07-08T15:07:14.449Z",
+      "read": false
+    }
+  ],
+  "outbox": [
+    {
+      "id": "mail_d58e406fd4cd597e",
+      "to": "dana@club.com",
+      "subject": "Congratulations — you completed Sideline Management",
+      "body": "Hi Dana Coach,\n\nYou have successfully completed \"Sideline Management\" on 7/8/2026, 11:07:14 AM. Final exam score: 100%.\n\nYour certificate ID is NCYSA-8D2874A2. You can view and print your certificate from your dashboard.\n\nGood luck this season, Coach!\n— NCYSA Learn",
+      "createdAt": "2026-07-08T15:07:14.448Z",
+      "status": "outbox-only"
+    },
+    {
+      "id": "mail_25b2307aae907f9a",
+      "to": "education@ncysa.org",
+      "subject": "[NCYSA Learn] Dana Coach completed Sideline Management",
+      "body": "Completion record\n=================\nLearner: Dana Coach\nEmail: dana@club.com\nCourse: Sideline Management\nCompleted: 7/8/2026, 11:07:14 AM\nCertificate: NCYSA-8D2874A2\nFinal exam score: 100%.\n\nThis learner's coaching license can now be recorded.",
+      "createdAt": "2026-07-08T15:07:14.449Z",
+      "status": "outbox-only"
+    }
+  ]
+}
