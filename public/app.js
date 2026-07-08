@@ -78,6 +78,7 @@ function renderNav() {
     </a>
     <span class="spacer"></span>
     <a class="navlink nav-courses" href="#/courses">Courses</a>
+    <a class="navlink nav-help" href="#/help">Help</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
@@ -1087,6 +1088,103 @@ async function viewCourseAdmin(flash) {
   }
 }
 
+// ---------- help / knowledge base ----------
+
+// Knowledge Base articles shown to learners taking courses. Rendered as an
+// accessible accordion (<details>). Keep the language plain and reassuring.
+const KB_LEARNER = [
+  {
+    q: 'How do I sign up and start a course?',
+    a: `<p>Click <strong>Get started</strong> (or <strong>Sign in</strong>) at the top and create a free
+        account with your name and email — no password needed. Then open <strong>Courses</strong>,
+        pick one, and click <strong>Enroll</strong> to begin. Your spot is saved to your email.</p>`,
+  },
+  {
+    q: 'Why can’t I open a later lesson yet?',
+    a: `<p>Lessons unlock <strong>in order</strong> — each one opens only after you finish the one
+        before it. This makes sure everyone covers the material in sequence. Finish the current
+        lesson and the next will unlock automatically.</p>`,
+  },
+  {
+    q: 'The video jumped back / I can’t skip ahead — is it broken?',
+    a: `<p>No, that’s on purpose. Video lessons track your <strong>real watch time</strong>, so
+        fast-forwarding snaps back and you need to watch nearly the whole clip before you can
+        continue. Just let it play — the “Continue” button unlocks when you’ve watched enough.</p>`,
+  },
+  {
+    q: 'How does the exam / quiz work?',
+    a: `<p>Answer the questions and submit. It’s <strong>graded instantly</strong>, and you need to
+        reach the pass mark shown on the exam (often 80%). Didn’t pass? No problem —
+        you get <strong>unlimited retakes</strong>. Review the lesson and try again.</p>`,
+  },
+  {
+    q: 'When do I get my certificate?',
+    a: `<p>The moment you complete a course, your <strong>certificate is issued automatically</strong>
+        with a unique ID, and NCYSA is notified of your completion. You’ll see a link to view and
+        print it, and you can find it again from your course list any time.</p>`,
+  },
+  {
+    q: 'Can I stop and come back later?',
+    a: `<p>Yes. Your progress saves as you go. When you return and sign in with the same email,
+        you’ll see a <strong>“Resume where you left off”</strong> button that drops you right back in.</p>`,
+  },
+  {
+    q: 'The site was slow to load the first time.',
+    a: `<p>On the very first visit after a quiet period, the site can take up to <strong>~50 seconds</strong>
+        to wake up, then it’s fast. Give it a moment and refresh if needed — nothing is wrong.</p>`,
+  },
+  {
+    q: 'What do you do with my email?',
+    a: `<p>It’s only used to <strong>save your progress</strong> and send your completion certificate.
+        No password is required and nothing is shared elsewhere.</p>`,
+  },
+  {
+    q: 'I’m stuck or something looks wrong.',
+    a: `<p>Try refreshing the page first. If it persists, contact your NCYSA administrator with the
+        course name and what you were doing — they can look into it.</p>`,
+  },
+];
+
+function kbAccordion(items) {
+  return `<div class="kb-list">${items.map((it) => `
+    <details class="kb-item">
+      <summary>${it.q}</summary>
+      <div class="kb-body">${it.a}</div>
+    </details>`).join('')}</div>`;
+}
+
+function viewHelp() {
+  const role = me?.user?.role;
+  const isDesigner = role === 'editor' || role === 'admin';
+  app.innerHTML = `
+    <section class="section">
+      <a class="back-link" href="${role ? roleHome(role) : '#/'}">← Back</a>
+      <h2>Help &amp; Knowledge Base</h2>
+      <p class="lead">Answers to common questions about taking courses on NCYSA Learn.
+        Can’t find what you need? Reach out to your NCYSA administrator.</p>
+
+      <h3 class="kb-heading">📘 Knowledge Base articles — for learners</h3>
+      ${kbAccordion(KB_LEARNER)}
+
+      ${isDesigner ? `
+        <h3 class="kb-heading">🛠️ Course designer resources</h3>
+        <div class="card kb-resources">
+          <p>Building courses? These guides walk you through everything — signing in, creating a
+            course, and adding reading, video, and quiz lessons.</p>
+          <p class="kb-downloads">
+            <a class="btn btn-primary" href="/docs/NCYSA_Getting_Started.pdf" target="_blank" rel="noopener">📄 Getting Started guide (PDF)</a>
+            <a class="btn btn-ghost" href="/docs/NCYSA_Knowledge_Desk.pdf" target="_blank" rel="noopener">📚 Knowledge Desk reference (PDF)</a>
+          </p>
+          <ul class="kb-reminders">
+            <li><strong>Everything auto-saves</strong> — a course goes live for its audience once it has a lesson.</li>
+            <li><strong>Graded quizzes:</strong> use the built-in quiz builder — it grades automatically and issues the certificate. A Google Form/JotForm can be embedded in a Reading lesson for surveys, but the app can’t grade or track those.</li>
+            <li><strong>Videos:</strong> paste a link (WordPress media library for now; shared Dropbox later).</li>
+            <li><strong>Share a course:</strong> open it and copy the web address from your browser’s address bar — that’s the learner link.</li>
+          </ul>
+        </div>` : ''}
+    </section>`;
+}
+
 // ---------- router ----------
 
 const routes = [
@@ -1103,6 +1201,7 @@ const routes = [
   { re: /^#\/admin$/, fn: viewAdmin },
   { re: /^#\/admin\/courses$/, fn: viewCourseAdmin },
   { re: /^#\/staff-training$/, fn: viewStaffTraining },
+  { re: /^#\/help$/, fn: viewHelp },
 ];
 
 function startLoading() {

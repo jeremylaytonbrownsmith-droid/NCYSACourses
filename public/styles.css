@@ -318,6 +318,33 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .resource-links li { color: var(--ink-body); }
 .back-link { display: inline-block; margin-bottom: 18px; font-weight: 600; }
 
+/* Help / Knowledge Base */
+.kb-heading { margin: 28px 0 12px; color: var(--brand); font-size: 1.1rem; }
+.kb-list { display: flex; flex-direction: column; gap: 10px; }
+.kb-item {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow); overflow: hidden;
+}
+.kb-item > summary {
+  cursor: pointer; padding: 14px 16px; font-weight: 600; color: var(--ink);
+  list-style: none; position: relative; padding-right: 42px;
+}
+.kb-item > summary::-webkit-details-marker { display: none; }
+.kb-item > summary::after {
+  content: '+'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 1.2rem; color: var(--brand); font-weight: 700; line-height: 1;
+}
+.kb-item[open] > summary::after { content: '–'; }
+.kb-item > summary:hover { color: var(--brand); }
+.kb-item:focus-within { border-color: var(--brand); }
+.kb-body { padding: 0 16px 14px; color: var(--ink-body); }
+.kb-body p { margin: 0; line-height: 1.6; }
+.kb-resources { margin-top: 4px; }
+.kb-resources > p { color: var(--ink-body); }
+.kb-downloads { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.kb-reminders { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.kb-reminders li { color: var(--ink-body); line-height: 1.5; }
+
 .auth-note {
   margin-top: 14px; font-size: 0.82rem; color: var(--ink-soft);
   background: var(--bg); border-radius: 9px; padding: 10px 12px; line-height: 1.5;
