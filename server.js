@@ -69,6 +69,16 @@ function requireAdmin(req, res, next) {
   });
 }
 
+// Course designers (collaborators) and admins can edit the course catalog.
+// Collaborators do NOT get the completion dashboard or learner records.
+const STAFF_ROLES = ['admin', 'editor'];
+function requireEditor(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!STAFF_ROLES.includes(req.user.role)) return res.status(403).json({ error: 'Course designers only' });
+    next();
+  });
+}
+
 // Seed the NCYSA admin account. Staff sign-in requires a password so random
 // visitors can't reach the dashboard just by typing the admin email. Set a
 // strong ADMIN_PASSWORD in production; the default exists only for local/demo.
@@ -88,6 +98,27 @@ function requireAdmin(req, res, next) {
   } else if (existing.passHash !== passHash || existing.email !== email) {
     // Keep the seeded admin in sync with the configured credentials.
     existing.email = email; existing.salt = salt; existing.passHash = passHash;
+    save();
+  }
+})();
+
+// Seed a course-designer (collaborator) account — can build courses but has no
+// access to completion records or the staff dashboard.
+(function seedEditor() {
+  const db = load();
+  const email = process.env.EDITOR_EMAIL || 'DA@ncsoccer.org';
+  const password = process.env.EDITOR_PASSWORD || 'ncysa-designer-2026';
+  const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
+  const passHash = hashPassword(password, salt);
+  if (!existing) {
+    db.users.push({
+      id: id('usr'), name: 'Course Designer', email,
+      role: 'editor', salt, passHash, createdAt: new Date().toISOString(),
+    });
+    save();
+  } else if (existing.role !== 'editor' || existing.passHash !== passHash) {
+    existing.role = 'editor'; existing.salt = salt; existing.passHash = passHash;
     save();
   }
 })();
@@ -170,9 +201,9 @@ app.post('/api/login', (req, res) => {
   const user = db.users.find((u) => u.email.toLowerCase() === String(email || '').toLowerCase());
   if (!user)
     return res.status(401).json({ error: 'No account with that email yet — use “Get started” to create one.' });
-  if (user.role === 'admin') {
+  if (STAFF_ROLES.includes(user.role)) {
     if (!password || !user.passHash || hashPassword(password, user.salt) !== user.passHash)
-      return res.status(401).json({ error: 'Incorrect staff password.', needsPassword: true });
+      return res.status(401).json({ error: 'Incorrect password.', needsPassword: true });
   }
   setSession(res, user.id);
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
@@ -468,7 +499,7 @@ function buildLesson(body) {
   return { ...base, html: String(body.html || ''), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
 }
 
-app.post('/api/admin/courses', requireAdmin, (req, res) => {
+app.post('/api/admin/courses', requireEditor, (req, res) => {
   const b = req.body || {};
   if (!b.title) return res.status(400).json({ error: 'Course title is required' });
   const db = load();
@@ -488,7 +519,7 @@ app.post('/api/admin/courses', requireAdmin, (req, res) => {
   res.json({ course });
 });
 
-app.put('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
@@ -500,7 +531,7 @@ app.put('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
   res.json({ course });
 });
 
-app.delete('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+app.delete('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const db = load();
   const i = db.courses.findIndex((c) => c.id === req.params.courseId);
   if (i < 0) return res.status(404).json({ error: 'Course not found' });
@@ -509,7 +540,7 @@ app.delete('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/admin/courses/:courseId/lessons', requireAdmin, (req, res) => {
+app.post('/api/admin/courses/:courseId/lessons', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
@@ -519,7 +550,7 @@ app.post('/api/admin/courses/:courseId/lessons', requireAdmin, (req, res) => {
   res.json({ lesson });
 });
 
-app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req, res) => {
+app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
@@ -530,7 +561,7 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req, re
   res.json({ lesson: course.lessons[idx] });
 });
 
-app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req, res) => {
+app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
@@ -542,7 +573,7 @@ app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireAdmin, (req,
 });
 
 // Full course (with quiz answers) for the admin editor.
-app.get('/api/admin/courses/:courseId', requireAdmin, (req, res) => {
+app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   res.json({ course });

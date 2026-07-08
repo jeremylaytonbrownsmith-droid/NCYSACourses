@@ -80,6 +80,7 @@ function renderNav() {
     <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
+      ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
@@ -105,6 +106,9 @@ async function refreshMe() {
 // Course audience helpers: staff-only trainings don't show in the coach catalog.
 const isCoachCourse = (c) => !c.audience || c.audience === 'everyone' || c.audience === 'coaches';
 const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone';
+
+// Where each role lands after signing in.
+const roleHome = (role) => role === 'admin' ? '#/admin' : role === 'editor' ? '#/admin/courses' : '#/courses';
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
@@ -271,8 +275,7 @@ function viewLogin() {
       try {
         const r = await api('/api/login', { method: 'POST', body: v });
         await refreshMe();
-        // Admins (e.g. admin@ncysa.org) go straight to the dashboard.
-        location.hash = r.user.role === 'admin' ? '#/admin' : '#/courses';
+        location.hash = roleHome(r.user.role);
       } catch (err) {
         // Production: a staff email needs a password — send them to staff sign-in.
         if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
@@ -294,9 +297,9 @@ function viewStaffLogin() {
     note: '🔒 The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
     alt: 'Not staff? <a href="#/login">Learner sign-in</a>',
     onSubmit: async (v) => {
-      await api('/api/login', { method: 'POST', body: v });
+      const r = await api('/api/login', { method: 'POST', body: v });
       await refreshMe();
-      location.hash = '#/admin';
+      location.hash = roleHome(r.user.role);
     },
   });
 }
@@ -788,6 +791,7 @@ async function viewNotifications() {
 }
 
 async function viewAdmin() {
+  if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
   app.innerHTML = `
     <div class="admin-wrap">
@@ -897,7 +901,8 @@ async function viewAdmin() {
 // ---------- admin course editor ----------
 
 async function viewCourseAdmin(flash) {
-  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  if (!me?.user || !['admin', 'editor'].includes(me.user.role)) { location.hash = '#/staff'; return; }
+  const isAdmin = me.user.role === 'admin';
   const { courses } = await api('/api/courses');
   const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
   const list = full.filter(Boolean);
@@ -906,7 +911,11 @@ async function viewCourseAdmin(flash) {
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">
-        <div><a class="back-link" href="#/admin">← Dashboard</a><h1>Manage courses</h1></div>
+        <div>
+          <a class="back-link" href="${isAdmin ? '#/admin' : '#/'}">← ${isAdmin ? 'Dashboard' : 'Home'}</a>
+          <h1>${isAdmin ? 'Manage courses' : 'Course Designer'}</h1>
+          ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
+        </div>
         <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
       </div>
       <div id="editorMsg" class="editor-msg"></div>
@@ -1018,6 +1027,7 @@ async function viewCourseAdmin(flash) {
     if (type === 'video') return `
       <label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
       <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
+      <label>Video URL (WebM, optional — improves playback compatibility)<input name="videoUrlWebm" value="${l ? esc(l.videoUrlWebm || '') : ''}" placeholder="https://…/video.webm" /></label>
       <div class="form-row">
         <label>Duration (seconds)<input name="durationSeconds" type="number" value="${l ? l.durationSeconds : 60}" /></label>
         <label>Must-watch (seconds)<input name="minWatchSeconds" type="number" value="${l ? l.minWatchSeconds : ''}" placeholder="auto = duration − 2" /></label>
@@ -1055,7 +1065,7 @@ async function viewCourseAdmin(flash) {
       const fd = new FormData(form);
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
-      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
+      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.videoUrlWebm = fd.get('videoUrlWebm') || undefined; payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
       if (type === 'quiz') {
         payload.passPercent = fd.get('passPercent');
         const qEls = form.querySelectorAll('.quiz-edit');

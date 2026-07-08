@@ -554,7 +554,7 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 <div class="demo-bar">
   <span>🧪 <strong>DEMO — TEST MODE.</strong></span>
   <span><strong>To review:</strong> click <strong>Get started</strong>, enter any name &amp; email (no password — nothing is sent anywhere), then take the course.</span>
-  <span><strong>NCYSA staff view:</strong> click <strong>Sign in</strong> and enter <code>admin@ncysa.org</code> (no password needed in the demo)</span>
+  <span><strong>NCYSA staff:</strong> <strong>Sign in</strong> with <code>admin@ncysa.org</code> (full dashboard) or <code>DA@ncsoccer.org</code> (course designer) — no password in the demo</span>
   <label><input type="checkbox" id="demoSpeed" /> 8× video speed</label>
   <button id="demoReset" type="button">Reset demo</button>
 </div>
@@ -937,12 +937,20 @@ const DB_KEY = 'ncysa-learn-demo-db';
 function demoLoad() {
   try { return JSON.parse(localStorage.getItem(DB_KEY)) || null; } catch { return null; }
 }
+const SEED_STAFF = [
+  { id: 'usr_admin', name: 'NCYSA Education Staff', email: 'admin@ncysa.org', role: 'admin', password: 'ncysa-staff-2026' },
+  { id: 'usr_editor', name: 'Course Designer', email: 'DA@ncsoccer.org', role: 'editor', password: 'ncysa-designer-2026' },
+];
 let DB = demoLoad() || {
-  users: [{ id: 'usr_admin', name: 'NCYSA Education Staff', email: 'admin@ncysa.org', role: 'admin', password: 'ncysa-staff-2026' }],
+  users: [],
   currentUserId: null,
   courses: [],
   enrollments: [], lessonProgress: [], notifications: [], outbox: [],
 };
+if (!DB.users) DB.users = [];
+// Merge seeded staff accounts (admin + course designer) so returning demo
+// visitors pick up new roles like the collaborator without losing data.
+for (const s of SEED_STAFF) if (!DB.users.some((u) => u.email.toLowerCase() === s.email.toLowerCase())) DB.users.push({ ...s });
 // Courses live in the (localStorage) DB so the demo admin can edit them too.
 // Merge in any built-in courses not already present (so returning demo visitors
 // pick up newly added seed courses like the staff training without losing data).
@@ -1190,9 +1198,9 @@ function mockFetch(path, opts = {}) {
   }
 
   // ---- admin course editor ----
-  const adminOnly = () => user && user.role === 'admin';
+  const adminOnly = () => user && ['admin', 'editor'].includes(user.role);
   if (path === '/api/admin/courses' && opts.method === 'POST') {
-    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    if (!adminOnly()) return R(403, { error: 'Course designers only' });
     if (!body.title) return R(400, { error: 'Course title is required' });
     const course = { id: demoSlug(body.title) + '-' + demoId('c').slice(2, 8), title: String(body.title),
       tagline: String(body.tagline || ''), description: String(body.description || ''),
@@ -1202,7 +1210,7 @@ function mockFetch(path, opts = {}) {
     return R(200, { course });
   }
   if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)$/))) {
-    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    if (!adminOnly()) return R(403, { error: 'Course designers only' });
     const course = DB.courses.find((c) => c.id === m[1]);
     if (!course) return R(404, { error: 'Course not found' });
     if (opts.method === 'PUT') {
@@ -1215,14 +1223,14 @@ function mockFetch(path, opts = {}) {
     return R(200, { course }); // GET (full, with answers) for the editor
   }
   if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)\/lessons$/)) && opts.method === 'POST') {
-    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    if (!adminOnly()) return R(403, { error: 'Course designers only' });
     const course = DB.courses.find((c) => c.id === m[1]);
     if (!course) return R(404, { error: 'Course not found' });
     const lesson = demoBuildLesson(body); course.lessons.push(lesson); demoSave();
     return R(200, { lesson });
   }
   if ((m = path.match(/^\/api\/admin\/courses\/([\w-]+)\/lessons\/([\w-]+)$/))) {
-    if (!adminOnly()) return R(403, { error: 'NCYSA staff only' });
+    if (!adminOnly()) return R(403, { error: 'Course designers only' });
     const course = DB.courses.find((c) => c.id === m[1]);
     if (!course) return R(404, { error: 'Course not found' });
     const idx = course.lessons.findIndex((l) => l.id === m[2]);
@@ -1332,6 +1340,7 @@ function renderNav() {
     <a class="navlink nav-courses" href="#/courses">Courses</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
+      ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
@@ -1357,6 +1366,9 @@ async function refreshMe() {
 // Course audience helpers: staff-only trainings don't show in the coach catalog.
 const isCoachCourse = (c) => !c.audience || c.audience === 'everyone' || c.audience === 'coaches';
 const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone';
+
+// Where each role lands after signing in.
+const roleHome = (role) => role === 'admin' ? '#/admin' : role === 'editor' ? '#/admin/courses' : '#/courses';
 
 async function viewHome() {
   const { courses } = await api('/api/courses');
@@ -1523,8 +1535,7 @@ function viewLogin() {
       try {
         const r = await api('/api/login', { method: 'POST', body: v });
         await refreshMe();
-        // Admins (e.g. admin@ncysa.org) go straight to the dashboard.
-        location.hash = r.user.role === 'admin' ? '#/admin' : '#/courses';
+        location.hash = roleHome(r.user.role);
       } catch (err) {
         // Production: a staff email needs a password — send them to staff sign-in.
         if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
@@ -1546,9 +1557,9 @@ function viewStaffLogin() {
     note: '🔒 The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
     alt: 'Not staff? <a href="#/login">Learner sign-in</a>',
     onSubmit: async (v) => {
-      await api('/api/login', { method: 'POST', body: v });
+      const r = await api('/api/login', { method: 'POST', body: v });
       await refreshMe();
-      location.hash = '#/admin';
+      location.hash = roleHome(r.user.role);
     },
   });
 }
@@ -2040,6 +2051,7 @@ async function viewNotifications() {
 }
 
 async function viewAdmin() {
+  if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
   app.innerHTML = `
     <div class="admin-wrap">
@@ -2149,7 +2161,8 @@ async function viewAdmin() {
 // ---------- admin course editor ----------
 
 async function viewCourseAdmin(flash) {
-  if (!me?.user || me.user.role !== 'admin') { location.hash = '#/staff'; return; }
+  if (!me?.user || !['admin', 'editor'].includes(me.user.role)) { location.hash = '#/staff'; return; }
+  const isAdmin = me.user.role === 'admin';
   const { courses } = await api('/api/courses');
   const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
   const list = full.filter(Boolean);
@@ -2158,7 +2171,11 @@ async function viewCourseAdmin(flash) {
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">
-        <div><a class="back-link" href="#/admin">← Dashboard</a><h1>Manage courses</h1></div>
+        <div>
+          <a class="back-link" href="${isAdmin ? '#/admin' : '#/'}">← ${isAdmin ? 'Dashboard' : 'Home'}</a>
+          <h1>${isAdmin ? 'Manage courses' : 'Course Designer'}</h1>
+          ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
+        </div>
         <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
       </div>
       <div id="editorMsg" class="editor-msg"></div>
@@ -2270,6 +2287,7 @@ async function viewCourseAdmin(flash) {
     if (type === 'video') return `
       <label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
       <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
+      <label>Video URL (WebM, optional — improves playback compatibility)<input name="videoUrlWebm" value="${l ? esc(l.videoUrlWebm || '') : ''}" placeholder="https://…/video.webm" /></label>
       <div class="form-row">
         <label>Duration (seconds)<input name="durationSeconds" type="number" value="${l ? l.durationSeconds : 60}" /></label>
         <label>Must-watch (seconds)<input name="minWatchSeconds" type="number" value="${l ? l.minWatchSeconds : ''}" placeholder="auto = duration − 2" /></label>
@@ -2307,7 +2325,7 @@ async function viewCourseAdmin(flash) {
       const fd = new FormData(form);
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
-      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
+      if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.videoUrlWebm = fd.get('videoUrlWebm') || undefined; payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
       if (type === 'quiz') {
         payload.passPercent = fd.get('passPercent');
         const qEls = form.querySelectorAll('.quiz-edit');
