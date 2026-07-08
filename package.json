@@ -13,7 +13,8 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "firebase-admin": "^12.7.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1"

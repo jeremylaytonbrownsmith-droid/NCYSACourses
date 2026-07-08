@@ -1,29 +1,34 @@
 # One-click deploy on Render (https://render.com):
-# New + > Blueprint > point it at this repo. The persistent disk keeps
-# courses and learner records across restarts and deploys.
+# New + > Blueprint > point it at this repo.
 #
-# You will be prompted to enter three values in the Render dashboard (they are
-# NOT stored in this file, so no password is ever committed to git):
-#   ADMIN_PASSWORD     — password for the NCYSA staff dashboard (admin@ncysa.org)
+# This blueprint runs on Render's FREE web-service tier. Free instances have no
+# persistent disk and sleep after ~15 min idle, so durable storage lives in
+# Firebase Firestore (set FIREBASE_SERVICE_ACCOUNT below) and a keep-alive ping
+# (see .github/workflows/keepalive.yml) prevents cold starts. To upgrade later,
+# change `plan: free` to `plan: starter` (~$7/mo) for an always-on instance.
+#
+# You will be prompted to enter these values in the Render dashboard (they are
+# NOT stored in this file, so no secret is ever committed to git):
+#   FIREBASE_SERVICE_ACCOUNT — the Firebase service-account JSON (paste the whole
+#                              file contents) so courses/records persist in Firestore
+#   ADMIN_PASSWORD     — password for the NCYSA staff dashboard (education@ncysa.org)
 #   EDITOR_PASSWORD    — password for the course designer (DA@ncsoccer.org / Colin)
 #   NOTIFY_WEBHOOK_URL — optional: a Zapier/Make webhook to deliver completion emails
 services:
   - type: web
     name: ncysa-learn
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /api/courses
-    disk:
-      name: ncysa-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATA_DIR
-        value: /data
+        value: /tmp/ncysa-data # ephemeral local cache; Firestore is the source of truth
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false # paste the entire service-account JSON here (never committed)
       - key: ADMIN_EMAIL
         value: education@ncysa.org
       - key: ADMIN_PASSWORD

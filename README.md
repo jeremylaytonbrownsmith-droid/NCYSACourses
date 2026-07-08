@@ -63,24 +63,43 @@ npm test           # Playwright, writes screenshots/ along the way
 
 The app is a single Node.js process — any host that runs Node works.
 
-**Easiest: Render.** This repo includes `render.yaml`. On [render.com](https://render.com):
-New + → Blueprint → select this repo → deploy. You get an HTTPS URL immediately;
-add a custom domain (e.g. `learn.ncysa.org`) with one CNAME record. The included
-persistent disk keeps courses and learner records across deploys. (~$7/mo
-starter instance + $0.25/mo disk.)
+**Free: Render + Firebase.** This repo's `render.yaml` deploys on Render's free
+web-service tier. Free instances have no persistent disk and sleep when idle, so
+durable storage lives in **Firebase Firestore** and a keep-alive ping keeps the
+app warm:
 
-During the Blueprint deploy Render prompts for three secrets (none are stored in
+1. In [Firebase](https://console.firebase.google.com), create a project, enable
+   **Firestore Database**, then **Project settings → Service accounts → Generate
+   new private key** to download a JSON key.
+2. On [render.com](https://render.com): New + → Blueprint → select this repo →
+   deploy. Paste the values Render prompts for (see table below); for
+   `FIREBASE_SERVICE_ACCOUNT` paste the **entire contents** of that JSON file.
+3. Add the keep-alive: set an `APP_URL` repository *variable* to your Render URL
+   so `.github/workflows/keepalive.yml` pings it every 10 minutes (or use a free
+   [UptimeRobot](https://uptimerobot.com) monitor). Prevents cold starts.
+
+Courses and learner records then persist in Firestore and survive restarts,
+redeploys, and the free tier's ephemeral disk. The local JSON file is used as a
+fast cache; Firestore is the source of truth.
+
+During the Blueprint deploy Render prompts for these secrets (none are stored in
 git; if a password env var is left unset in production the app locks that
 account with a random secret rather than shipping a known default):
 
 | Variable | What it is |
 |---|---|
-| `ADMIN_PASSWORD` | Password for the NCYSA staff dashboard (`admin@ncysa.org`) |
+| `FIREBASE_SERVICE_ACCOUNT` | The Firebase service-account JSON (paste the whole file) — enables durable Firestore storage |
+| `ADMIN_PASSWORD` | Password for the NCYSA staff dashboard (`education@ncysa.org`) |
 | `EDITOR_PASSWORD` | Password for the course designer (`DA@ncsoccer.org`) — a value you choose |
 | `NOTIFY_WEBHOOK_URL` | Optional: a Zapier/Make webhook that delivers completion emails |
 
+**Always-on upgrade (~$7/mo):** change `plan: free` to `plan: starter` in
+`render.yaml` for an instance that never sleeps (no keep-alive needed). Firestore
+storage is unchanged.
+
 **Also works:** Railway, Fly.io, or any $5 VPS — a `Dockerfile` is included.
-Set `DATA_DIR` to a persisted path so records survive restarts.
+Provide `FIREBASE_SERVICE_ACCOUNT` for cloud storage, or set `DATA_DIR` to a
+persisted path so records survive restarts.
 
 **Real email in 10 minutes:** create a free [Zapier](https://zapier.com) or
 [Make](https://make.com) webhook that forwards to Gmail/Outlook, and set it as

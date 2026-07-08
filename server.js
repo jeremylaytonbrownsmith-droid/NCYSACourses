@@ -19,13 +19,15 @@ const courseSeed = require('./data/courses');
 // Courses live in the persisted store so admins can edit them at runtime.
 // Seed from the static catalog on first boot.
 function allCourses() { return load().courses; }
-(function seedCourses() {
+// Seeds run at startup AFTER cloud state is loaded (see the startup block), so
+// existing courses in Firestore are never overwritten by the static seed.
+function seedCourses() {
   const db = load();
   if (!db.courses || db.courses.length === 0) {
     db.courses = structuredClone(courseSeed);
     save();
   }
-})();
+}
 
 const app = express();
 app.use(express.json());
@@ -95,7 +97,7 @@ function requireEditor(req, res, next) {
 // Seed the NCYSA admin account. Staff sign-in requires a password so random
 // visitors can't reach the dashboard just by typing the admin email. Set a
 // strong ADMIN_PASSWORD in production; the default exists only for local/demo.
-(function seedAdmin() {
+function seedAdmin() {
   const db = load();
   const email = process.env.ADMIN_EMAIL || 'admin@ncysa.org';
   const password = seedPassword('ADMIN_PASSWORD', 'ncysa-staff-2026');
@@ -113,11 +115,11 @@ function requireEditor(req, res, next) {
     existing.email = email; existing.salt = salt; existing.passHash = passHash;
     save();
   }
-})();
+}
 
 // Seed a course-designer (collaborator) account — can build courses but has no
 // access to completion records or the staff dashboard.
-(function seedEditor() {
+function seedEditor() {
   const db = load();
   const email = process.env.EDITOR_EMAIL || 'DA@ncsoccer.org';
   const password = seedPassword('EDITOR_PASSWORD', 'ncysa-designer-2026');
@@ -134,7 +136,7 @@ function requireEditor(req, res, next) {
     existing.role = 'editor'; existing.salt = salt; existing.passHash = passHash;
     save();
   }
-})();
+}
 
 // ---------- course helpers ----------
 
@@ -599,10 +601,13 @@ app.get(/^(?!\/api\/).*/, (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-  // Seed in-memory state from the cloud (if Firestore is configured) before
-  // accepting traffic, so progress persists across restarts and instances.
-  initFromCloud().finally(() => {
-    app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
-  });
+  // 1) Load existing state from the cloud (Firestore) if configured, so a
+  //    fresh/ephemeral instance (e.g. Render's free tier) restores all courses
+  //    and records. 2) THEN run the seeds, which only fill gaps — this order is
+  //    what prevents the static seed from wiping cloud data on restart.
+  initFromCloud()
+    .catch(() => {})
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); })
+    .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
