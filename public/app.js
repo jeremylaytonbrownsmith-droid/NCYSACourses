@@ -832,7 +832,7 @@ async function viewAdmin() {
         <div class="admin-card">
           <h2>📨 Email outbox</h2>
           <p class="empty" style="margin-bottom:12px">Every notification email the platform has generated.
-            A status of <code>smtp-delivered</code> means it was sent for real; <code>outbox-only</code>
+            A status ending in <code>-delivered</code> means it was sent for real; <code>outbox-only</code>
             means email delivery isn't configured yet.</p>
           <div class="test-email">
             <input id="testEmailTo" type="email" placeholder="you@example.com" aria-label="Test email recipient" />

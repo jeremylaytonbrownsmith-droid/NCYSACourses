@@ -40,15 +40,23 @@ services:
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----
-      # Set these three to send via any SMTP provider (Google Workspace/Gmail
-      # app password, SendGrid, Mailgun, Outlook, ...). Emails send from SMTP_FROM.
+      # RECOMMENDED on Render (it blocks outbound SMTP): use an HTTPS email API.
+      # Set ONE of BREVO_API_KEY or SENDGRID_API_KEY, plus EMAIL_FROM (verify
+      # that From address as a "single sender" in the provider's dashboard).
+      - key: EMAIL_FROM
+        sync: false # the verified From address (e.g. education@ncysa.org)
+      - key: BREVO_API_KEY
+        sync: false # Brevo (brevo.com) HTTPS API key — free tier
+      - key: SENDGRID_API_KEY
+        sync: false # or SendGrid (sendgrid.com) HTTPS API key — free tier
+      # ---- Alternative: SMTP (only on hosts that allow outbound SMTP) ----
       - key: SMTP_HOST
-        sync: false # e.g. smtp.gmail.com  (or smtp.sendgrid.net, ...)
+        sync: false # e.g. smtp.gmail.com  (blocked on Render — use an API above)
       - key: SMTP_USER
-        sync: false # the mailbox/username to authenticate with
+        sync: false
       - key: SMTP_PASS
-        sync: false # app password / API key (never committed)
+        sync: false
       - key: SMTP_FROM
-        sync: false # optional: the From address (defaults to SMTP_USER)
+        sync: false
       - key: NOTIFY_WEBHOOK_URL
         sync: false # optional alternative: a Zapier/Make webhook
