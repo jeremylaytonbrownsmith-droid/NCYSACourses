@@ -39,5 +39,16 @@ services:
         sync: false # Colin's course-designer password — a value you choose
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
+      # ---- Real email delivery (certificates land in learners' inboxes) ----
+      # Set these three to send via any SMTP provider (Google Workspace/Gmail
+      # app password, SendGrid, Mailgun, Outlook, ...). Emails send from SMTP_FROM.
+      - key: SMTP_HOST
+        sync: false # e.g. smtp.gmail.com  (or smtp.sendgrid.net, ...)
+      - key: SMTP_USER
+        sync: false # the mailbox/username to authenticate with
+      - key: SMTP_PASS
+        sync: false # app password / API key (never committed)
+      - key: SMTP_FROM
+        sync: false # optional: the From address (defaults to SMTP_USER)
       - key: NOTIFY_WEBHOOK_URL
-        sync: false # optional: paste a Zapier/Make webhook to deliver emails
+        sync: false # optional alternative: a Zapier/Make webhook

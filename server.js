@@ -447,16 +447,19 @@ app.post('/api/notifications/read', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/certificate/:certId', requireAuth, (req, res) => {
+// Public, read-only: a certificate is meant to be shown and verified, so it can
+// be viewed by anyone holding its (random, unguessable) ID — this is what makes
+// the link emailed to the learner openable without signing in. Only the
+// non-sensitive fields are returned (name, course, date — never the email).
+app.get('/api/certificate/:certId', (req, res) => {
   const db = load();
-  const enr = db.enrollments.find((e) => e.certId === req.params.certId);
-  if (!enr || (enr.userId !== req.user.id && req.user.role !== 'admin'))
-    return res.status(404).json({ error: 'Certificate not found' });
+  const enr = db.enrollments.find((e) => e.certId === req.params.certId && e.completedAt);
+  if (!enr) return res.status(404).json({ error: 'Certificate not found' });
   const user = db.users.find((u) => u.id === enr.userId);
   const course = allCourses().find((c) => c.id === enr.courseId);
   res.json({
-    certId: enr.certId, learner: user.name, course: course.title,
-    completedAt: enr.completedAt,
+    certId: enr.certId, learner: user?.name || 'NCYSA Learner',
+    course: course?.title || 'NCYSA Course', completedAt: enr.completedAt,
   });
 });
 
