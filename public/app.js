@@ -832,7 +832,13 @@ async function viewAdmin() {
         <div class="admin-card">
           <h2>📨 Email outbox</h2>
           <p class="empty" style="margin-bottom:12px">Every notification email the platform has generated.
-            Configure <code>NOTIFY_WEBHOOK_URL</code> or SMTP to deliver these externally.</p>
+            A status of <code>smtp-delivered</code> means it was sent for real; <code>outbox-only</code>
+            means email delivery isn't configured yet.</p>
+          <div class="test-email">
+            <input id="testEmailTo" type="email" placeholder="you@example.com" aria-label="Test email recipient" />
+            <button class="btn btn-primary btn-sm" id="testEmailBtn">Send test email</button>
+            <span id="testEmailResult" class="test-email-result" role="status" aria-live="polite"></span>
+          </div>
           ${d.outbox.length ? d.outbox.map((m) => `
             <div class="mail">
               <div class="mail-head"><strong>To:</strong> ${esc(m.to)} · <strong>Sent:</strong> ${new Date(m.createdAt).toLocaleString()} · <strong>Status:</strong> ${esc(m.status)}</div>
@@ -895,6 +901,34 @@ async function viewAdmin() {
       a.download = `ncysa-completions-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    });
+  }
+
+  // ---- test email: verify delivery is configured ----
+  const teBtn = document.getElementById('testEmailBtn');
+  if (teBtn) {
+    const teTo = document.getElementById('testEmailTo');
+    const teResult = document.getElementById('testEmailResult');
+    teTo.value = me?.user?.email || '';
+    teBtn.addEventListener('click', async () => {
+      teResult.textContent = 'Sending…'; teResult.className = 'test-email-result';
+      teBtn.disabled = true;
+      try {
+        const r = await api('/api/admin/test-email', { method: 'POST', body: { to: teTo.value } });
+        if (r.delivered) {
+          teResult.textContent = `✓ Delivered to ${r.to} — check the inbox.`;
+          teResult.className = 'test-email-result ok';
+        } else if (r.status === 'outbox-only') {
+          teResult.textContent = '⚠ Not sent: email delivery isn’t configured yet (set SMTP in Render).';
+          teResult.className = 'test-email-result warn';
+        } else {
+          teResult.textContent = `✗ Delivery failed: ${r.status}`;
+          teResult.className = 'test-email-result err';
+        }
+      } catch (e) {
+        teResult.textContent = '✗ ' + e.message;
+        teResult.className = 'test-email-result err';
+      } finally { teBtn.disabled = false; }
     });
   }
 }

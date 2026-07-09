@@ -318,6 +318,14 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .resource-links li { color: var(--ink-body); }
 .back-link { display: inline-block; margin-bottom: 18px; font-weight: 600; }
 
+/* Admin: test-email control */
+.test-email { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.test-email input { flex: 1 1 200px; min-width: 160px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--card); }
+.test-email-result { flex-basis: 100%; font-size: 0.85rem; color: var(--ink-soft); }
+.test-email-result.ok { color: var(--success-dark); font-weight: 600; }
+.test-email-result.warn { color: #9a6a00; font-weight: 600; }
+.test-email-result.err { color: var(--danger); font-weight: 600; }
+
 /* Help / Knowledge Base */
 .kb-heading { margin: 28px 0 12px; color: var(--brand); font-size: 1.1rem; }
 .kb-list { display: flex; flex-direction: column; gap: 10px; }

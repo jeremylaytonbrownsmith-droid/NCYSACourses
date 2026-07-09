@@ -13,7 +13,7 @@ const crypto = require('crypto');
 const path = require('path');
 
 const { load, save, id, initFromCloud } = require('./lib/store');
-const { onCourseCompleted } = require('./lib/notifier');
+const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
 const courseSeed = require('./data/courses');
 
 // Courses live in the persisted store so admins can edit them at runtime.
@@ -484,6 +484,18 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
+});
+
+// Send a test email so staff can verify mail delivery is configured correctly.
+app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
+  const to = String(req.body?.to || '').trim() || req.user.email;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  try {
+    const status = await sendTestEmail(to);
+    res.json({ to, status, delivered: /delivered/.test(status) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ---------- admin course editor (create/edit courses & lessons, no code) ----
