@@ -74,7 +74,7 @@ function renderNav() {
   topnav.innerHTML = `
     <a class="logo" href="#/">
       ${logoImg('brandmark')}
-      <span>NCYSA Learn<span class="sub">Coaching Education Platform</span></span>
+      <span>NCYSA Learn<span class="sub">Education &amp; Training Platform</span></span>
     </a>
     <span class="spacer"></span>
     <a class="navlink nav-courses" href="#/courses">Courses</a>
