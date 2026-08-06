@@ -105,7 +105,7 @@ a:hover { text-decoration: underline; }
 .section > h2 { font-size: 1.7rem; letter-spacing: -0.01em; margin-bottom: 6px; }
 .section > .lead { color: var(--ink-soft); margin-bottom: 28px; }
 
-.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 24px; }
 .course-card {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
   overflow: hidden; display: flex; flex-direction: column; transition: transform 0.15s ease;
@@ -154,7 +154,14 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 
 /* ---------- course player ---------- */
 .player-layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 64px); }
-@media (max-width: 860px) { .player-layout { grid-template-columns: 1fr; } }
+/* When the player stacks (tablet portrait + phone), show the lesson content
+   first and the curriculum below it — never make the learner scroll past the
+   whole lesson list to reach the lesson. */
+@media (max-width: 860px) {
+  .player-layout { display: flex; flex-direction: column; }
+  .lesson-pane { order: -1; }
+  .curriculum { padding-bottom: 24px; }
+}
 
 .curriculum {
   background: #120b3d; color: #d4d0e8; padding: 20px 0 40px;
@@ -179,6 +186,11 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .lesson-pane { padding: 40px clamp(20px, 5vw, 64px); max-width: 860px; }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
 .lesson-pane h1 { font-size: 1.75rem; letter-spacing: -0.01em; margin: 6px 0 20px; }
+/* Keep whatever a course designer pastes in — images, embeds, long links —
+   inside the screen on phones instead of forcing horizontal scroll. */
+.lesson-content { overflow-wrap: break-word; }
+.lesson-content img { max-width: 100%; height: auto; border-radius: 8px; }
+.lesson-content iframe { max-width: 100%; }
 .lesson-content h2 { font-size: 1.3rem; margin: 22px 0 10px; }
 .lesson-content h3 { font-size: 1.08rem; margin: 18px 0 8px; }
 .lesson-content p, .lesson-content li { color: var(--ink-body); }
@@ -406,9 +418,8 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
   .resume-inner { padding: 16px; }
   .resume-btn { width: 100%; text-align: center; }
 
-  /* Course player: lesson content first, curriculum below (both full width) */
-  .player-layout { display: flex; flex-direction: column; }
-  .lesson-pane { order: -1; padding: 26px 18px; }
+  /* Course player: tighter padding on phones (stacking handled at ≤860px) */
+  .lesson-pane { padding: 26px 18px; }
   .lesson-pane h1 { font-size: 1.4rem; }
   .curriculum { padding: 8px 0 20px; }
 
