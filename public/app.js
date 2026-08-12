@@ -1315,10 +1315,14 @@ function viewHelp() {
             <a class="btn btn-ghost" href="/docs/NCYSA_Knowledge_Desk.pdf" target="_blank" rel="noopener">📚 Knowledge Desk reference (PDF)</a>
           </p>
           <ul class="kb-reminders">
-            <li><strong>Everything auto-saves</strong> — a course goes live for its audience once it has a lesson.</li>
+            <li><strong>New courses start as a private Draft.</strong> Members can’t see a course until you click <strong>🚀 Publish</strong> on it. Build it, add your lessons, then publish when it’s ready. (Look for the <strong>Draft</strong> / <strong>● Live</strong> badge next to each course.) You can Unpublish any time to hide it again.</li>
+            <li><strong>Everything auto-saves</strong> as you type — there’s no separate “save the course” step.</li>
+            <li><strong>Formatting is button-based — no code needed.</strong> In a Reading lesson, select your text and use the toolbar: <strong>Heading</strong>, <strong>Bold</strong>, <strong>• Bullets</strong>, <strong>Quote</strong>, alignment, and more. What you see in the editor is what learners see.</li>
+            <li><strong>Add a picture:</strong> click <strong>🖼 Image</strong> and paste the image’s web link (e.g. from your WordPress media library), then add a short description. Pictures automatically fit phones and desktops.</li>
+            <li><strong>Reorder lessons</strong> with the <strong>↑ ↓</strong> arrows next to each lesson — no need to delete and re-add.</li>
             <li><strong>Graded quizzes:</strong> use the built-in quiz builder — it grades automatically and issues the certificate. A Google Form/JotForm can be embedded in a Reading lesson for surveys, but the app can’t grade or track those.</li>
             <li><strong>Videos:</strong> paste a link (WordPress media library for now; shared Dropbox later).</li>
-            <li><strong>Share a course:</strong> open it and copy the web address from your browser’s address bar — that’s the learner link.</li>
+            <li><strong>Share a course:</strong> publish it, then open it and copy the web address from your browser’s address bar — that’s the learner link.</li>
           </ul>
         </div>` : ''}
     </section>`;
