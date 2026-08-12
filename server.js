@@ -19,6 +19,10 @@ const courseSeed = require('./data/courses');
 // Courses live in the persisted store so admins can edit them at runtime.
 // Seed from the static catalog on first boot.
 function allCourses() { return load().courses; }
+// A course is visible to learners once published. Existing/seeded courses have
+// no `published` field and are treated as published (so nothing disappears);
+// newly created courses start as drafts until the designer publishes them.
+function isPublished(c) { return c.published !== false; }
 // Seeds run at startup AFTER cloud state is loaded (see the startup block), so
 // existing courses in Firestore are never overwritten by the static seed.
 function seedCourses() {
@@ -246,15 +250,17 @@ app.get('/api/me', (req, res) => {
 
 app.get('/api/courses', (req, res) => {
   const user = currentUser(req);
+  const isStaff = !!user && STAFF_ROLES.includes(user.role);
   const db = load();
   res.json({
-    courses: allCourses().map((c) => {
+    courses: allCourses().filter((c) => isStaff || isPublished(c)).map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
         badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji,
         audience: c.audience || 'everyone',
+        published: isPublished(c),
         lessonCount: c.lessons.length,
         enrolled: !!enr, completedAt: enr?.completedAt || null, certId: enr?.certId || null,
         percent: prog?.percent ?? 0,
@@ -266,6 +272,7 @@ app.get('/api/courses', (req, res) => {
 app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role)) return res.status(404).json({ error: 'Course not found' });
   const db = load();
   if (!db.enrollments.some((e) => e.userId === req.user.id && e.courseId === course.id)) {
     db.enrollments.push({
@@ -280,6 +287,7 @@ app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
 app.get('/api/courses/:courseId', requireAuth, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role)) return res.status(404).json({ error: 'Course not found' });
   const db = load();
   const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
   if (!enr) return res.status(403).json({ error: 'Enroll in this course first' });
@@ -542,11 +550,37 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
     heroEmoji: String(b.heroEmoji || '⚽'),
+    published: false, // start as a draft; the designer publishes when ready
     lessons: [],
   };
   db.courses.push(course);
   save();
   res.json({ course });
+});
+
+// Publish or unpublish a course (show/hide it from learners).
+app.post('/api/admin/courses/:courseId/publish', requireEditor, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  course.published = !!(req.body && req.body.published);
+  save();
+  res.json({ id: course.id, published: course.published });
+});
+
+// Reorder a lesson within its course (move up or down one place).
+app.post('/api/admin/courses/:courseId/lessons/:lessonId/move', requireEditor, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const i = course.lessons.findIndex((l) => l.id === req.params.lessonId);
+  if (i < 0) return res.status(404).json({ error: 'Lesson not found' });
+  const j = i + ((req.body && req.body.dir) === 'up' ? -1 : 1);
+  if (j < 0 || j >= course.lessons.length) return res.json({ ok: true }); // already at an end
+  const [l] = course.lessons.splice(i, 1);
+  course.lessons.splice(j, 0, l);
+  save();
+  res.json({ ok: true });
 });
 
 app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {

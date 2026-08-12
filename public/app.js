@@ -961,19 +961,23 @@ async function viewCourseAdmin(flash) {
             <div class="course-admin-head">
               <div>
                 <span class="badge-inline">${esc(c.badge)}</span>
+                ${c.published === false ? '<span class="pill-draft">● Draft — hidden</span>' : '<span class="pill-live">● Live</span>'}
                 <h2>${esc(c.title)}</h2>
                 <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
               </div>
               <div class="course-admin-actions">
+                <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? '🚀 Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
               </div>
             </div>
             <ol class="admin-lessons">
-              ${c.lessons.map((l) => `
+              ${c.lessons.map((l, li) => `
                 <li>
                   <span>${typeLabel[l.type] || l.type} — <strong>${esc(l.title)}</strong></span>
                   <span class="admin-lesson-actions">
+                    <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="up" title="Move up" ${li === 0 ? 'disabled' : ''}>↑</button>
+                    <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="down" title="Move down" ${li === c.lessons.length - 1 ? 'disabled' : ''}>↓</button>
                     <button class="linkbtn edit-lesson" data-course="${c.id}" data-lesson="${l.id}">Edit</button>
                     <button class="linkbtn danger del-lesson" data-course="${c.id}" data-lesson="${l.id}">Delete</button>
                   </span>
@@ -1010,6 +1014,15 @@ async function viewCourseAdmin(flash) {
     await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}`, { method: 'DELETE' });
     viewCourseAdmin('Lesson deleted.');
   }));
+  document.querySelectorAll('.move-lesson').forEach((b) => b.addEventListener('click', async () => {
+    await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}/move`, { method: 'POST', body: { dir: b.dataset.dir } });
+    viewCourseAdmin('Lesson order updated.');
+  }));
+  document.querySelectorAll('.pub-toggle').forEach((b) => b.addEventListener('click', async () => {
+    const makePublic = b.dataset.pub !== '1';
+    await api(`/api/admin/courses/${b.dataset.course}/publish`, { method: 'POST', body: { published: makePublic } });
+    viewCourseAdmin(makePublic ? 'Course published — learners can see it now.' : 'Course unpublished — hidden from learners.');
+  }));
 
   function courseForm(c) {
     return `<form class="editor-form" id="courseForm">
@@ -1028,6 +1041,7 @@ async function viewCourseAdmin(flash) {
         </select>
       </label>
       <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
+      ${c ? '' : '<p class="form-hint">New courses start as a private <strong>Draft</strong>. Add your lessons, then click <strong>Publish</strong> when it’s ready for members.</p>'}
     </form>`;
   }
   function bindCourseForm(c) {
@@ -1150,6 +1164,12 @@ function richTextField(name, labelText, html, minHeight) {
         <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="Numbered list">1. Numbered</button>
         <button type="button" class="rte-btn" data-block="blockquote" title="Quote / callout">❝ Quote</button>
         <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-cmd="justifyLeft" title="Align left">↤ Left</button>
+        <button type="button" class="rte-btn" data-cmd="justifyCenter" title="Center">↔ Center</button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-img="1" title="Insert an image by link">🖼 Image</button>
+        <button type="button" class="rte-btn" data-hr="1" title="Divider line">— Divider</button>
+        <span class="rte-sep"></span>
         <button type="button" class="rte-btn" data-link="1" title="Add a link">🔗 Link</button>
         <button type="button" class="rte-btn" data-cmd="removeFormat" title="Clear formatting">✕ Clear</button>
       </div>
@@ -1189,6 +1209,15 @@ function initRichText(root) {
           else if (b.dataset.link) {
             const url = prompt('Link address (e.g. https://ncysa.org):');
             if (url) document.execCommand('createLink', false, url.trim());
+          } else if (b.dataset.img) {
+            const url = prompt('Image link — paste the web address of an image (e.g. from your website’s media library, ending in .jpg or .png):');
+            if (url) {
+              const alt = (prompt('Briefly describe the image (helps accessibility). Optional:') || '');
+              const q = (s) => s.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+              document.execCommand('insertHTML', false, `<img src="${q(url.trim())}" alt="${q(alt)}">`);
+            }
+          } else if (b.dataset.hr) {
+            document.execCommand('insertHTML', false, '<hr>');
           }
         } catch (e) { /* ignore unsupported command */ }
         sync();
