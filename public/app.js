@@ -1060,7 +1060,7 @@ async function viewCourseAdmin(flash) {
   }
   function typeFields(type, l) {
     if (type === 'video') return `
-      <label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+      ${richTextField('html', 'Intro text (optional — shows above)', l ? l.html : '', 90)}
       <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
       <label>Video URL (WebM, optional — improves playback compatibility)<input name="videoUrlWebm" value="${l ? esc(l.videoUrlWebm || '') : ''}" placeholder="https://…/video.webm" /></label>
       <div class="form-row">
@@ -1069,12 +1069,12 @@ async function viewCourseAdmin(flash) {
       </div>`;
     if (type === 'quiz') {
       const qs = l ? l.questions : [{ prompt: '', options: ['', ''], answer: 0 }];
-      return `<label>Intro text (HTML)<textarea name="html" rows="2">${l ? esc(l.html || '') : ''}</textarea></label>
+      return `${richTextField('html', 'Intro text (optional — shows above)', l ? l.html : '', 90)}
         <label>Pass mark (%)<input name="passPercent" type="number" value="${l ? l.passPercent : 80}" /></label>
         <div id="quizQs">${qs.map((q, i) => quizQ(q, i)).join('')}</div>
         <button type="button" class="btn btn-ghost btn-sm" id="addQ">＋ Add question</button>`;
     }
-    return `<label>Content (HTML)<textarea name="html" rows="5">${l ? esc(l.html || '') : ''}</textarea></label>`;
+    return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
   function quizQ(q, i) {
     return `<div class="quiz-edit" data-qi="${i}">
@@ -1087,6 +1087,7 @@ async function viewCourseAdmin(flash) {
     const sel = document.getElementById('lessonType');
     const render = () => {
       document.getElementById('typeFields').innerHTML = typeFields(sel.value, l);
+      initRichText(document.getElementById('typeFields'));
       const addQ = document.getElementById('addQ');
       if (addQ) addQ.addEventListener('click', () => {
         const qs = document.getElementById('quizQs');
@@ -1097,6 +1098,11 @@ async function viewCourseAdmin(flash) {
     render();
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Make sure the visual editor's latest HTML is captured before submit.
+      form.querySelectorAll('.rte').forEach((rte) => {
+        const a = rte.querySelector('.rte-area'), o = rte.querySelector('.rte-html');
+        if (a && o) o.value = a.innerHTML;
+      });
       const fd = new FormData(form);
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
@@ -1120,6 +1126,76 @@ async function viewCourseAdmin(flash) {
       } catch (err) { msg(err.message, true); }
     });
   }
+}
+
+// ---------- rich-text editor (visual formatting, no HTML needed) ----------
+// A dependency-free WYSIWYG field for lesson content. Course designers click
+// buttons (Bold, Heading, bullets, links…) instead of writing HTML. The visible
+// editor mirrors the learner's reading styles, and its HTML is kept in a hidden
+// <textarea name="..."> so the existing form submit (FormData) is unchanged.
+function richTextField(name, labelText, html, minHeight) {
+  const min = minHeight || 200;
+  return `<div class="rte-field">
+    <span class="rte-label">${labelText}</span>
+    <div class="rte">
+      <div class="rte-toolbar" role="toolbar" aria-label="Text formatting">
+        <button type="button" class="rte-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button type="button" class="rte-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-block="h2" title="Big heading">Heading</button>
+        <button type="button" class="rte-btn" data-block="h3" title="Small heading">Subheading</button>
+        <button type="button" class="rte-btn" data-block="p" title="Normal paragraph text">Normal</button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="Bulleted list">• Bullets</button>
+        <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="Numbered list">1. Numbered</button>
+        <button type="button" class="rte-btn" data-block="blockquote" title="Quote / callout">❝ Quote</button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-link="1" title="Add a link">🔗 Link</button>
+        <button type="button" class="rte-btn" data-cmd="removeFormat" title="Clear formatting">✕ Clear</button>
+      </div>
+      <div class="rte-area lesson-content" contenteditable="true" data-placeholder="Type the lesson here. Use the buttons above to add headings, bullet points, and links."
+           style="min-height:${min}px">${html || ''}</div>
+      <textarea name="${name}" class="rte-html" hidden>${esc(html || '')}</textarea>
+    </div>
+  </div>`;
+}
+
+function initRichText(root) {
+  (root || document).querySelectorAll('.rte').forEach((rte) => {
+    if (rte.dataset.ready) return;
+    rte.dataset.ready = '1';
+    const area = rte.querySelector('.rte-area');
+    const out = rte.querySelector('.rte-html');
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) { /* ignore */ }
+    // Normalize only the SAVED html (on a clone, so the live cursor is untouched):
+    // browsers sometimes wrap lists/headings in a stray <p>, and leave empty <p>s.
+    const sync = () => {
+      const tmp = area.cloneNode(true);
+      tmp.querySelectorAll('p > ul, p > ol, p > blockquote, p > h2, p > h3').forEach((el) => {
+        if (el.parentElement.children.length === 1) el.parentElement.replaceWith(el);
+      });
+      tmp.querySelectorAll('p').forEach((p) => { if (!p.textContent.trim() && !p.querySelector('img,br')) p.remove(); });
+      out.value = tmp.innerHTML;
+    };
+    area.addEventListener('input', sync);
+    area.addEventListener('blur', sync);
+    rte.querySelectorAll('.rte-btn').forEach((b) => {
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // keep the text selection
+      b.addEventListener('click', () => {
+        area.focus();
+        try {
+          if (b.dataset.cmd) document.execCommand(b.dataset.cmd, false, null);
+          else if (b.dataset.block) document.execCommand('formatBlock', false, '<' + b.dataset.block + '>');
+          else if (b.dataset.link) {
+            const url = prompt('Link address (e.g. https://ncysa.org):');
+            if (url) document.execCommand('createLink', false, url.trim());
+          }
+        } catch (e) { /* ignore unsupported command */ }
+        sync();
+      });
+    });
+    sync();
+  });
 }
 
 // ---------- help / knowledge base ----------
