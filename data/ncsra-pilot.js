@@ -20,6 +20,8 @@ module.exports = {
   estMinutes: 15,
   heroEmoji: '🟨',
   published: true,
+  // When a referee finishes, send them here.
+  completionRedirectUrl: 'https://www.ncsra.org/referees',
   lessons: [
     {
       id: 'welcome',

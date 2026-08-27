@@ -653,6 +653,7 @@ function renderQuizLesson(pane, course, lesson, lp) {
 
 async function showCourseComplete(course, certId, score) {
   await refreshMe(); // pick up the new notification badge
+  const redirect = /^https?:\/\//i.test(course.completionRedirectUrl || '') ? course.completionRedirectUrl : null;
   app.innerHTML = `
     <div class="complete-hero">
       <div class="big">🏆</div>
@@ -663,9 +664,27 @@ async function showCourseComplete(course, certId, score) {
       </div>
       <p style="margin-top:14px">
         <a class="btn btn-primary btn-lg" href="#/cert/${certId}">View your certificate</a>
-        <a class="btn btn-ghost btn-lg" href="#/courses" style="margin-left:10px">Back to courses</a>
+        ${redirect
+          ? `<a class="btn btn-accent btn-lg" href="${esc(redirect)}" style="margin-left:10px">Continue →</a>`
+          : `<a class="btn btn-ghost btn-lg" href="#/courses" style="margin-left:10px">Back to courses</a>`}
       </p>
+      ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back to NCSRA in <span id="rdCount">10</span> seconds… <a href="#/courses" id="rdStay">stay here</a></p>` : ''}
     </div>`;
+  if (redirect) {
+    let n = 10, cancelled = false;
+    const cancel = () => { cancelled = true; window.removeEventListener('hashchange', cancel); };
+    window.addEventListener('hashchange', cancel); // viewing the cert / staying cancels it
+    document.getElementById('rdStay').addEventListener('click', cancel);
+    const tick = () => {
+      if (cancelled) return;
+      n -= 1;
+      const el = document.getElementById('rdCount');
+      if (el) el.textContent = n;
+      if (n <= 0) { window.location.href = redirect; return; }
+      setTimeout(tick, 1000);
+    };
+    setTimeout(tick, 1000);
+  }
 }
 
 async function viewCertificate(certId) {
@@ -1063,6 +1082,9 @@ async function viewCourseAdmin(flash) {
           ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
             .map(([v, t]) => `<option value="${v}" ${(c ? (c.audience || 'everyone') : 'everyone') === v ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
+      </label>
+      <label>When finished, send learners to (optional web address)
+        <input name="completionRedirectUrl" type="url" value="${c ? esc(c.completionRedirectUrl || '') : ''}" placeholder="https://www.ncsra.org/referees" />
       </label>
       <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
       ${c ? '' : '<p class="form-hint">New courses start as a private <strong>Draft</strong>. Add your lessons, then click <strong>Publish</strong> when it’s ready for members.</p>'}
