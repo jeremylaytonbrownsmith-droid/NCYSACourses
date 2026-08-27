@@ -15,6 +15,7 @@ const path = require('path');
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
 const courseSeed = require('./data/courses');
+const ncsraPilot = require('./data/ncsra-pilot');
 
 // Courses live in the persisted store so admins can edit them at runtime.
 // Seed from the static catalog on first boot.
@@ -29,6 +30,18 @@ function seedCourses() {
   const db = load();
   if (!db.courses || db.courses.length === 0) {
     db.courses = structuredClone(courseSeed);
+    save();
+  }
+}
+
+// Add a specific course if it isn't already present, without touching the rest.
+// Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
+// example course to an existing site. It never overwrites an editor's changes;
+// if they delete it, they can, and it only reappears on the next restart.
+function ensureCourse(courseObj) {
+  const db = load();
+  if (!db.courses.some((c) => c.id === courseObj.id)) {
+    db.courses.push(structuredClone(courseObj));
     save();
   }
 }
@@ -329,6 +342,26 @@ function upsertProgress(db, userId, courseId, lessonId) {
 // forged request still can't skip the whole video (it would take many calls over
 // real time). Legacy `secondsWatched` (a delta) is still accepted for safety.
 const WATCH_STEP_CAP = 30;
+const WATCH_PCT = 0.97; // fraction of the real video that must be watched
+
+// The trustworthy length of a video lesson: the real duration observed from the
+// player once known, otherwise the (possibly approximate) configured value. This
+// lets a course designer paste a video without knowing its exact length — the
+// watch requirement snaps to the actual video, so no one is ever stranded short.
+function videoDuration(lesson) {
+  const obs = Number(lesson.observedDuration);
+  if (Number.isFinite(obs) && obs > 0) return obs;
+  return Math.max(1, Number(lesson.durationSeconds) || 60);
+}
+function videoRequired(lesson) {
+  const obs = Number(lesson.observedDuration);
+  if (Number.isFinite(obs) && obs > 0) return Math.max(1, Math.floor(obs * WATCH_PCT));
+  // No real duration observed yet: fall back to the configured minimum (used only
+  // for the very first frames before the player reports the true length).
+  const cfg = Number(lesson.minWatchSeconds);
+  return Number.isFinite(cfg) && cfg > 0 ? cfg : Math.max(1, Math.floor(videoDuration(lesson) * WATCH_PCT));
+}
+
 app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, res) => {
   const found = findLesson(req, res);
   if (!found) return;
@@ -337,25 +370,29 @@ app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, re
   const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id);
   if (!st.unlocked) return res.status(403).json({ error: 'This lesson is locked. Complete the previous lessons first.' });
 
+  // Learn the real video length from the player (take the max ever reported, so a
+  // forged short duration can't lower the requirement).
+  const reported = Number(req.body?.duration);
+  if (Number.isFinite(reported) && reported > 0 && reported < 21600) {
+    if (reported > (Number(lesson.observedDuration) || 0)) lesson.observedDuration = reported;
+  }
+  const cap = videoDuration(lesson);
+  const required = videoRequired(lesson);
+
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
   const position = Number(req.body?.position);
   if (Number.isFinite(position)) {
-    rec.watchedSeconds = Math.min(
-      lesson.durationSeconds,
-      Math.max(rec.watchedSeconds, Math.min(position, rec.watchedSeconds + WATCH_STEP_CAP))
-    );
+    rec.watchedSeconds = Math.min(cap, Math.max(rec.watchedSeconds, Math.min(position, rec.watchedSeconds + WATCH_STEP_CAP)));
   } else {
     const delta = Number(req.body?.secondsWatched) || 0;
-    rec.watchedSeconds = Math.min(
-      lesson.durationSeconds,
-      rec.watchedSeconds + Math.max(0, Math.min(delta, WATCH_STEP_CAP))
-    );
+    rec.watchedSeconds = Math.min(cap, rec.watchedSeconds + Math.max(0, Math.min(delta, WATCH_STEP_CAP)));
   }
   save();
   res.json({
     watchedSeconds: rec.watchedSeconds,
-    required: lesson.minWatchSeconds,
-    satisfied: rec.watchedSeconds >= lesson.minWatchSeconds,
+    required,
+    duration: cap,
+    satisfied: rec.watchedSeconds >= required,
   });
 });
 
@@ -398,13 +435,16 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async
     return res.status(400).json({ error: 'The exam must be submitted and passed, not marked complete.' });
 
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
-  if (lesson.type === 'video' && rec.watchedSeconds < lesson.minWatchSeconds) {
-    return res.status(403).json({
-      error: `You must watch at least ${lesson.minWatchSeconds} seconds of this video to continue. ` +
-             `Watched so far: ${Math.floor(rec.watchedSeconds)}s.`,
-      watchedSeconds: rec.watchedSeconds,
-      required: lesson.minWatchSeconds,
-    });
+  if (lesson.type === 'video') {
+    const required = videoRequired(lesson);
+    if (rec.watchedSeconds < required) {
+      return res.status(403).json({
+        error: `You must watch at least ${required} seconds of this video to continue. ` +
+               `Watched so far: ${Math.floor(rec.watchedSeconds)}s.`,
+        watchedSeconds: rec.watchedSeconds,
+        required,
+      });
+    }
   }
 
   if (!rec.completed) {
@@ -656,7 +696,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); ensureCourse(ncsraPilot); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;

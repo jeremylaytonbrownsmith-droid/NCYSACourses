@@ -449,7 +449,9 @@ function renderTextLesson(pane, course, lesson, lp) {
 //  * "Complete & continue" stays disabled until the server confirms the
 //    requirement (58s of a 60s video) is satisfied.
 function renderVideoLesson(pane, course, lesson, lp) {
-  const required = lesson.minWatchSeconds;
+  // Requirement adapts to the video's real length once the player reports it
+  // (see the loadedmetadata handler); this is just the pre-load fallback.
+  let required = lesson.minWatchSeconds || Math.max(1, Math.floor((lesson.durationSeconds || 60) * 0.97));
   pane.innerHTML = `
     ${lessonHeader(lesson)}
     <div class="lesson-content">${lesson.html}</div>
@@ -470,8 +472,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
       <div class="progress-track"><div class="progress-fill" id="watchFill" style="width:0%"></div></div>
       <span id="watchLabel">0s / ${required}s</span>
     </div>
-    <p class="no-skip-tip">⏩ Fast-forwarding is disabled. You must watch at least ${required} seconds of this
-      ${lesson.durationSeconds}-second video before you can continue.</p>
+    <p class="no-skip-tip" id="noSkipTip">⏩ Fast-forwarding is disabled — you must watch the video to the end before you can continue.</p>
     <div class="lesson-actions">
       ${lp.completed
         ? `<span class="pill-done">✓ Completed</span><button class="btn btn-primary" id="nextBtn">Next lesson →</button>`
@@ -521,15 +522,28 @@ function renderVideoLesson(pane, course, lesson, lp) {
     const position = maxPlayed;
     try {
       const r = await api(`/api/courses/${course.id}/lessons/${lesson.id}/watch`, {
-        method: 'POST', body: { position },
+        method: 'POST',
+        body: { position, duration: Number.isFinite(video.duration) && video.duration > 0 ? video.duration : undefined },
       });
       serverWatched = r.watchedSeconds;
+      if (r.required) required = r.required; // server confirms the real requirement
       lastReported = position;
       if (r.satisfied) satisfied = true;
     } catch { /* keep lastReported; retry on next flush */ }
     sending = false;
     updateMeter();
   }
+
+  // Once the browser knows the real video length, gate on 97% of it — so a
+  // designer never has to enter an exact duration and no learner is stranded.
+  video.addEventListener('loadedmetadata', () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      required = Math.max(1, Math.floor(video.duration * 0.97));
+      const vt = document.getElementById('vTime');
+      if (vt) vt.textContent = `0:00 / ${fmtTime(video.duration)}`;
+      updateMeter();
+    }
+  });
 
   video.addEventListener('timeupdate', () => {
     // Advance the high-water mark only during real playback. Seeking forward is
