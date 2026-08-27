@@ -36,14 +36,29 @@ function seedCourses() {
 
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
-// example course to an existing site. It never overwrites an editor's changes;
-// if they delete it, they can, and it only reappears on the next restart.
+// example course to an existing site.
+//
+// If the course already exists, backfill any top-level fields it's MISSING
+// (e.g. branding or a completion redirect added after it was first seeded) —
+// without overwriting values already set and without touching its lessons. This
+// is how a course created on an earlier deploy picks up newly-added metadata.
 function ensureCourse(courseObj) {
   const db = load();
-  if (!db.courses.some((c) => c.id === courseObj.id)) {
+  const existing = db.courses.find((c) => c.id === courseObj.id);
+  if (!existing) {
     db.courses.push(structuredClone(courseObj));
     save();
+    return;
   }
+  let changed = false;
+  for (const [k, v] of Object.entries(courseObj)) {
+    if (k === 'lessons') continue; // never disturb lesson content / edits
+    if (existing[k] === undefined || existing[k] === null || existing[k] === '') {
+      existing[k] = structuredClone(v);
+      changed = true;
+    }
+  }
+  if (changed) save();
 }
 
 const app = express();
