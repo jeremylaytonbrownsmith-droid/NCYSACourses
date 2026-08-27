@@ -223,6 +223,7 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .v-track { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 999px; position: relative; overflow: hidden; }
 .v-track .v-fill { height: 100%; background: var(--gold); border-radius: 999px; width: 0; }
 .v-time { font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.v-sound { font-size: 1.1rem; padding: 4px 8px; opacity: 0.85; cursor: default; }
 .watch-meter { margin-top: 14px; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
 .watch-meter .progress-track { flex: 1; height: 10px; }
 .watch-meter .ok { color: var(--success-dark); font-weight: 700; }

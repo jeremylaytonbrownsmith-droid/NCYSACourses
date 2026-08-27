@@ -486,7 +486,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
         <button id="playBtn" title="Play / pause" aria-label="Play or pause the video">▶</button>
         <div class="v-track"><div class="v-fill" id="vFill"></div></div>
         <span class="v-time" id="vTime">0:00 / ${fmtTime(lesson.durationSeconds)}</span>
-        <button id="muteBtn" title="Mute / unmute" aria-label="Mute or unmute">🔊</button>
+        <span class="v-sound" title="Sound is required for this lesson" aria-label="Sound is on and required">🔊</span>
       </div>
     </div>
     <div class="watch-meter">
@@ -504,8 +504,18 @@ function renderVideoLesson(pane, course, lesson, lp) {
 
   const video = document.getElementById('lessonVideo');
   const playBtn = document.getElementById('playBtn');
-  const muteBtn = document.getElementById('muteBtn');
   const completeBtn = document.getElementById('completeBtn');
+
+  // This training must be heard: there is no mute control, and if anything (a
+  // stray keypress, a future control, a script) mutes the video or drops its
+  // volume to zero, snap it back to an audible minimum. NOTE: this governs the
+  // video element's own volume only — the browser tab's mute and the device's
+  // hardware/system volume are outside any web page's control.
+  const MIN_VOLUME = 0.1;
+  video.addEventListener('volumechange', () => {
+    if (video.muted) video.muted = false;
+    if (video.volume < MIN_VOLUME) video.volume = MIN_VOLUME;
+  });
 
   // We credit watch time by the furthest point the learner has legitimately
   // reached through real playback (a high-water mark), not by summing per-tick
@@ -602,11 +612,6 @@ function renderVideoLesson(pane, course, lesson, lp) {
     if (video.paused) { video.play(); playBtn.textContent = '⏸'; }
     else { video.pause(); playBtn.textContent = '▶'; }
   });
-  muteBtn.addEventListener('click', () => {
-    video.muted = !video.muted;
-    muteBtn.textContent = video.muted ? '🔇' : '🔊';
-  });
-
   videoTracker = { flush: () => flushWatch(true) };
 
   completeBtn?.addEventListener('click', async () => {

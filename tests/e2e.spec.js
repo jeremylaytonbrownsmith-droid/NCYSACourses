@@ -70,11 +70,12 @@ test('full learner journey through the coaching license course', async ({ page }
   expect(posAfterSeek).toBeLessThan(2);
   await page.screenshot({ path: `${SNAP}/06-video-seek-blocked.png` });
 
-  // Watch the video for real. (Test-only: crank playbackRate so 60s of video
-  // plays in ~7.5s of wall-clock; watch-time still accrues from real playback.)
+  // Watch the video for real. (Test-only: crank playbackRate so the video plays
+  // in a fraction of wall-clock; watch-time still accrues from real playback.)
+  // No muting — the app forbids it and clicking #playBtn is a real user gesture,
+  // which is what permits playback.
   await page.evaluate(() => {
     const v = document.getElementById('lessonVideo');
-    v.muted = true;
     v.playbackRate = 8;
   });
   await page.click('#playBtn');
