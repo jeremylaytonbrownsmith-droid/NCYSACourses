@@ -407,12 +407,15 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 @media (max-width: 600px) {
   :root { font-size: 15px; }
 
-  /* Nav: keep it on one row and inside the viewport — nothing wraps */
+  /* Nav: one row, inside the viewport. The brand may shrink/ellipsize so the
+     action buttons are never clipped, even with a long co-brand name. */
   .topnav { padding: 0 10px; gap: 6px; height: 56px; flex-wrap: nowrap; }
-  .topnav .logo { flex: none; }
+  .topnav .logo { flex: 0 1 auto; min-width: 0; }
   .topnav .logo .sub { display: none; }          /* drop subtitle on phones */
-  .topnav .logo span { font-size: 0.92rem; white-space: nowrap; line-height: 1.05; }
-  .topnav .brandmark { height: 36px; max-width: 110px; padding: 2px 3px; }
+  .topnav .logo > span { font-size: 0.9rem; line-height: 1.05; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topnav .spacer { flex: 1 1 8px; }
+  .topnav .navlink, .topnav .btn { flex: none; }
+  .topnav .brandmark { height: 34px; max-width: 100px; padding: 2px 3px; flex: none; }
   .topnav .navlink, .topnav .btn { white-space: nowrap; }
   .topnav .navlink { padding: 6px 5px; font-size: 0.9rem; }
   .topnav .greeting { display: none; }            /* greeting is non-essential */
