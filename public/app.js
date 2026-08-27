@@ -69,12 +69,20 @@ function fmtTime(s) {
 
 // ---------- nav ----------
 
+// When a learner is inside a co-branded "portal" (e.g. the NCSRA referee course
+// or its sign-up), the top bar switches to that brand. Everyone else sees NCYSA.
+let activeBrand = null;
+
 function renderNav() {
   const user = me?.user;
+  const brandLogo = activeBrand
+    ? `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`
+    : logoImg('brandmark');
+  const brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
   topnav.innerHTML = `
     <a class="logo" href="#/">
-      ${logoImg('brandmark')}
-      <span>NCYSA Learn<span class="sub">Education &amp; Training Platform</span></span>
+      ${brandLogo}
+      <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
     </a>
     <span class="spacer"></span>
     <a class="navlink nav-courses" href="#/courses">Courses</a>
@@ -246,7 +254,7 @@ function authForm({ title, sub, fields, submitLabel, alt, note, onSubmit }) {
         ${fields.map((f) => `
           <div class="field">
             <label for="${f.name}">${f.label}</label>
-            <input id="${f.name}" name="${f.name}" type="${f.type}" required autocomplete="${f.auto || 'off'}"${f.placeholder ? ` placeholder="${f.placeholder}"` : ''} />
+            <input id="${f.name}" name="${f.name}" type="${f.type}"${f.optional ? '' : ' required'} autocomplete="${f.auto || 'off'}"${f.placeholder ? ` placeholder="${f.placeholder}"` : ''} />
           </div>`).join('')}
         <div class="form-error" id="formError"></div>
         <button class="btn btn-primary btn-lg" style="width:100%" type="submit">${submitLabel}</button>
@@ -307,14 +315,17 @@ function viewStaffLogin() {
 }
 
 function viewRegister() {
+  const referee = inPortal(); // NCSRA referee portal → also collect their Arbiter email
+  const fields = [
+    { name: 'firstName', label: 'First name', type: 'text', auto: 'given-name' },
+    { name: 'lastName', label: 'Last name', type: 'text', auto: 'family-name' },
+    { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
+  ];
+  if (referee) fields.push({ name: 'arbiterEmail', label: 'Arbiter email (ArbiterSports) — optional', type: 'email', auto: 'off', placeholder: 'the email you use for Arbiter', optional: true });
   authForm({
-    title: 'Create your free account',
+    title: referee ? 'Create your referee account' : 'Create your free account',
     sub: 'Just your name and email — no password to set up.',
-    fields: [
-      { name: 'firstName', label: 'First name', type: 'text', auto: 'given-name' },
-      { name: 'lastName', label: 'Last name', type: 'text', auto: 'family-name' },
-      { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
-    ],
+    fields,
     submitLabel: 'Create account',
     note: '🔒 No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
@@ -936,8 +947,8 @@ async function viewAdmin() {
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
-        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
+      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Arbiter Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
+        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.arbiterEmail || '', c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
         .join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
@@ -1406,9 +1417,40 @@ function stopLoading(spinnerTimer) {
   if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.classList.remove('active'); bar.style.width = '0'; }, 250); }
 }
 
+// Look up co-branding for any course from the public catalog (cached once).
+let _brandMap = null;
+async function brandMap() {
+  if (_brandMap) return _brandMap;
+  _brandMap = {};
+  try {
+    const { courses } = await api('/api/courses');
+    for (const c of courses) if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl };
+  } catch { /* leave empty */ }
+  return _brandMap;
+}
+// Which course (if any) drives the brand for this route: the course being viewed,
+// or the pending destination behind a sign-in page.
+function brandCourseId(hash) {
+  let m = hash.match(/^#\/course\/([\w-]+)/);
+  if (m) return m[1];
+  if (/^#\/(register|login)$/.test(hash) && afterAuthHash) {
+    m = afterAuthHash.match(/^#\/course\/([\w-]+)/);
+    if (m) return m[1];
+  }
+  return null;
+}
+async function applyBrandForHash(hash) {
+  const cid = brandCourseId(hash);
+  const next = cid ? (await brandMap())[cid] || null : null;
+  if (JSON.stringify(next) !== JSON.stringify(activeBrand)) { activeBrand = next; renderNav(); }
+}
+// True when the current context is a co-branded (e.g. NCSRA referee) portal.
+function inPortal() { return !!activeBrand; }
+
 async function route() {
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
+  await applyBrandForHash(hash);
   for (const r of routes) {
     const m = hash.match(r.re);
     if (m) {

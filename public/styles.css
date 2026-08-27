@@ -299,7 +299,7 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 
 /* ---------- brand mark ---------- */
 .topnav .logo .brandmark {
-  height: 50px; width: auto; display: block;
+  height: 50px; width: auto; max-width: 180px; object-fit: contain; display: block;
   background: var(--logo-plate, transparent); border-radius: 6px; padding: 2px;
 }
 .certificate .cert-logo { height: 116px; margin-bottom: 16px; }
@@ -409,7 +409,7 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
   .topnav .logo { flex: none; }
   .topnav .logo .sub { display: none; }          /* drop subtitle on phones */
   .topnav .logo span { font-size: 0.92rem; white-space: nowrap; line-height: 1.05; }
-  .topnav .brandmark { height: 36px; padding: 2px 3px; }
+  .topnav .brandmark { height: 36px; max-width: 110px; padding: 2px 3px; }
   .topnav .navlink, .topnav .btn { white-space: nowrap; }
   .topnav .navlink { padding: 6px 5px; font-size: 0.9rem; }
   .topnav .greeting { display: none; }            /* greeting is non-essential */
