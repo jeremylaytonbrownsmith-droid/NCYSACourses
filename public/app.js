@@ -246,7 +246,7 @@ function authForm({ title, sub, fields, submitLabel, alt, note, onSubmit }) {
         ${fields.map((f) => `
           <div class="field">
             <label for="${f.name}">${f.label}</label>
-            <input id="${f.name}" name="${f.name}" type="${f.type}" required autocomplete="${f.auto || 'off'}" />
+            <input id="${f.name}" name="${f.name}" type="${f.type}" required autocomplete="${f.auto || 'off'}"${f.placeholder ? ` placeholder="${f.placeholder}"` : ''} />
           </div>`).join('')}
         <div class="form-error" id="formError"></div>
         <button class="btn btn-primary btn-lg" style="width:100%" type="submit">${submitLabel}</button>
@@ -311,8 +311,9 @@ function viewRegister() {
     title: 'Create your free account',
     sub: 'Just your name and email — no password to set up.',
     fields: [
-      { name: 'name', label: 'Full name', type: 'text', auto: 'name' },
-      { name: 'email', label: 'Email', type: 'email', auto: 'email' },
+      { name: 'firstName', label: 'First name', type: 'text', auto: 'given-name' },
+      { name: 'lastName', label: 'Last name', type: 'text', auto: 'family-name' },
+      { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
     ],
     submitLabel: 'Create account',
     note: '🔒 No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
@@ -935,8 +936,8 @@ async function viewAdmin() {
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const csv = [['Learner', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
-        .concat(list.map((c) => [c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
+      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
+        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
         .join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');

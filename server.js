@@ -208,7 +208,12 @@ function progressSummary(course, progress) {
 // or remember. (For production, add real auth — a password or an emailed
 // magic-link — before storing real learner records.)
 app.post('/api/register', (req, res) => {
-  const { name, email } = req.body || {};
+  const b = req.body || {};
+  const firstName = String(b.firstName || '').trim();
+  const lastName = String(b.lastName || '').trim();
+  const email = String(b.email || '').trim();
+  // Compose a display name from first + last; fall back to a single `name` field.
+  const name = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : String(b.name || '').trim();
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
   const db = load();
@@ -218,7 +223,11 @@ app.post('/api/register', (req, res) => {
     setSession(res, existing.id);
     return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
   }
-  const user = { id: id('usr'), name, email, role: 'learner', createdAt: new Date().toISOString() };
+  const user = {
+    id: id('usr'), name,
+    firstName: firstName || undefined, lastName: lastName || undefined,
+    email, role: 'learner', createdAt: new Date().toISOString(),
+  };
   db.users.push(user);
   save();
   setSession(res, user.id);
@@ -518,13 +527,18 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
   res.json({
     completions: db.enrollments
       .filter((e) => e.completedAt)
-      .map((e) => ({
-        learner: db.users.find((u) => u.id === e.userId)?.name,
-        email: db.users.find((u) => u.id === e.userId)?.email,
-        course: allCourses().find((c) => c.id === e.courseId)?.title,
-        completedAt: e.completedAt,
-        certId: e.certId,
-      }))
+      .map((e) => {
+        const u = db.users.find((u) => u.id === e.userId);
+        return {
+          learner: u?.name,
+          firstName: u?.firstName || '',
+          lastName: u?.lastName || '',
+          email: u?.email,
+          course: allCourses().find((c) => c.id === e.courseId)?.title,
+          completedAt: e.completedAt,
+          certId: e.certId,
+        };
+      })
       .sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
     ncysaNotifications: db.notifications
       .filter((n) => n.audience === 'ncysa')

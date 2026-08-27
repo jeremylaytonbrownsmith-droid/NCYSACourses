@@ -26,7 +26,8 @@ test('full learner journey through the coaching license course', async ({ page }
   // --- 2. Register (passwordless: name + email only) ------------------------
   await page.click('.topnav a:has-text("Get started")');
   await expect(page.locator('#password')).toHaveCount(0); // no password field
-  await page.fill('#name', 'Jordan Ellis');
+  await page.fill('#firstName', 'Jordan');
+  await page.fill('#lastName', 'Ellis');
   await page.fill('#email', 'jordan.ellis@example.com');
   await page.screenshot({ path: `${SNAP}/02-register.png` });
   await page.click('button:has-text("Create account")');
