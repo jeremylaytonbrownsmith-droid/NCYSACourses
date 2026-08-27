@@ -50,13 +50,12 @@ function ensureCourse(courseObj) {
     save();
     return;
   }
-  // Keep this code-managed course's SETTINGS in sync with the source file on each
-  // deploy (title, branding, audience, redirect, flags…), but never disturb its
-  // `lessons` — those can be edited in the Course Designer. So configuration is
-  // code-managed here; lesson content stays UI-editable.
+  // This is a fully code-managed pilot course: keep ALL of it (settings and
+  // lessons) in sync with the source file on each deploy, so changes we make in
+  // code reliably reach the live course. (Trade-off: editing it in the Course
+  // Designer won't stick across deploys — manage this course's content in code.)
   let changed = false;
   for (const [k, v] of Object.entries(courseObj)) {
-    if (k === 'lessons') continue;
     if (JSON.stringify(existing[k]) !== JSON.stringify(v)) { existing[k] = structuredClone(v); changed = true; }
   }
   if (changed) save();

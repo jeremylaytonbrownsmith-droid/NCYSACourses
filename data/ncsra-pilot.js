@@ -28,7 +28,7 @@ module.exports = {
   publicVideoGate: false,
   completionRedirectUrl: '',
   // Shown on the completion screen for this course.
-  completionNote: 'You’ve completed your NCSRA recertification course. Contact NCSRA to confirm your recertification credit — your completion is on record here for them to verify.',
+  completionNote: 'You’ve completed the training. Your comprehension test — the questions here, or the Brainshark test — records your credit in Arbiter so NCSRA can mark you off. Your completion is on record here too, and you can contact NCSRA to confirm.',
   lessons: [
     {
       id: 'welcome',
@@ -40,9 +40,10 @@ module.exports = {
         '<ul>' +
         '<li><strong>Watch the training video</strong> in full — you can’t skip ahead, and the ' +
         '“continue” button unlocks once you’ve watched it to the end.</li>' +
-        '<li><strong>Pass a short 2-question check</strong> to confirm you completed the material.</li>' +
-        '<li>Your <strong>completion is recorded automatically</strong> and you get a certificate — ' +
-        'NCSRA can see who has finished.</li>' +
+        '<li><strong>Complete the comprehension test</strong> — the questions here, or the Brainshark ' +
+        'test — which records your credit in Arbiter so NCSRA can mark you complete.</li>' +
+        '<li>Your <strong>completion is recorded here</strong> and you get a certificate, so NCSRA can ' +
+        'confirm who has finished.</li>' +
         '</ul>' +
         '<p>When you’re ready, click <strong>Complete &amp; continue</strong> to begin.</p>',
     },
