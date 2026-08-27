@@ -482,6 +482,10 @@ async function viewWatch(courseId) {
 
 let afterAuthHash = null; // where to land after sign-in (e.g. a shared course link)
 async function viewCourse(courseId, lessonId) {
+  // A public "watch & redirect" course (e.g. NCSRA referee) skips login entirely —
+  // forward the course link straight to the no-login watch page.
+  const meta = (await publicCourses()).find((c) => c.id === courseId);
+  if (meta && meta.publicVideoGate) { location.hash = `#/watch/${courseId}`; return; }
   if (!me?.user) { afterAuthHash = location.hash; location.hash = '#/register'; return; }
   let data;
   try { data = await api(`/api/courses/${courseId}`); }
@@ -1543,14 +1547,20 @@ function stopLoading(spinnerTimer) {
 }
 
 // Look up co-branding for any course from the public catalog (cached once).
+// Cached public course list (works logged-out) for branding + routing decisions.
+let _publicCourses = null;
+async function publicCourses() {
+  if (_publicCourses) return _publicCourses;
+  try { _publicCourses = (await api('/api/courses')).courses; } catch { _publicCourses = []; }
+  return _publicCourses;
+}
 let _brandMap = null;
 async function brandMap() {
   if (_brandMap) return _brandMap;
   _brandMap = {};
-  try {
-    const { courses } = await api('/api/courses');
-    for (const c of courses) if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience };
-  } catch { /* leave empty */ }
+  for (const c of await publicCourses()) {
+    if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience };
+  }
   return _brandMap;
 }
 // The brand for a given route: a co-branded course being viewed, or the referee

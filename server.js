@@ -301,6 +301,7 @@ app.get('/api/courses', (req, res) => {
         audience: c.audience || 'everyone',
         coBrandName: c.coBrandName || null,
         coLogoUrl: c.coLogoUrl || null,
+        publicVideoGate: !!c.publicVideoGate,
         published: isPublished(c),
         lessonCount: c.lessons.length,
         enrolled: !!enr, completedAt: enr?.completedAt || null, certId: enr?.certId || null,
