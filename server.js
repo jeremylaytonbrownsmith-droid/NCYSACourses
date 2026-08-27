@@ -517,7 +517,8 @@ async function maybeCompleteCourse(user, course) {
   if (!allDone) return null;
 
   enr.completedAt = new Date().toISOString();
-  enr.certId = 'NCYSA-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+  const prefix = (course.certPrefix || 'NCYSA').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'NCYSA';
+  enr.certId = `${prefix}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
   save();
 
   const quiz = progress.find((p) => p.quizScore != null);
@@ -558,6 +559,10 @@ app.get('/api/certificate/:certId', (req, res) => {
   res.json({
     certId: enr.certId, learner: user?.name || 'NCYSA Learner',
     course: course?.title || 'NCYSA Course', completedAt: enr.completedAt,
+    // Per-course certificate branding (e.g. an NCSRA course issues an NCSRA cert).
+    org: course?.certOrg || null,
+    certTitle: course?.certTitle || null,
+    logoUrl: course?.coLogoUrl || null,
   });
 });
 

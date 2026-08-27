@@ -829,9 +829,9 @@ async function viewCertificate(certId) {
   const date = new Date(c.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   app.innerHTML = `
     <div class="certificate">
-      ${logoImg('cert-logo')}
-      <div class="org">North Carolina Youth Soccer Association</div>
-      <h1>Certificate of Completion</h1>
+      ${c.logoUrl ? `<img class="cert-logo" src="${esc(c.logoUrl)}" alt="${esc(c.org || '')}" />` : logoImg('cert-logo')}
+      <div class="org">${esc(c.org || 'North Carolina Youth Soccer Association')}</div>
+      <h1>${esc(c.certTitle || 'Certificate of Completion')}</h1>
       <p>This certifies that</p>
       <div class="learner-name">${esc(c.learner)}</div>
       <p>has successfully completed</p>
@@ -874,17 +874,21 @@ async function downloadCertificatePdf(c, dateStr) {
     } else ctx.fillText(t, W / 2, y);
   };
 
-  // Logo (same-origin data-URI/PNG → canvas stays untainted). Fall back silently.
+  // Logo. Same-origin NCYSA logo stays untainted; a per-course (e.g. NCSRA) logo
+  // is loaded with crossOrigin so the canvas stays exportable (falls back to no
+  // logo if that host doesn't allow it). Fall back silently either way.
   try {
     const img = await new Promise((res, rej) => {
-      const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = LOGO_SOURCES[0];
+      const im = new Image(); im.onload = () => res(im); im.onerror = rej;
+      if (c.logoUrl) im.crossOrigin = 'anonymous';
+      im.src = c.logoUrl || LOGO_SOURCES[0];
     });
     const lw = 150, lh = lw * (img.height / img.width || 1.2);
     ctx.drawImage(img, W / 2 - lw / 2, 70, lw, lh);
   } catch { /* no logo, text-only certificate */ }
 
-  center('NORTH CAROLINA YOUTH SOCCER ASSOCIATION', 265, '600 15px Arial', '#6b645e', 3);
-  center('Certificate of Completion', 320, '800 40px Georgia, serif', '#10045a');
+  center((c.org || 'North Carolina Youth Soccer Association').toUpperCase(), 265, '600 15px Arial', '#6b645e', 3);
+  center(c.certTitle || 'Certificate of Completion', 320, '800 40px Georgia, serif', '#10045a');
   center('This certifies that', 385, '400 20px Arial', '#3d3833');
   center(c.learner, 445, 'italic 700 46px Georgia, serif', '#1d1a18');
   center('has successfully completed', 500, '400 20px Arial', '#3d3833');
@@ -904,7 +908,7 @@ async function downloadCertificatePdf(c, dateStr) {
   const blob = new Blob([pdf], { type: 'application/pdf' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `NCYSA-Certificate-${c.learner.replace(/[^a-z0-9]+/gi, '-')}.pdf`;
+  a.download = `Certificate-${c.learner.replace(/[^a-z0-9]+/gi, '-')}.pdf`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
