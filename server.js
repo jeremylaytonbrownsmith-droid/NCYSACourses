@@ -339,6 +339,29 @@ app.get('/api/courses/:courseId', requireAuth, (req, res) => {
   });
 });
 
+// Public "watch & redirect" — NO login. Serves a published course's video plus
+// its redirect (e.g. a Brainshark comprehension test) for a no-account flow,
+// where another system (Brainshark → Arbiter) owns the test and the credit.
+// Gated on the course opting in via `publicVideoGate` so ordinary courses are
+// never exposed without login.
+app.get('/api/watch/:courseId', (req, res) => {
+  const course = allCourses().find((c) => c.id === req.params.courseId);
+  if (!course || !isPublished(course) || !course.publicVideoGate) return res.status(404).json({ error: 'Not available' });
+  const v = course.lessons.find((l) => l.type === 'video');
+  if (!v) return res.status(404).json({ error: 'This course has no video' });
+  res.json({
+    title: course.title,
+    coBrandName: course.coBrandName || null,
+    coLogoUrl: course.coLogoUrl || null,
+    redirectUrl: course.completionRedirectUrl || null,
+    video: {
+      videoUrl: v.videoUrl,
+      videoUrlWebm: v.videoUrlWebm || null,
+      durationSeconds: videoDuration(v),
+    },
+  });
+});
+
 // ---------- lesson progression (the gate) ----------
 
 function findLesson(req, res) {
@@ -625,6 +648,7 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: String(b.completionRedirectUrl || ''),
+    publicVideoGate: !!b.publicVideoGate,
     published: false, // start as a draft; the designer publishes when ready
     lessons: [],
   };
@@ -665,6 +689,7 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const b = req.body || {};
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl']) if (b[f] != null) course[f] = String(b[f]);
   if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
+  if (b.publicVideoGate != null) course.publicVideoGate = !!b.publicVideoGate;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
   save();
   res.json({ course });

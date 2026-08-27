@@ -72,6 +72,8 @@ function fmtTime(s) {
 // When a learner is inside a co-branded "portal" (e.g. the NCSRA referee course
 // or its sign-up), the top bar switches to that brand. Everyone else sees NCYSA.
 let activeBrand = null;
+// Minimal chrome for the no-login "watch & redirect" page: brand only, no links.
+let navMinimal = false;
 
 function renderNav() {
   const user = me?.user;
@@ -79,6 +81,10 @@ function renderNav() {
     ? `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`
     : logoImg('brandmark');
   const brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
+  if (navMinimal) {
+    topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span>${brandName}<span class="sub">Education &amp; Training Platform</span></span></span>`;
+    return;
+  }
   topnav.innerHTML = `
     <a class="logo" href="#/">
       ${brandLogo}
@@ -368,6 +374,108 @@ async function viewReferees() {
       </div>
     </section>`;
   bindCourseCards();
+}
+
+// No-login "watch & redirect": play the video (no skip, no mute, requirement
+// adapts to the real length), then hand off to the configured URL (e.g. a
+// Brainshark comprehension test). Nothing is stored — another system owns the
+// test and the credit, so no account is needed.
+async function viewWatch(courseId) {
+  navMinimal = true;
+  let data;
+  try { data = await api(`/api/watch/${courseId}`); }
+  catch (e) {
+    app.innerHTML = `<section class="section"><div class="card"><h2>This video isn’t available</h2><p class="sub">${esc(e.message)}</p></div></section>`;
+    return;
+  }
+  const { title, coBrandName, coLogoUrl, redirectUrl, video: vconf } = data;
+  const redirect = /^https?:\/\//i.test(redirectUrl || '') ? redirectUrl : null;
+  let required = Math.max(1, Math.floor((vconf.durationSeconds || 60) * 0.97));
+
+  app.innerHTML = `
+    <section class="section watch-page">
+      ${coLogoUrl ? `<img class="referee-portal-logo" src="${esc(coLogoUrl)}" alt="${esc(coBrandName || '')}" />` : ''}
+      <h2 style="text-align:center;margin-bottom:6px">${esc(title)}</h2>
+      <p class="lead" style="text-align:center;max-width:640px;margin:0 auto 22px">Watch the full video below. When it finishes, you’ll continue to the comprehension test — no account needed.</p>
+      <div class="video-shell">
+        <video id="wVideo" preload="metadata" playsinline aria-label="${esc(title)}">
+          ${vconf.videoUrl ? `<source src="${esc(vconf.videoUrl)}" type="video/mp4" />` : ''}
+          ${vconf.videoUrlWebm ? `<source src="${esc(vconf.videoUrlWebm)}" type="video/webm" />` : ''}
+        </video>
+        <div class="v-controls">
+          <button id="wPlay" title="Play / pause" aria-label="Play or pause">▶</button>
+          <div class="v-track"><div class="v-fill" id="wFill"></div></div>
+          <span class="v-time" id="wTime">0:00 / ${fmtTime(vconf.durationSeconds)}</span>
+          <span class="v-sound" title="Sound is required" aria-label="Sound required">🔊</span>
+        </div>
+      </div>
+      <div class="watch-meter">
+        <span>Watch requirement:</span>
+        <div class="progress-track"><div class="progress-fill" id="wMeter" style="width:0%"></div></div>
+        <span id="wLabel">0s / ${required}s</span>
+      </div>
+      <p class="no-skip-tip">⏩ Fast-forwarding is disabled and the sound stays on — watch to the end to continue.</p>
+      <div class="lesson-actions" style="justify-content:center">
+        ${redirect
+          ? `<a class="btn btn-accent btn-lg btn-disabled" id="wGo" href="${esc(redirect)}">Continue to the test →</a>
+             <span class="gate-note" id="wNote">Watch the video to unlock this.</span>`
+          : `<span class="gate-note">All done — you’ve watched the video.</span>`}
+      </div>
+    </section>`;
+
+  const video = document.getElementById('wVideo');
+  const playBtn = document.getElementById('wPlay');
+  const goBtn = document.getElementById('wGo');
+  let maxPlayed = 0, satisfied = false, redirected = false;
+  const dur = () => video.duration || vconf.durationSeconds || required;
+
+  const meter = () => {
+    const total = Math.min(required, maxPlayed);
+    document.getElementById('wMeter').style.width = `${Math.min(100, (total / required) * 100)}%`;
+    const label = document.getElementById('wLabel');
+    if (satisfied || maxPlayed >= required) {
+      if (!satisfied) {
+        satisfied = true;
+        if (goBtn) goBtn.classList.remove('btn-disabled');
+        const note = document.getElementById('wNote'); if (note) note.textContent = 'Great — you can continue to the test.';
+      }
+      label.innerHTML = `<span class="ok">✓ Requirement met</span>`;
+    } else {
+      label.textContent = `${Math.floor(total)}s / ${required}s`;
+    }
+  };
+  const goRedirect = () => { if (redirect && !redirected) { redirected = true; window.location.href = redirect; } };
+
+  video.addEventListener('volumechange', () => { // sound stays on
+    if (video.muted) video.muted = false;
+    if (video.volume < 0.1) video.volume = 0.1;
+  });
+  video.addEventListener('loadedmetadata', () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      required = Math.max(1, Math.floor(video.duration * 0.97));
+      document.getElementById('wTime').textContent = `0:00 / ${fmtTime(video.duration)}`;
+      meter();
+    }
+  });
+  video.addEventListener('timeupdate', () => {
+    if (!video.paused && video.currentTime > maxPlayed) maxPlayed = Math.min(dur(), video.currentTime);
+    document.getElementById('wFill').style.width = `${(video.currentTime / dur()) * 100}%`;
+    document.getElementById('wTime').textContent = `${fmtTime(video.currentTime)} / ${fmtTime(dur())}`;
+    meter();
+  });
+  video.addEventListener('seeking', () => {
+    if (video.currentTime > maxPlayed + 1) { video.currentTime = maxPlayed; toast('⏩ Skipping ahead is disabled.', true); }
+  });
+  video.addEventListener('ended', () => { if (satisfied) setTimeout(goRedirect, 800); });
+
+  playBtn.addEventListener('click', () => {
+    if (video.paused) { video.play(); playBtn.textContent = '⏸'; }
+    else { video.pause(); playBtn.textContent = '▶'; }
+  });
+  if (goBtn) goBtn.addEventListener('click', (e) => {
+    if (!satisfied) { e.preventDefault(); toast('Please watch the video first.', true); }
+  });
+  meter();
 }
 
 // ---------- course player ----------
@@ -1109,6 +1217,10 @@ async function viewCourseAdmin(flash) {
       <label>When finished, send learners to (optional web address)
         <input name="completionRedirectUrl" type="url" value="${c ? esc(c.completionRedirectUrl || '') : ''}" placeholder="https://www.ncsra.org/referees" />
       </label>
+      <label class="opt-row" style="flex-direction:row;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" name="publicVideoGate" ${c && c.publicVideoGate ? 'checked' : ''} style="flex:none" />
+        No-login video page: viewers just watch the video, then get sent to the address above (for a test hosted elsewhere, e.g. Brainshark).
+      </label>
       <div class="form-actions"><button class="btn btn-accent" type="submit">${c ? 'Save' : 'Create course'}</button></div>
       ${c ? '' : '<p class="form-hint">New courses start as a private <strong>Draft</strong>. Add your lessons, then click <strong>Publish</strong> when it’s ready for members.</p>'}
     </form>`;
@@ -1117,6 +1229,7 @@ async function viewCourseAdmin(flash) {
     document.getElementById('courseForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(e.target).entries());
+      v.publicVideoGate = !!e.target.querySelector('[name=publicVideoGate]')?.checked; // checkbox: always send a boolean
       try {
         if (c) await api(`/api/admin/courses/${c.id}`, { method: 'PUT', body: v });
         else await api('/api/admin/courses', { method: 'POST', body: v });
@@ -1406,6 +1519,7 @@ const routes = [
   { re: /^#\/login$/, fn: viewLogin },
   { re: /^#\/staff$/, fn: viewStaffLogin },
   { re: /^#\/register$/, fn: viewRegister },
+  { re: /^#\/watch\/([\w-]+)$/, fn: (m) => viewWatch(m[1]) },
   { re: /^#\/course\/([\w-]+)$/, fn: (m) => viewCourse(m[1]) },
   { re: /^#\/course\/([\w-]+)\/lesson\/([\w-]+)$/, fn: (m) => viewCourse(m[1], m[2]) },
   { re: /^#\/cert\/([\w-]+)$/, fn: (m) => viewCertificate(m[1]) },
@@ -1460,7 +1574,9 @@ function inPortal() { return !!activeBrand; }
 async function route() {
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
+  navMinimal = /^#\/watch\//.test(hash);
   await applyBrandForHash(hash);
+  renderNav(); // reflect navMinimal + brand for this route
   for (const r of routes) {
     const m = hash.match(r.re);
     if (m) {

@@ -20,8 +20,13 @@ module.exports = {
   estMinutes: 15,
   heroEmoji: '🟨',
   published: true,
-  // When a referee finishes, send them here.
-  completionRedirectUrl: 'https://www.ncsra.org/referees',
+  // Public "watch & redirect" flow: referees open a link, watch the video (no
+  // login, no skip, sound required), then are sent to the Brainshark
+  // comprehension test — Brainshark credits their eligibility in Arbiter.
+  publicVideoGate: true,
+  // Where to send them when the video ends (the Brainshark test for this course;
+  // editable per course in the Course Designer — each course has its own URL).
+  completionRedirectUrl: 'https://www.brainshark.com/1/player/arbitersports?pi=zGwzPQFt3zDQjYz0&r3f1=3309772428257D6F3F7516747D36353432712F0E713776302E2C75711470227635282D3F',
   lessons: [
     {
       id: 'welcome',
