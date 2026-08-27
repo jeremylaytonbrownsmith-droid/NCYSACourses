@@ -321,13 +321,14 @@ function viewStaffLogin() {
 }
 
 function viewRegister() {
-  const referee = inPortal(); // NCSRA referee portal → also collect their Arbiter email
+  const referee = inPortal(); // NCSRA referee portal
   const fields = [
     { name: 'firstName', label: 'First name', type: 'text', auto: 'given-name' },
     { name: 'lastName', label: 'Last name', type: 'text', auto: 'family-name' },
-    { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
+    referee
+      ? { name: 'email', label: 'Email — please use your Arbiter (ArbiterSports) email', type: 'email', auto: 'email', placeholder: 'your ArbiterSports email' }
+      : { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
   ];
-  if (referee) fields.push({ name: 'arbiterEmail', label: 'Arbiter email (ArbiterSports) — optional', type: 'email', auto: 'off', placeholder: 'the email you use for Arbiter', optional: true });
   authForm({
     title: referee ? 'Create your referee account' : 'Create your free account',
     sub: 'Just your name and email — no password to set up.',
@@ -1071,8 +1072,8 @@ async function viewAdmin() {
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Arbiter Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
-        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.arbiterEmail || '', c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
+      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
+        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
         .join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');

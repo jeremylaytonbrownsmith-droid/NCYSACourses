@@ -228,7 +228,6 @@ app.post('/api/register', (req, res) => {
   const firstName = String(b.firstName || '').trim();
   const lastName = String(b.lastName || '').trim();
   const email = String(b.email || '').trim();
-  const arbiterEmail = String(b.arbiterEmail || '').trim();
   // Compose a display name from first + last; fall back to a single `name` field.
   const name = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : String(b.name || '').trim();
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
@@ -243,7 +242,6 @@ app.post('/api/register', (req, res) => {
   const user = {
     id: id('usr'), name,
     firstName: firstName || undefined, lastName: lastName || undefined,
-    arbiterEmail: arbiterEmail || undefined,
     email, role: 'learner', createdAt: new Date().toISOString(),
   };
   db.users.push(user);
@@ -578,7 +576,6 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
           firstName: u?.firstName || '',
           lastName: u?.lastName || '',
           email: u?.email,
-          arbiterEmail: u?.arbiterEmail || '',
           course: allCourses().find((c) => c.id === e.courseId)?.title,
           completedAt: e.completedAt,
           certId: e.certId,
