@@ -797,6 +797,7 @@ async function showCourseComplete(course, certId, score) {
       <div>
         <span class="notice-sent">📨 A completion notice has been sent to you and to NCYSA</span>
       </div>
+      ${course.completionNote ? `<p class="lead" style="max-width:600px;margin:14px auto 0">${esc(course.completionNote)}</p>` : ''}
       <p style="margin-top:14px">
         <a class="btn btn-primary btn-lg" href="#/cert/${certId}">View your certificate</a>
         ${redirect

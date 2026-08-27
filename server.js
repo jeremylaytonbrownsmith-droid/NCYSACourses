@@ -50,13 +50,14 @@ function ensureCourse(courseObj) {
     save();
     return;
   }
+  // Keep this code-managed course's SETTINGS in sync with the source file on each
+  // deploy (title, branding, audience, redirect, flags…), but never disturb its
+  // `lessons` — those can be edited in the Course Designer. So configuration is
+  // code-managed here; lesson content stays UI-editable.
   let changed = false;
   for (const [k, v] of Object.entries(courseObj)) {
-    if (k === 'lessons') continue; // never disturb lesson content / edits
-    if (existing[k] === undefined || existing[k] === null || existing[k] === '') {
-      existing[k] = structuredClone(v);
-      changed = true;
-    }
+    if (k === 'lessons') continue;
+    if (JSON.stringify(existing[k]) !== JSON.stringify(v)) { existing[k] = structuredClone(v); changed = true; }
   }
   if (changed) save();
 }

@@ -20,13 +20,15 @@ module.exports = {
   estMinutes: 15,
   heroEmoji: '🟨',
   published: true,
-  // Public "watch & redirect" flow: referees open a link, watch the video (no
-  // login, no skip, sound required), then are sent to the Brainshark
-  // comprehension test — Brainshark credits their eligibility in Arbiter.
-  publicVideoGate: true,
-  // Where to send them when the video ends (the Brainshark test for this course;
-  // editable per course in the Course Designer — each course has its own URL).
-  completionRedirectUrl: 'https://www.brainshark.com/1/player/arbitersports?pi=zGwzPQFt3zDQjYz0&r3f1=3309772428257D6F3F7516747D36353432712F0E713776302E2C75711470227635282D3F',
+  // FULL experience: referees take the whole course (video + questions +
+  // certificate) with a completion recorded on the dashboard, then contact NCSRA
+  // to confirm their credit. (The no-login video→Brainshark redirect flow still
+  // exists in the code — set publicVideoGate:true and completionRedirectUrl to a
+  // Brainshark URL to switch this course to that mode instead.)
+  publicVideoGate: false,
+  completionRedirectUrl: '',
+  // Shown on the completion screen for this course.
+  completionNote: 'You’ve completed your NCSRA recertification course. Contact NCSRA to confirm your recertification credit — your completion is on record here for them to verify.',
   lessons: [
     {
       id: 'welcome',
