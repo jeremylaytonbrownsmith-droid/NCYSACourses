@@ -16,10 +16,10 @@ test('full learner journey through the coaching license course', async ({ page }
   await expect(page.locator('.course-card h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
   await page.screenshot({ path: `${SNAP}/01-landing.png`, fullPage: true });
 
-  // --- 1b. Coach/Referee split: referee path leads to its own page ----------
+  // --- 1b. Coach/Referee split: referee path leads to the NCSRA portal ------
   await expect(page.locator('.role-card', { hasText: 'Coaches go here' })).toBeVisible();
   await page.locator('.role-card', { hasText: 'Referees go here' }).click();
-  await expect(page.locator('.notice-card')).toContainText('Referee courses are coming soon');
+  await expect(page.locator('.role-hero h2')).toContainText('NCSRA Referee Education');
   await page.click('.back-link');
   await expect(page.locator('.hero h1')).toBeVisible();
 

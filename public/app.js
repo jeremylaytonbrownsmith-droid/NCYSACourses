@@ -183,7 +183,7 @@ async function viewHome() {
 function courseCard(c) {
   return `
     <div class="course-card">
-      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${logoImg('thumb-logo')}</div>
+      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${c.coLogoUrl ? `<img class="thumb-logo" src="${esc(c.coLogoUrl)}" alt="${esc(c.coBrandName || '')}" />` : logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
         <div class="meta">${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included</div>
@@ -209,7 +209,7 @@ function courseCard(c) {
 function bindCourseCards() {
   document.querySelectorAll('.enroll-btn').forEach((btn) =>
     btn.addEventListener('click', async () => {
-      if (!me?.user) { location.hash = '#/register'; return; }
+      if (!me?.user) { afterAuthHash = `#/course/${btn.dataset.course}`; location.hash = '#/register'; return; }
       await api(`/api/courses/${btn.dataset.course}/enroll`, { method: 'POST' });
       location.hash = `#/course/${btn.dataset.course}`;
     })
@@ -338,30 +338,36 @@ function viewRegister() {
   });
 }
 
-function viewReferees() {
+async function viewReferees() {
+  let refCourses = [];
+  try { refCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'referees'); } catch { /* ignore */ }
+  const brand = activeBrand; // set by the router for #/referees
+  const hero = brand && brand.logo
+    ? `<img class="referee-portal-logo" src="${esc(brand.logo)}" alt="${esc(brand.name)}" />`
+    : `<div class="role-icon big">${ICON_REFEREE}</div>`;
   app.innerHTML = `
     <section class="section">
       <a class="back-link" href="#/">← Back to home</a>
       <div class="role-hero">
-        <div class="role-icon big">${ICON_REFEREE}</div>
-        <h2>Referee education</h2>
-        <p class="lead">Certification and Laws of the Game training for NC match officials.</p>
+        ${hero}
+        <h2>NCSRA Referee Education</h2>
+        <p class="lead">Certification and Laws of the Game training for North Carolina soccer referees.</p>
       </div>
-      <div class="card notice-card">
-        <h3>Referee courses are coming soon to NCYSA Learn</h3>
-        <p>We're building the same guided, trackable experience for referees that coaches get here —
-        entry-level certification, rules refreshers, and recertification. In the meantime, these
-        official resources will get you started:</p>
+      ${refCourses.length
+        ? `<div class="course-grid">${refCourses.map(courseCard).join('')}</div>`
+        : `<div class="card notice-card"><h3>Referee courses are coming soon</h3>
+             <p>Guided, trackable referee training is on the way. <a href="#/register">Create a free account</a>
+             and we'll have your profile ready.</p></div>`}
+      <div class="card notice-card" style="margin-top:26px">
+        <h3>Official referee resources</h3>
         <ul class="resource-links">
-          <li><a href="https://www.ncsoccer.org/" target="_blank" rel="noopener">NCYSA — Referee registration &amp; clinics</a></li>
           <li><a href="https://www.ussoccer.com/referee-program" target="_blank" rel="noopener">U.S. Soccer Referee Program</a></li>
           <li><a href="https://learningcenter.ussoccer.com/" target="_blank" rel="noopener">U.S. Soccer Learning Center — referee courses</a></li>
           <li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game</a></li>
         </ul>
-        <p style="margin-top:14px">Want to be notified when referee courses launch?
-        <a href="#/register">Create a free account</a> and we'll have your profile ready.</p>
       </div>
     </section>`;
+  bindCourseCards();
 }
 
 // ---------- course player ----------
@@ -1429,24 +1435,23 @@ async function brandMap() {
   _brandMap = {};
   try {
     const { courses } = await api('/api/courses');
-    for (const c of courses) if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl };
+    for (const c of courses) if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience };
   } catch { /* leave empty */ }
   return _brandMap;
 }
-// Which course (if any) drives the brand for this route: the course being viewed,
-// or the pending destination behind a sign-in page.
-function brandCourseId(hash) {
+// The brand for a given route: a co-branded course being viewed, or the referee
+// portal page (which adopts the referee course's brand), or null (plain NCYSA).
+async function brandForHash(hash) {
+  const map = await brandMap();
   let m = hash.match(/^#\/course\/([\w-]+)/);
-  if (m) return m[1];
-  if (/^#\/(register|login)$/.test(hash) && afterAuthHash) {
-    m = afterAuthHash.match(/^#\/course\/([\w-]+)/);
-    if (m) return m[1];
-  }
+  if (m && map[m[1]]) return map[m[1]];
+  if (/^#\/referees$/.test(hash)) return Object.values(map).find((b) => b.audience === 'referees') || null;
   return null;
 }
 async function applyBrandForHash(hash) {
-  const cid = brandCourseId(hash);
-  const next = cid ? (await brandMap())[cid] || null : null;
+  let next = await brandForHash(hash);
+  // Carry the brand through the sign-in pages when a portal destination is pending.
+  if (!next && /^#\/(register|login)$/.test(hash) && afterAuthHash) next = await brandForHash(afterAuthHash);
   if (JSON.stringify(next) !== JSON.stringify(activeBrand)) { activeBrand = next; renderNav(); }
 }
 // True when the current context is a co-branded (e.g. NCSRA referee) portal.
