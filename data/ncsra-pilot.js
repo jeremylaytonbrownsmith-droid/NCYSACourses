@@ -14,6 +14,9 @@ module.exports = {
     'receive a certificate — no separate sign-off needed.',
   badge: 'Referee',
   audience: 'referees',
+  // Co-branding shown ONLY on this course (the rest of the site stays "NCYSA Learn").
+  coBrandName: 'NCYSA + NCSRA Learn',
+  coLogoUrl: 'https://static.wixstatic.com/media/b61df5_3dd41adc219e426ababb5fc5728475e2~mv2.png',
   estMinutes: 15,
   heroEmoji: '🟨',
   published: true,

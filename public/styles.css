@@ -167,6 +167,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
   background: #120b3d; color: #d4d0e8; padding: 20px 0 40px;
 }
 .curriculum .course-head { padding: 6px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.09); }
+/* Per-course co-branding (e.g. NCYSA + NCSRA) — only shown when a course sets it */
+.cobrand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+.cobrand-logo { height: 42px; width: auto; background: #fff; border-radius: 6px; padding: 3px 5px; flex: none; }
+.cobrand-name { font-size: 0.82rem; font-weight: 800; color: #fff; letter-spacing: 0.02em; }
 .curriculum .course-head h2 { color: #fff; font-size: 1.02rem; line-height: 1.4; }
 .curriculum .course-head .prog-label { font-size: 0.78rem; margin: 10px 0 6px; color: #a9a3cf; }
 .curriculum .progress-track { background: rgba(255,255,255,0.15); }

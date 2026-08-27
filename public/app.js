@@ -375,6 +375,10 @@ async function viewCourse(courseId, lessonId) {
     <div class="player-layout">
       <aside class="curriculum">
         <div class="course-head">
+          ${course.coBrandName ? `<div class="cobrand">
+            ${course.coLogoUrl ? `<img class="cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName)}" />` : ''}
+            <span class="cobrand-name">${esc(course.coBrandName)}</span>
+          </div>` : ''}
           <h2>${esc(course.title)}</h2>
           <div class="prog-label">${progress.completedLessons} of ${progress.totalLessons} lessons complete · ${progress.percent}%</div>
           <div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div>
