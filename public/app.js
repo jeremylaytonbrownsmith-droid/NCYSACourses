@@ -276,7 +276,8 @@ function viewLogin() {
       try {
         const r = await api('/api/login', { method: 'POST', body: v });
         await refreshMe();
-        location.hash = roleHome(r.user.role);
+        const dest = afterAuthHash; afterAuthHash = null;
+        location.hash = dest || roleHome(r.user.role);
       } catch (err) {
         // Production: a staff email needs a password — send them to staff sign-in.
         if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
@@ -319,7 +320,8 @@ function viewRegister() {
     onSubmit: async (v) => {
       await api('/api/register', { method: 'POST', body: v });
       await refreshMe();
-      location.hash = '#/courses';
+      const dest = afterAuthHash; afterAuthHash = null;
+      location.hash = dest || '#/courses';
     },
   });
 }
@@ -352,8 +354,9 @@ function viewReferees() {
 
 // ---------- course player ----------
 
+let afterAuthHash = null; // where to land after sign-in (e.g. a shared course link)
 async function viewCourse(courseId, lessonId) {
-  if (!me?.user) { location.hash = '#/login'; return; }
+  if (!me?.user) { afterAuthHash = location.hash; location.hash = '#/register'; return; }
   let data;
   try { data = await api(`/api/courses/${courseId}`); }
   catch (e) {
@@ -414,9 +417,12 @@ async function viewCourse(courseId, lessonId) {
   else renderTextLesson(pane, course, lesson, lp);
 }
 
-function lessonHeader(lesson) {
+function lessonHeader(lesson, course) {
   const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam' };
-  return `<div class="lesson-kind">${typeLabel[lesson.type]}</div><h1>${esc(lesson.title)}</h1>`;
+  const logo = course && course.coLogoUrl
+    ? `<img class="lesson-cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || '')}" />`
+    : '';
+  return `<div class="lesson-kind-row"><div class="lesson-kind">${typeLabel[lesson.type]}</div>${logo}</div><h1>${esc(lesson.title)}</h1>`;
 }
 
 async function completeLesson(course, lesson) {
@@ -430,7 +436,7 @@ async function completeLesson(course, lesson) {
 
 function renderTextLesson(pane, course, lesson, lp) {
   pane.innerHTML = `
-    ${lessonHeader(lesson)}
+    ${lessonHeader(lesson, course)}
     <div class="lesson-content">${lesson.html}</div>
     <div class="lesson-actions">
       ${lp.completed
@@ -457,7 +463,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
   // (see the loadedmetadata handler); this is just the pre-load fallback.
   let required = lesson.minWatchSeconds || Math.max(1, Math.floor((lesson.durationSeconds || 60) * 0.97));
   pane.innerHTML = `
-    ${lessonHeader(lesson)}
+    ${lessonHeader(lesson, course)}
     <div class="lesson-content">${lesson.html}</div>
     <div class="video-shell">
       <video id="lessonVideo" preload="metadata" playsinline aria-label="Lesson video: ${esc(lesson.title)}">
@@ -610,7 +616,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
 
 function renderQuizLesson(pane, course, lesson, lp) {
   pane.innerHTML = `
-    ${lessonHeader(lesson)}
+    ${lessonHeader(lesson, course)}
     <div class="lesson-content">${lesson.html}</div>
     ${lp.completed ? `<div class="quiz-result pass">✓ Exam passed with ${lp.quizScore}%. Your license is recorded.</div>` : ''}
     <form id="quizForm">

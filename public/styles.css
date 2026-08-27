@@ -189,6 +189,8 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 
 .lesson-pane { padding: 40px clamp(20px, 5vw, 64px); max-width: 860px; }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
+.lesson-kind-row { display: flex; align-items: center; gap: 14px; }
+.lesson-cobrand-logo { height: 40px; width: auto; }
 .lesson-pane h1 { font-size: 1.75rem; letter-spacing: -0.01em; margin: 6px 0 20px; }
 /* Keep whatever a course designer pastes in — images, embeds, long links —
    inside the screen on phones instead of forcing horizontal scroll. */
