@@ -37,6 +37,11 @@ const CHECKS = {
     { id: 'captain-keeper', prompt: 'When the goalkeeper is the captain, by when must the referee be told which player will approach on the goalkeeper’s behalf?', options: ['At half-time', 'No later than the coin toss before kick-off', 'After the first goal', 'It isn’t required'], answer: 1 },
     { id: 'ncysa-exit', prompt: 'In NCYSA Classic matches, substituted players must exit the field at which location (and a delay from this is not a violation of the count)?', options: ['The nearest boundary point', 'At midfield or near their team bench', 'Behind the goal', 'Anywhere they choose'], answer: 1 },
   ],
+  5: [ // Law 12 — Goalkeeper holding the ball (8-second protocol)
+    { id: 'gk-seconds', prompt: 'Under the current protocol, for how many seconds may a goalkeeper control the ball with the hand(s) before it must be released into play?', options: ['6 seconds', '8 seconds', '10 seconds', '12 seconds'], answer: 1 },
+    { id: 'gk-signal', prompt: 'How does the referee warn the goalkeeper that time is running out?', options: ['By blowing the whistle once', 'By raising an arm and visually counting down the final five seconds', 'By showing a yellow card', 'There is no warning'], answer: 1 },
+    { id: 'gk-sanction', prompt: 'If the goalkeeper exceeds the time limit, what does the referee now award to the opposing team?', options: ['An indirect free kick', 'A corner kick', 'A penalty kick', 'A dropped ball'], answer: 1 },
+  ],
 };
 
 const VIDEOS = [
@@ -44,6 +49,7 @@ const VIDEOS = [
   { part: 2, url: 'https://dl.dropboxusercontent.com/scl/fi/22k64a0fi0hq2ykfbjb82/2026-NCSRA-Part-2-compressed.mp4?rlkey=41tamhcemrh5vbp1pb306vigd' },
   { part: 3, url: 'https://dl.dropboxusercontent.com/scl/fi/1wbw72f01hcfl68l9n2mo/2026-NCSRA-Part-3-compressed.mp4?rlkey=i9smgemvzrg6jon5x1cyhup0y' },
   { part: 4, url: 'https://dl.dropboxusercontent.com/scl/fi/1qvlh4w2dv3h11vpxmwy4/2026-NCSRA-Part-4-compressed.mp4?rlkey=0jw2anqcl8kawky7u4ezps94u' },
+  { part: 5, url: 'https://dl.dropboxusercontent.com/scl/fi/04jjvljdq05dx51krvro5/2026-NCSRA-Part-5-compressed.mp4?rlkey=jt5ke5wfxnggu736gyu1henav' },
 ];
 
 const lessons = [
