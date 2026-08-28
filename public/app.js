@@ -1153,6 +1153,7 @@ async function viewCourseAdmin(flash) {
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? '🚀 Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
+                <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
               </div>
             </div>
             <ol class="admin-lessons">
@@ -1206,6 +1207,14 @@ async function viewCourseAdmin(flash) {
     const makePublic = b.dataset.pub !== '1';
     await api(`/api/admin/courses/${b.dataset.course}/publish`, { method: 'POST', body: { published: makePublic } });
     viewCourseAdmin(makePublic ? 'Course published — learners can see it now.' : 'Course unpublished — hidden from learners.');
+  }));
+  document.querySelectorAll('.del-course').forEach((b) => b.addEventListener('click', async () => {
+    const title = b.dataset.title || 'this course';
+    if (!confirm(`Delete “${title}” permanently? This removes the course and all its lessons. This cannot be undone.`)) return;
+    try {
+      await api(`/api/admin/courses/${b.dataset.course}`, { method: 'DELETE' });
+      viewCourseAdmin(`Deleted “${title}”.`);
+    } catch (err) { msg(err.message, true); }
   }));
 
   function courseForm(c) {
