@@ -74,7 +74,7 @@ a:hover { text-decoration: underline; }
 .btn-accent:hover { background: var(--accent-dark); text-decoration: none; }
 .btn-ghost { background: transparent; color: var(--brand); border: 2px solid var(--brand); }
 .btn-ghost:hover { background: var(--brand); color: #fff; text-decoration: none; }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled, .btn-disabled[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .btn-disabled { opacity: 0.45; cursor: not-allowed; } /* for <a> buttons that gate on JS */
 .btn-lg { padding: 14px 28px; font-size: 1.05rem; }
 

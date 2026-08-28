@@ -187,27 +187,36 @@ async function viewHome() {
 }
 
 function courseCard(c) {
+  // A course with no lessons yet isn't ready to take — show a locked "Coming
+  // soon" button so it can't be opened. It flips to a real Enroll/Continue
+  // button automatically as soon as the first lesson is added.
+  const comingSoon = !c.lessonCount;
+  const foot = comingSoon
+    ? `<div class="foot">
+         <span class="meta">In development</span>
+         <button class="btn btn-ghost btn-disabled" disabled aria-disabled="true">Coming soon</button>
+       </div>`
+    : c.enrolled
+    ? `<div class="progress-track"><div class="progress-fill" style="width:${c.percent}%"></div></div>
+       <div class="foot">
+         <span class="meta">${c.percent}% complete</span>
+         ${c.completedAt
+           ? `<span class="pill-done">✓ Completed</span>`
+           : `<a class="btn btn-primary" href="#/course/${c.id}">Continue</a>`}
+       </div>
+       ${c.certId ? `<a href="#/cert/${c.certId}">View certificate →</a>` : ''}`
+    : `<div class="foot">
+         <span class="meta">Free</span>
+         <button class="btn btn-accent enroll-btn" data-course="${c.id}">Enroll now</button>
+       </div>`;
   return `
-    <div class="course-card">
+    <div class="course-card${comingSoon ? ' is-coming-soon' : ''}">
       <div class="thumb"><span class="badge">${esc(c.badge)}</span>${c.coLogoUrl ? `<img class="thumb-logo" src="${esc(c.coLogoUrl)}" alt="${esc(c.coBrandName || '')}" />` : logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
-        <div class="meta">${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included</div>
+        <div class="meta">${comingSoon ? 'Coming soon' : `${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included`}</div>
         <p class="desc">${esc(c.tagline)}</p>
-        ${c.enrolled ? `
-          <div class="progress-track"><div class="progress-fill" style="width:${c.percent}%"></div></div>
-          <div class="foot">
-            <span class="meta">${c.percent}% complete</span>
-            ${c.completedAt
-              ? `<span class="pill-done">✓ Completed</span>`
-              : `<a class="btn btn-primary" href="#/course/${c.id}">Continue</a>`}
-          </div>
-          ${c.certId ? `<a href="#/cert/${c.certId}">View certificate →</a>` : ''}
-        ` : `
-          <div class="foot">
-            <span class="meta">Free</span>
-            <button class="btn btn-accent enroll-btn" data-course="${c.id}">Enroll now</button>
-          </div>`}
+        ${foot}
       </div>
     </div>`;
 }
