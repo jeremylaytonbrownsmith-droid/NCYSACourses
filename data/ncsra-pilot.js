@@ -1,26 +1,42 @@
-// NCSRA 2026 Recertification Refresher Course — our tool delivering Step 3 of
-// the NCSRA referee recertification: four no-skip refresher videos, each followed
-// by a short "Laws Check" (2–3 questions the referee answers by consulting the
-// 2026/27 Laws of the Game and the NCYSA Law 3 policy update — NOT the video), a
-// certificate, and a dashboard record NCSRA can verify against.
+// NCSRA 2026 Recertification Refresher — our tool delivering Step 3 of the NCSRA
+// referee recertification. The FULL course is ten no-skip refresher videos; the
+// "Laws Check" quiz after a video is optional reinforcement (answers come from the
+// 2026/27 Laws of the Game and the NCYSA Law 3 policy update — NOT the video),
+// plus a certificate and a dashboard record NCSRA can verify against.
+//
+// PREVIEW MODE: for Erick Varone's review we surface only Part 1 (the link we
+// shared) so he lands straight on the video, watches it, takes one short Laws
+// Check, and reaches completion — without sitting through every video. Flip DEMO
+// to false (and list the parts in VISIBLE_PARTS) to open the whole course.
 //
 // Fully code-managed: ensureCourse (server.js) keeps this course — settings AND
 // lessons — in sync with this file on each deploy. Manage its content here.
-//
-// Questions are drawn from the IFAB Laws of the Game 2026/27 new-law protocols and
-// the hosted NCYSA "Law 3 – Time-Limited Substitution Protocol" policy update. The
-// topic→video mapping is a first pass — reorder once we know each video's content.
-const LAWS_DOCS = 'the <strong>2026/27 Laws of the Game</strong> and the <strong>NCYSA Law 3 policy update</strong> (both linked in “Start Here”)';
+
+// Preview: land on Part 1's video, one Laws Check, then completion. Parts 2-5 are
+// authored below but hidden until we open the full course.
+const DEMO = true;
+const VISIBLE_PARTS = DEMO ? [1] : [1, 2, 3, 4, 5];
+
+const DOC_LINKS =
+  '<ul>' +
+  '<li><a href="/docs/NCYSA-Law3-Policy-Update.pdf" target="_blank" rel="noopener">NCYSA — Law 3 Time-Limited Substitution Protocol (policy update)</a></li>' +
+  '<li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game 2026/27</a></li>' +
+  '</ul>';
+
 const checkIntro =
   '<p><strong>Heads up:</strong> these answers are <strong>not in the video.</strong> They come from ' +
-  LAWS_DOCS + ' — have them handy and look them up.</p>';
+  'the <strong>NCYSA Law 3 policy update</strong> and the <strong>2026/27 Laws of the Game</strong> — ' +
+  'have them handy and look them up. Miss one and you can retake it right away; you won’t be locked out.</p>' +
+  '<h3>Reference documents</h3>' + DOC_LINKS;
 
 // Each Laws Check: real questions from the documents.
 const CHECKS = {
-  1: [ // Law 3 — Time-Limited Substitutions (IFAB + NCYSA policy)
+  1: [ // Law 3 — Time-Limited Substitutions (IFAB + NCYSA policy) — the preview quiz (5 Qs)
     { id: 'sub-seconds', prompt: 'Under the 2026/27 time-limited substitution protocol, a substituted player must leave the field of play within how many seconds?', options: ['5 seconds', '10 seconds', '15 seconds', '30 seconds'], answer: 1 },
+    { id: 'sub-law', prompt: 'The time-limited substitution procedure is a change to which Law of the Game?', options: ['Law 3 — The Players', 'Law 5 — The Referee', 'Law 11 — Offside', 'Law 14 — The Penalty Kick'], answer: 0 },
     { id: 'sub-reentry', prompt: 'If a substituted player unnecessarily delays and exceeds the time limit, when may the incoming substitute enter?', options: ['Immediately', 'At the next throw-in', 'At the first stoppage after one minute has elapsed following the restart, with the referee’s permission', 'Not for the rest of the match'], answer: 2 },
     { id: 'ncysa-count', prompt: 'In NCYSA Classic League matches, if a player is exiting normally and not delaying, should the referee start the 10-second count?', options: ['Yes, always', 'No — the count is only for an unnecessary delay', 'Only in the second half', 'Only if the coach asks'], answer: 1 },
+    { id: 'sub-purpose', prompt: 'What is the main purpose of the time-limited substitution protocol?', options: ['To speed up substitutions and reduce time-wasting', 'To allow unlimited substitutions', 'To eliminate substitutions', 'To give coaches extra timeouts'], answer: 0 },
   ],
   2: [ // Laws 15 & 16 — Throw-in / Goal-kick Countdown
     { id: 'countdown-seconds', prompt: 'The throw-in and goal-kick countdown protocol is based on a countdown of how many seconds?', options: ['3 seconds', '5 seconds', '8 seconds', '10 seconds'], answer: 1 },
@@ -52,48 +68,57 @@ const VIDEOS = [
   { part: 5, url: 'https://dl.dropboxusercontent.com/scl/fi/04jjvljdq05dx51krvro5/2026-NCSRA-Part-5-compressed.mp4?rlkey=jt5ke5wfxnggu736gyu1henav' },
 ];
 
-const lessons = [
-  {
+// A short preview banner shown on the first video so a reviewer immediately
+// understands this is one part of a ten-video platform.
+const previewBanner = DEMO
+  ? '<div style="border-left:4px solid #1f3a5f;background:#eef3fa;padding:12px 16px;border-radius:6px;margin:0 0 14px">' +
+    '<p style="margin:0"><strong>Preview.</strong> You’re seeing <strong>Part 1</strong> — one of the ' +
+    '<strong>10 refresher videos</strong> the full platform holds. Watch it in full, then take a short ' +
+    'Laws Check to see how the whole experience works.</p></div>'
+  : '';
+
+const lessons = [];
+if (!DEMO) {
+  lessons.push({
     id: 'welcome',
     type: 'text',
     title: 'Start Here — How the Refresher Works',
     html:
       '<h2>2026 NCSRA Recertification Refresher</h2>' +
       '<p>Welcome. This is the <strong>Refresher Course — Step 3</strong> of your 2026 referee ' +
-      'recertification. It’s in <strong>four short parts</strong>. For each part you’ll:</p>' +
+      'recertification. For each part you’ll:</p>' +
       '<ul>' +
       '<li><strong>Use the same email you use for Arbiter</strong> so your completion lines up with your referee record.</li>' +
       '<li><strong>Watch the video in full</strong> — no skipping ahead.</li>' +
-      '<li><strong>Answer a short Laws Check.</strong> These questions are <strong>not in the video</strong> — ' +
-      'they confirm you’ve reviewed this year’s law changes. Keep the documents below handy and look them up.</li>' +
+      '<li><strong>Answer a short Laws Check</strong> (optional reinforcement). These questions are ' +
+      '<strong>not in the video</strong> — keep the documents below handy and look them up.</li>' +
       '</ul>' +
-      '<h3>Reference documents</h3>' +
-      '<ul>' +
-      '<li><a href="/docs/NCYSA-Law3-Policy-Update.pdf" target="_blank" rel="noopener">NCYSA — Law 3 Time-Limited Substitution Protocol (policy update)</a></li>' +
-      '<li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game 2026/27</a></li>' +
-      '</ul>' +
-      '<p>When you finish all four parts you’ll receive a certificate and your completion is recorded here for NCSRA. ' +
-      'Then complete your remaining recertification steps and email NCSRA to confirm.</p>' +
+      '<h3>Reference documents</h3>' + DOC_LINKS +
+      '<p>When you finish you’ll receive a certificate and your completion is recorded here for NCSRA.</p>' +
       '<p>Ready? Click <strong>Complete &amp; continue</strong> to begin.</p>',
-  },
-];
-for (const v of VIDEOS) {
+  });
+}
+for (const part of VISIBLE_PARTS) {
+  const v = VIDEOS.find((x) => x.part === part);
   lessons.push({
-    id: `part${v.part}-video`,
+    id: `part${part}-video`,
     type: 'video',
-    title: `Part ${v.part} — Refresher Video`,
-    html: `<p>Watch Part ${v.part} in full. The <strong>Complete &amp; continue</strong> button unlocks once you’ve watched it to the end.</p>`,
+    title: `Part ${part} — Refresher Video`,
+    html:
+      previewBanner +
+      `<p>Watch Part ${part} in full. The <strong>Complete &amp; continue</strong> button unlocks once you’ve watched it to the end.</p>` +
+      '<h3>Reference documents (for the Laws Check that follows)</h3>' + DOC_LINKS,
     videoUrl: v.url, // Dropbox direct-file link; watch requirement auto-adapts to the real length.
     durationSeconds: 600, // nominal fallback; real length auto-detected on play
     minWatchSeconds: 594,
   });
   lessons.push({
-    id: `part${v.part}-check`,
+    id: `part${part}-check`,
     type: 'quiz',
-    title: `Part ${v.part} — Laws Check`,
+    title: `Part ${part} — Laws Check`,
     html: checkIntro,
-    passPercent: 80,
-    questions: CHECKS[v.part],
+    passPercent: 80, // miss one of five; unlimited immediate retakes
+    questions: CHECKS[part],
   });
 }
 
@@ -102,10 +127,10 @@ module.exports = {
   title: '2026 NCSRA Recertification Refresher',
   tagline: 'Step 3 of your 2026 referee recertification.',
   description:
-    'The 2026 NCSRA Recertification Refresher — Step 3 of your referee recertification, in four short ' +
-    'parts. Sign in with the same email you use for Arbiter, watch each part in full, and complete a ' +
-    'short Laws Check after each (answers found in the 2026/27 Laws of the Game and the NCYSA Law 3 ' +
-    'policy update, not the video). Your completion is recorded here (with a certificate) for NCSRA.',
+    'The 2026 NCSRA Recertification Refresher — Step 3 of your referee recertification. Sign in with the ' +
+    'same email you use for Arbiter, watch the refresher video(s) in full, and complete a short Laws ' +
+    'Check (optional reinforcement; answers found in the 2026/27 Laws of the Game and the NCYSA Law 3 ' +
+    'policy update, not the video). Your completion is recorded here, with a certificate, for NCSRA.',
   badge: 'Recertification',
   audience: 'referees',
   coBrandName: 'NCSRA Referee Education',
@@ -113,14 +138,18 @@ module.exports = {
   certOrg: 'North Carolina Soccer Referee Association',
   certTitle: 'Certificate of Recertification Training',
   certPrefix: 'NCSRA',
-  estMinutes: 60,
+  estMinutes: DEMO ? 15 : 60,
   heroEmoji: '🟨',
   published: true,
   publicVideoGate: false,
   completionRedirectUrl: '',
   completionNote:
-    'You’ve completed the 2026 NCSRA Recertification Refresher (Step 3). Finish your remaining ' +
-    'recertification steps, then email NCSRA Administrator Erick Varone to confirm — your completion ' +
-    'is on record here for verification.',
+    'That’s the preview. What you just experienced — a no-skip video, then a short Laws Check with ' +
+    'instant grading, unlimited retakes, a certificate, and a completion recorded here for NCSRA to ' +
+    'verify — is exactly how the full platform works. In the complete course, all 10 recertification ' +
+    'videos live inside this platform for referees to watch. Advanced referees would simply watch all ' +
+    '10 videos to recertify; the Laws Check is optional reinforcement we can turn on wherever NCSRA ' +
+    'wants a knowledge check, and we can add a final test at the end if you’d like one. Every completion ' +
+    'lands on the NCSRA dashboard so Erick can verify it at a glance.',
   lessons,
 };
