@@ -11,6 +11,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const AdmZip = require('adm-zip');
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
@@ -64,6 +66,31 @@ function ensureCourse(courseObj) {
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Where uploaded SCORM course packages live on disk. They must be served
+// SAME-ORIGIN as the app (SCORM 1.2 discovers window.API by walking up the
+// parent window, which the browser blocks cross-origin), so they're served
+// through this app rather than a separate CDN. Default is a folder beside the
+// data store; in production set SCORM_DIR to a PERSISTENT disk so uploads
+// survive restarts/redeploys (a fresh container otherwise starts empty).
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const SCORM_DIR = process.env.SCORM_DIR || path.join(DATA_DIR, 'scorm');
+const BUNDLED_SCORM_DIR = path.join(__dirname, 'public', 'scorm'); // e.g. the sample module
+
+// Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
+// with strict path containment. Falls back to the bundled samples in public/.
+app.get('/scorm/:pkg/*', (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  let rel = String(req.params[0] || 'index.html').replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!rel) rel = 'index.html';
+  for (const root of [SCORM_DIR, BUNDLED_SCORM_DIR]) {
+    const base = path.join(root, pkg);
+    const file = path.resolve(base, rel);
+    if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
+  }
+  res.status(404).end();
+});
 
 // ---------- auth helpers ----------
 
@@ -786,6 +813,66 @@ app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req
   save();
   res.json({ ok: true });
 });
+
+// Minimal HTML-entity decode for a manifest <title>.
+function decodeEntities(s) {
+  return String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+
+// Upload a SCORM package (.zip). The raw zip is POSTed as the body. We unzip it
+// into SCORM_DIR/<packageId>, read imsmanifest.xml for the launch file and
+// title, and return metadata for the designer to attach as a `scorm` lesson.
+// The package is served same-origin at /scorm/<packageId>/.
+app.post('/api/admin/scorm', requireEditor,
+  express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '300mb' }),
+  (req, res) => {
+    try {
+      const buf = req.body;
+      if (!buf || !buf.length) return res.status(400).json({ error: 'No file received.' });
+      let zip;
+      try { zip = new AdmZip(buf); } catch { return res.status(400).json({ error: 'That file is not a valid .zip.' }); }
+      const entries = zip.getEntries();
+      const manEntry = entries.find((e) => /(^|\/)imsmanifest\.xml$/i.test(e.entryName));
+      if (!manEntry) return res.status(400).json({ error: 'Not a SCORM package — no imsmanifest.xml inside the .zip.' });
+
+      // The manifest may sit inside a wrapping folder; everything is relative to it.
+      const rootPrefix = manEntry.entryName.slice(0, manEntry.entryName.toLowerCase().lastIndexOf('imsmanifest.xml'));
+      const manifest = zip.readAsText(manEntry);
+      const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
+      const launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
+      const title = decodeEntities(
+        ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
+          || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
+      );
+
+      const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
+      const dest = path.join(SCORM_DIR, packageId);
+      fs.mkdirSync(dest, { recursive: true });
+      let wrote = 0;
+      for (const e of entries) {
+        if (e.isDirectory) continue;
+        if (rootPrefix && !e.entryName.startsWith(rootPrefix)) continue;
+        const relName = (rootPrefix ? e.entryName.slice(rootPrefix.length) : e.entryName).replace(/\\/g, '/');
+        if (!relName || relName.includes('..')) continue;
+        const outPath = path.resolve(dest, relName);
+        if (outPath !== dest && !outPath.startsWith(dest + path.sep)) continue; // containment
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.writeFileSync(outPath, e.getData());
+        wrote++;
+      }
+      if (!wrote) { fs.rmSync(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'The .zip was empty.' }); }
+      if (!fs.existsSync(path.join(dest, launchFile))) {
+        // Launch file named in the manifest isn't where expected — flag it rather
+        // than silently shipping a broken module.
+        return res.json({ packageId, launchFile, title, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
+      }
+      res.json({ packageId, launchFile, title });
+    } catch (e) {
+      res.status(400).json({ error: 'Could not read package: ' + e.message });
+    }
+  }
+);
 
 // Full course (with quiz answers) for the admin editor.
 app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {

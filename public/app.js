@@ -1363,6 +1363,7 @@ async function viewCourseAdmin(flash) {
           <option value="text" ${t === 'text' ? 'selected' : ''}>Reading</option>
           <option value="video" ${t === 'video' ? 'selected' : ''}>Video</option>
           <option value="quiz" ${t === 'quiz' ? 'selected' : ''}>Exam / quiz</option>
+          <option value="scorm" ${t === 'scorm' ? 'selected' : ''}>SCORM module (upload)</option>
         </select>
       </label>
       <label>Title<input name="title" value="${l ? esc(l.title) : ''}" required /></label>
@@ -1386,6 +1387,21 @@ async function viewCourseAdmin(flash) {
         <div id="quizQs">${qs.map((q, i) => quizQ(q, i)).join('')}</div>
         <button type="button" class="btn btn-ghost btn-sm" id="addQ">＋ Add question</button>`;
     }
+    if (type === 'scorm') {
+      const has = l && l.packageId;
+      return `
+        ${richTextField('html', 'Intro text (optional — shows above the module)', l ? l.html : '', 70)}
+        <label>Course package (SCORM .zip)
+          <input type="file" id="scormFile" accept=".zip,application/zip,application/x-zip-compressed" />
+        </label>
+        <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost btn-sm" id="scormUpload">Upload package</button>
+          <span id="scormStatus" class="meta">${has ? `Current package: <strong>${esc(l.packageId)}</strong> (${esc(l.launchFile || 'index.html')})` : 'No package uploaded yet.'}</span>
+        </div>
+        <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
+        <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
+        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page and marks itself complete when the learner reaches the end. Add one lesson per module, in order.</p>`;
+    }
     return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
   function quizQ(q, i) {
@@ -1405,6 +1421,29 @@ async function viewCourseAdmin(flash) {
         const qs = document.getElementById('quizQs');
         qs.insertAdjacentHTML('beforeend', quizQ({ prompt: '', options: ['', ''], answer: 0 }, qs.children.length));
       });
+      const up = document.getElementById('scormUpload');
+      if (up) up.addEventListener('click', async () => {
+        const fileEl = document.getElementById('scormFile');
+        const status = document.getElementById('scormStatus');
+        const f = fileEl && fileEl.files && fileEl.files[0];
+        if (!f) { status.textContent = 'Choose a .zip first.'; return; }
+        const nameHint = (form.querySelector('[name=title]')?.value || f.name).replace(/\.zip$/i, '');
+        up.disabled = true;
+        status.textContent = 'Uploading… large modules can take a minute.';
+        try {
+          const r = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f,
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(data.error || 'Upload failed');
+          form.querySelector('[name=packageId]').value = data.packageId;
+          form.querySelector('[name=launchFile]').value = data.launchFile || 'index.html';
+          const titleEl = form.querySelector('[name=title]');
+          if (titleEl && !titleEl.value && data.title) titleEl.value = data.title;
+          status.innerHTML = `✓ Uploaded: <strong>${esc(data.title || data.packageId)}</strong>` + (data.warning ? ` — ⚠ ${esc(data.warning)}` : ' — now click “Save lesson”.');
+        } catch (err) { status.textContent = '✗ ' + err.message; }
+        finally { up.disabled = false; }
+      });
     };
     sel.addEventListener('change', render);
     render();
@@ -1419,6 +1458,11 @@ async function viewCourseAdmin(flash) {
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
       if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.videoUrlWebm = fd.get('videoUrlWebm') || undefined; payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
+      if (type === 'scorm') {
+        payload.packageId = fd.get('packageId');
+        payload.launchFile = fd.get('launchFile') || 'index.html';
+        if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
+      }
       if (type === 'quiz') {
         payload.passPercent = fd.get('passPercent');
         const qEls = form.querySelectorAll('.quiz-edit');
