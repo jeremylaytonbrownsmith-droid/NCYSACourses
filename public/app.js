@@ -30,6 +30,17 @@ const ICON_REFEREE = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
   <rect x="22" y="14" width="16" height="24" rx="2.6" fill="#d8332f" transform="rotate(10 30 26)"/>
 </svg>`;
 
+// Minimal monochrome line icons (currentColor) for a buttoned-up, professional
+// look in place of decorative emoji. 24×24, 1.7 stroke, round joins.
+const svgIcon = (paths) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const ICON_LESSONS = svgIcon('<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5A1.5 1.5 0 0 0 20 18.5Z"/>');
+const ICON_VIDEO = svgIcon('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>');
+const ICON_CERT = svgIcon('<circle cx="12" cy="9" r="5"/><path d="M9 13.5 8 21l4-2 4 2-1-7.5"/>');
+const ICON_NOTIFY = svgIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>');
+const ICON_BELL = svgIcon('<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10.5 19a1.6 1.6 0 0 0 3 0"/>');
+const ICON_LOCK = svgIcon('<rect x="5" y="11" width="14" height="9" rx="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>');
+const ICON_SOUND = svgIcon('<path d="M4 9v6h3l5 4V5L7 9z"/><path d="M16 9a3 3 0 0 1 0 6"/><path d="M18.5 7a6 6 0 0 1 0 10"/>');
+
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
 let me = null;        // { user, unread }
@@ -96,7 +107,7 @@ function renderNav() {
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
-      <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">🔔${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
+      <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">${ICON_BELL}${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
     ` : `
@@ -154,10 +165,10 @@ async function viewHome() {
       </div>
     </section>
     <div class="feature-strip">
-      <div class="feature"><div class="fi">📚</div><h3>Self-paced lessons</h3><p>Reading, video, and exams that unlock in order — no skipping ahead.</p></div>
-      <div class="feature"><div class="fi">🎬</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so completed licenses reflect genuine training.</p></div>
-      <div class="feature"><div class="fi">🏅</div><h3>Instant certificates</h3><p>Finish a course and your certificate is issued on the spot.</p></div>
-      <div class="feature"><div class="fi">📨</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
+      <div class="feature"><div class="fi">${ICON_LESSONS}</div><h3>Self-paced lessons</h3><p>Reading, video, and exams that unlock in order — no skipping ahead.</p></div>
+      <div class="feature"><div class="fi">${ICON_VIDEO}</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so completed licenses reflect genuine training.</p></div>
+      <div class="feature"><div class="fi">${ICON_CERT}</div><h3>Instant certificates</h3><p>Finish a course and your certificate is issued on the spot.</p></div>
+      <div class="feature"><div class="fi">${ICON_NOTIFY}</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
     </div>
     <section class="section">
       <h2>Which brings you here?</h2>
@@ -293,7 +304,7 @@ function viewLogin() {
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
     ],
     submitLabel: 'Continue',
-    note: '🔒 No password required. Your email is only used to save your progress — nothing is sent anywhere.',
+    note: 'No password required. Your email is only used to save your progress — nothing is sent anywhere.',
     alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
     onSubmit: async (v) => {
       try {
@@ -319,7 +330,7 @@ function viewStaffLogin() {
       { name: 'password', label: 'Staff password', type: 'password', auto: 'current-password' },
     ],
     submitLabel: 'Sign in',
-    note: '🔒 The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
+    note: 'The dashboard and learner completion data are restricted to NCYSA staff with a valid password.',
     alt: 'Not staff? <a href="#/login">Learner sign-in</a>',
     onSubmit: async (v) => {
       const r = await api('/api/login', { method: 'POST', body: v });
@@ -343,7 +354,7 @@ function viewRegister() {
     sub: 'Just your name and email — no password to set up.',
     fields,
     submitLabel: 'Create account',
-    note: '🔒 No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
+    note: 'No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
       await api('/api/register', { method: 'POST', body: v });
@@ -416,7 +427,7 @@ async function viewWatch(courseId) {
           <button id="wPlay" title="Play / pause" aria-label="Play or pause">▶</button>
           <div class="v-track"><div class="v-fill" id="wFill"></div></div>
           <span class="v-time" id="wTime">0:00 / ${fmtTime(vconf.durationSeconds)}</span>
-          <span class="v-sound" title="Sound is required" aria-label="Sound required">🔊</span>
+          <span class="v-sound" title="Sound is required" aria-label="Sound required">${ICON_SOUND}</span>
         </div>
       </div>
       <div class="watch-meter">
@@ -424,7 +435,7 @@ async function viewWatch(courseId) {
         <div class="progress-track"><div class="progress-fill" id="wMeter" style="width:0%"></div></div>
         <span id="wLabel">0s / ${required}s</span>
       </div>
-      <p class="no-skip-tip">⏩ Fast-forwarding is disabled and the sound stays on — watch to the end to continue.</p>
+      <p class="no-skip-tip">Fast-forwarding is disabled and the sound stays on — watch to the end to continue.</p>
       <div class="lesson-actions" style="justify-content:center">
         ${redirect
           ? `<a class="btn btn-accent btn-lg btn-disabled" id="wGo" href="${esc(redirect)}">Continue to the test →</a>
@@ -474,7 +485,7 @@ async function viewWatch(courseId) {
     meter();
   });
   video.addEventListener('seeking', () => {
-    if (video.currentTime > maxPlayed + 1) { video.currentTime = maxPlayed; toast('⏩ Skipping ahead is disabled.', true); }
+    if (video.currentTime > maxPlayed + 1) { video.currentTime = maxPlayed; toast('Skipping ahead is disabled.', true); }
   });
   video.addEventListener('ended', () => { if (satisfied) setTimeout(goRedirect, 800); });
 
@@ -513,7 +524,7 @@ async function viewCourse(courseId, lessonId) {
   const lesson = course.lessons.find((l) => l.id === lessonId) || course.lessons[0];
   const lp = progress.lessons.find((l) => l.id === lesson.id);
 
-  const typeLabel = { text: '📖 Reading', video: '🎬 Video', quiz: '📝 Exam' };
+  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module' };
   app.innerHTML = `
     <div class="player-layout">
       <aside class="curriculum">
@@ -530,7 +541,7 @@ async function viewCourse(courseId, lessonId) {
         ${course.lessons.map((l, i) => {
           const st = progress.lessons.find((p) => p.id === l.id);
           const cls = ['lesson-item', l.id === lesson.id ? 'active' : '', st.unlocked ? '' : 'locked'].join(' ');
-          const icon = st.completed ? '<span class="stat done">✓</span>' : st.unlocked ? `<span class="stat">${i + 1}</span>` : '<span class="stat">🔒</span>';
+          const icon = st.completed ? '<span class="stat done">✓</span>' : st.unlocked ? `<span class="stat">${i + 1}</span>` : `<span class="stat locked">${ICON_LOCK}</span>`;
           return `<button class="${cls}" data-lesson="${l.id}" data-unlocked="${st.unlocked}">
             ${icon}
             <span class="l-title">${esc(l.title)}<span class="l-type">${typeLabel[l.type] || l.type}</span></span>
@@ -544,7 +555,7 @@ async function viewCourse(courseId, lessonId) {
   document.querySelectorAll('.lesson-item').forEach((btn) =>
     btn.addEventListener('click', () => {
       if (btn.dataset.unlocked !== 'true') {
-        toast('🔒 This lesson is locked — complete the previous lessons first.', true);
+        toast('This lesson is locked — complete the previous lessons first.', true);
         return;
       }
       location.hash = `#/course/${courseId}/lesson/${btn.dataset.lesson}`;
@@ -559,7 +570,7 @@ async function viewCourse(courseId, lessonId) {
 }
 
 function lessonHeader(lesson, course) {
-  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam' };
+  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module' };
   const logo = course && course.coLogoUrl
     ? `<img class="lesson-cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || '')}" />`
     : '';
@@ -702,7 +713,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
         <button id="playBtn" title="Play / pause" aria-label="Play or pause the video">▶</button>
         <div class="v-track"><div class="v-fill" id="vFill"></div></div>
         <span class="v-time" id="vTime">0:00 / ${fmtTime(lesson.durationSeconds)}</span>
-        <span class="v-sound" title="Sound is required for this lesson" aria-label="Sound is on and required">🔊</span>
+        <span class="v-sound" title="Sound is required for this lesson" aria-label="Sound is on and required">${ICON_SOUND}</span>
       </div>
     </div>
     <div class="watch-meter">
@@ -710,7 +721,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
       <div class="progress-track"><div class="progress-fill" id="watchFill" style="width:0%"></div></div>
       <span id="watchLabel">0s / ${required}s</span>
     </div>
-    <p class="no-skip-tip" id="noSkipTip">⏩ Fast-forwarding is disabled — you must watch the video to the end before you can continue.</p>
+    <p class="no-skip-tip" id="noSkipTip">Fast-forwarding is disabled — you must watch the video to the end before you can continue.</p>
     <div class="lesson-actions">
       ${lp.completed
         ? `<span class="pill-done">✓ Completed</span><button class="btn btn-primary" id="nextBtn">Next lesson →</button>`
@@ -889,11 +900,11 @@ async function showCourseComplete(course, certId, score) {
   const redirect = /^https?:\/\//i.test(course.completionRedirectUrl || '') ? course.completionRedirectUrl : null;
   app.innerHTML = `
     <div class="complete-hero">
-      <div class="big">🏆</div>
+      <div class="big award">${ICON_CERT}</div>
       <h1>Congratulations!</h1>
       <p>You have completed <strong>${esc(course.title)}</strong>${score != null ? ` with a final exam score of <strong>${score}%</strong>` : ''}.</p>
       <div>
-        <span class="notice-sent">📨 A completion notice has been sent to you and to NCYSA</span>
+        <span class="notice-sent">A completion notice has been sent to you and to NCYSA</span>
       </div>
       ${course.completionNote ? `<p class="lead" style="max-width:600px;margin:14px auto 0">${esc(course.completionNote)}</p>` : ''}
       <p style="margin-top:14px">
@@ -934,7 +945,7 @@ async function viewCertificate(certId) {
       <p>has successfully completed</p>
       <div class="course-name">${esc(c.course)}</div>
       <div class="cert-meta">Completed ${date} · Certificate ID ${esc(c.certId)}</div>
-      <div class="seal">🏅</div>
+      <div class="seal">${ICON_CERT}</div>
     </div>
     <p style="text-align:center; margin-bottom:48px">
       <button class="btn btn-primary" id="dlPdfBtn">⬇ Download PDF</button>
@@ -996,7 +1007,29 @@ async function downloadCertificatePdf(c, dateStr) {
   center(c.course, 555, `700 ${cf}px Arial`, '#10045a');
 
   center(`Completed ${dateStr}  ·  Certificate ID ${c.certId}`, 620, '400 17px Arial', '#6b645e');
-  center('🏅', 690, '48px Arial', '#000');
+
+  // A drawn gold seal (star + ribbon) — professional, not an emoji.
+  (function drawSeal(cx, cy) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = '#b7911f';
+    ctx.beginPath(); ctx.moveTo(-12, 26); ctx.lineTo(-22, 52); ctx.lineTo(-9, 45); ctx.lineTo(-2, 30); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(12, 26); ctx.lineTo(22, 52); ctx.lineTo(9, 45); ctx.lineTo(2, 30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c9a227';
+    ctx.beginPath(); ctx.arc(0, 0, 33, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e7c65a';
+    ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b7911f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fffdf5';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 7 : 15, a = -Math.PI / 2 + i * Math.PI / 5;
+      ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  })(W / 2, 685);
 
   // Canvas → JPEG → minimal PDF
   const jpeg = canvas.toDataURL('image/jpeg', 0.92);
@@ -1080,8 +1113,8 @@ async function viewAdmin() {
       <div class="admin-head">
         <h1>NCYSA Education Dashboard</h1>
         <div class="admin-head-actions">
-          <a class="btn btn-ghost" href="#/staff-training">🎓 Staff Training</a>
-          <a class="btn btn-primary" href="#/admin/courses">✏️ Manage courses</a>
+          <a class="btn btn-ghost" href="#/staff-training">Staff Training</a>
+          <a class="btn btn-primary" href="#/admin/courses">Manage courses</a>
         </div>
       </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
@@ -1090,8 +1123,8 @@ async function viewAdmin() {
       <div class="admin-grid">
         <div class="admin-card">
           <div class="card-head">
-            <h2>🏅 Progress &amp; completions (records)</h2>
-            <button class="btn btn-primary btn-sm" id="exportCsvBtn">⬇ Export CSV (Excel)</button>
+            <h2>Progress &amp; completions (records)</h2>
+            <button class="btn btn-primary btn-sm" id="exportCsvBtn">Export CSV (Excel)</button>
           </div>
           <div class="filter-bar">
             <input id="fltSearch" placeholder="Search name or email…" />
@@ -1110,14 +1143,14 @@ async function viewAdmin() {
           <div id="completionsTable"></div>
         </div>
         <div class="admin-card">
-          <h2>🔔 NCYSA notifications</h2>
+          <h2>NCYSA notifications</h2>
           ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
             <div class="notif"><h3>${esc(n.title)}</h3>
               <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')
             : '<p class="empty">No notifications yet.</p>'}
         </div>
         <div class="admin-card">
-          <h2>📨 Email outbox</h2>
+          <h2>Email outbox</h2>
           <p class="empty" style="margin-bottom:12px">Every notification email the platform has generated.
             A status ending in <code>-delivered</code> means it was sent for real; <code>outbox-only</code>
             means email delivery isn't configured yet.</p>
@@ -1253,7 +1286,7 @@ async function viewCourseAdmin(flash) {
   const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
   const list = full.filter(Boolean);
 
-  const typeLabel = { text: '📖 Reading', video: '🎬 Video', quiz: '📝 Exam' };
+  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module' };
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">
@@ -1263,7 +1296,7 @@ async function viewCourseAdmin(flash) {
           ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
         </div>
         <div class="admin-head-actions">
-          <button class="btn btn-ghost" id="bulkScormBtn">⬆ Bulk-upload modules</button>
+          <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
           <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
         </div>
       </div>
@@ -1280,7 +1313,7 @@ async function viewCourseAdmin(flash) {
                 <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
               </div>
               <div class="course-admin-actions">
-                <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? '🚀 Publish' : 'Unpublish'}</button>
+                <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
@@ -1400,7 +1433,7 @@ async function viewCourseAdmin(flash) {
       <p class="form-hint">Choose all your module <strong>.zip</strong> files at once. Each becomes a module lesson, added <strong>in filename order</strong>, inside one course. Tip: name the files so they sort right (e.g. <em>Module 01</em>, <em>Module 02</em>…).</p>
       <label>Course
         <select name="target" id="bulkTarget">
-          <option value="__new__">➕ Create a new course</option>
+          <option value="__new__">Create a new course</option>
           ${list.map((c) => `<option value="${c.id}">Add to: ${esc(c.title)}</option>`).join('')}
         </select>
       </label>
@@ -1641,10 +1674,10 @@ function richTextField(name, labelText, html, minHeight) {
         <button type="button" class="rte-btn" data-cmd="justifyLeft" title="Align left">↤ Left</button>
         <button type="button" class="rte-btn" data-cmd="justifyCenter" title="Center">↔ Center</button>
         <span class="rte-sep"></span>
-        <button type="button" class="rte-btn" data-img="1" title="Insert an image by link">🖼 Image</button>
+        <button type="button" class="rte-btn" data-img="1" title="Insert an image by link">Image</button>
         <button type="button" class="rte-btn" data-hr="1" title="Divider line">— Divider</button>
         <span class="rte-sep"></span>
-        <button type="button" class="rte-btn" data-link="1" title="Add a link">🔗 Link</button>
+        <button type="button" class="rte-btn" data-link="1" title="Add a link">Link</button>
         <button type="button" class="rte-btn" data-cmd="removeFormat" title="Clear formatting">✕ Clear</button>
       </div>
       <div class="rte-area lesson-content" contenteditable="true" data-placeholder="Type the lesson here. Use the buttons above to add headings, bullet points, and links."
@@ -1776,23 +1809,23 @@ function viewHelp() {
       <p class="lead">Answers to common questions about taking courses on NCYSA Learn.
         Can’t find what you need? Reach out to your NCYSA administrator.</p>
 
-      <h3 class="kb-heading">📘 Knowledge Base articles — for learners</h3>
+      <h3 class="kb-heading">Knowledge Base articles — for learners</h3>
       ${kbAccordion(KB_LEARNER)}
 
       ${isDesigner ? `
-        <h3 class="kb-heading">🛠️ Course designer resources</h3>
+        <h3 class="kb-heading">Course designer resources</h3>
         <div class="card kb-resources">
           <p>Building courses? These guides walk you through everything — signing in, creating a
             course, and adding reading, video, and quiz lessons.</p>
           <p class="kb-downloads">
-            <a class="btn btn-primary" href="/docs/NCYSA_Getting_Started.pdf" target="_blank" rel="noopener">📄 Getting Started guide (PDF)</a>
-            <a class="btn btn-ghost" href="/docs/NCYSA_Knowledge_Desk.pdf" target="_blank" rel="noopener">📚 Knowledge Desk reference (PDF)</a>
+            <a class="btn btn-primary" href="/docs/NCYSA_Getting_Started.pdf" target="_blank" rel="noopener">Getting Started guide (PDF)</a>
+            <a class="btn btn-ghost" href="/docs/NCYSA_Knowledge_Desk.pdf" target="_blank" rel="noopener">Knowledge Desk reference (PDF)</a>
           </p>
           <ul class="kb-reminders">
-            <li><strong>New courses start as a private Draft.</strong> Members can’t see a course until you click <strong>🚀 Publish</strong> on it. Build it, add your lessons, then publish when it’s ready. (Look for the <strong>Draft</strong> / <strong>● Live</strong> badge next to each course.) You can Unpublish any time to hide it again.</li>
+            <li><strong>New courses start as a private Draft.</strong> Members can’t see a course until you click <strong>Publish</strong> on it. Build it, add your lessons, then publish when it’s ready. (Look for the <strong>Draft</strong> / <strong>● Live</strong> badge next to each course.) You can Unpublish any time to hide it again.</li>
             <li><strong>Everything auto-saves</strong> as you type — there’s no separate “save the course” step.</li>
             <li><strong>Formatting is button-based — no code needed.</strong> In a Reading lesson, select your text and use the toolbar: <strong>Heading</strong>, <strong>Bold</strong>, <strong>• Bullets</strong>, <strong>Quote</strong>, alignment, and more. What you see in the editor is what learners see.</li>
-            <li><strong>Add a picture:</strong> click <strong>🖼 Image</strong> and paste the image’s web link (e.g. from your WordPress media library), then add a short description. Pictures automatically fit phones and desktops.</li>
+            <li><strong>Add a picture:</strong> click <strong>Image</strong> and paste the image’s web link (e.g. from your WordPress media library), then add a short description. Pictures automatically fit phones and desktops.</li>
             <li><strong>Reorder lessons</strong> with the <strong>↑ ↓</strong> arrows next to each lesson — no need to delete and re-add.</li>
             <li><strong>Graded quizzes:</strong> use the built-in quiz builder — it grades automatically and issues the certificate. A Google Form/JotForm can be embedded in a Reading lesson for surveys, but the app can’t grade or track those.</li>
             <li><strong>Videos:</strong> paste a link (WordPress media library for now; shared Dropbox later).</li>

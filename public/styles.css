@@ -329,6 +329,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .role-icon svg { width: 33px; height: 33px; display: block; }
 .role-icon.big { width: 88px; height: 88px; margin: 0 auto; }
 .role-icon.big svg { width: 48px; height: 48px; }
+
+/* Monochrome line-icon sizing (replaces the decorative emoji) */
+.feature .fi { font-size: 0; color: var(--brand); }
+.feature .fi svg { width: 32px; height: 32px; }
+.bell svg { width: 22px; height: 22px; color: var(--ink); vertical-align: middle; }
+.lesson-item .stat svg { width: 13px; height: 13px; display: block; margin: 0 auto; color: var(--ink-soft); }
+.v-sound svg { width: 18px; height: 18px; vertical-align: middle; }
+.complete-hero .big.award { font-size: 0; }
+.complete-hero .big.award svg { width: 74px; height: 74px; color: #c9a227; }
+.certificate .seal svg { width: 54px; height: 54px; color: #c9a227; }
 .role-card h3 { font-size: 1.25rem; color: var(--ink); margin-top: 4px; }
 .role-card p { color: var(--ink-soft); font-size: 0.95rem; }
 .role-card .role-go { margin-top: 10px; font-weight: 700; color: var(--accent); }
