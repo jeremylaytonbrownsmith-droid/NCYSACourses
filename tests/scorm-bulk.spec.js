@@ -31,7 +31,7 @@ test('bulk upload builds a course with one module per zip', async ({ page }) => 
   await expect(page.locator('#bulkList li').first()).toContainText('Module 01.zip');
 
   await page.click('#bulkStart');
-  await expect(page.locator('#bulkLog')).toContainText('Done — 3 of 3', { timeout: 20000 });
+  await expect(page.locator('#bulkLog')).toContainText('all 3 module(s) added', { timeout: 20000 });
 
   // After the auto-refresh, the new course exists with 3 module lessons in order.
   const card = page.locator('.course-admin', { hasText: 'Regional Referee Recertification' }).first();

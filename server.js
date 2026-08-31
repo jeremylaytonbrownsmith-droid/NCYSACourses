@@ -895,7 +895,7 @@ function decodeEntities(s) {
 // title, and return metadata for the designer to attach as a `scorm` lesson.
 // The package is served same-origin at /scorm/<packageId>/.
 app.post('/api/admin/scorm', requireEditor,
-  express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '300mb' }),
+  express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '500mb' }),
   (req, res) => {
     try {
       const buf = req.body;

@@ -1492,28 +1492,43 @@ async function viewCourseAdmin(flash) {
           courseId = r.course.id;
           line('✓ Course created (starts as a Draft).');
         }
-        // 2) Upload each package and add it as a module, in order.
+        // 2) Upload each package and add it as a module, in order. Each upload
+        // gets one automatic retry, since large files can fail intermittently.
         let okCount = 0;
+        const failed = [];
         for (let i = 0; i < files.length; i++) {
           const f = files[i];
           const nameHint = f.name.replace(/\.zip$/i, '');
-          line(`Uploading ${i + 1}/${files.length}: ${esc(f.name)}…`);
-          try {
-            const up = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f });
-            const data = await up.json().catch(() => ({}));
-            if (!up.ok) throw new Error(data.error || 'upload failed');
-            const title = data.title || nameHint;
-            await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
-            okCount++;
-            line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
-          } catch (err) {
-            line(`✗ ${esc(f.name)} — ${esc(err.message)} (skipped)`);
+          const sizeMB = (f.size / 1048576).toFixed(0);
+          line(`Uploading ${i + 1}/${files.length}: ${esc(f.name)} (${sizeMB} MB)…`);
+          let lastErr = '';
+          let ok = false;
+          for (let attempt = 1; attempt <= 2 && !ok; attempt++) {
+            try {
+              const up = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f });
+              const data = await up.json().catch(() => ({}));
+              if (!up.ok) throw new Error(data.error || `upload failed (HTTP ${up.status})`);
+              const title = data.title || nameHint;
+              await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
+              okCount++; ok = true;
+              line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
+            } catch (err) {
+              lastErr = err.message;
+              if (attempt === 1) line(`… retrying ${esc(f.name)}…`);
+            }
           }
+          if (!ok) { failed.push(f.name); line(`<span style="color:var(--danger)">✗ ${esc(f.name)} — ${esc(lastErr)}</span>`); }
         }
-        line(`<strong>Done — ${okCount} of ${files.length} module(s) added.</strong> Review the order below, then click <strong>Publish</strong> when it’s ready.`);
-        setTimeout(() => viewCourseAdmin(`Added ${okCount} module(s). Review and publish when ready.`), 1500);
+        if (failed.length) {
+          line(`<strong>Added ${okCount} of ${files.length}. ${failed.length} did not upload:</strong> ${failed.map(esc).join(', ')}. ` +
+               `Large modules can fail on the free hosting tier — see the note below the log, then re-run Bulk-upload with just those files.`);
+          startBtn.disabled = false; target.disabled = false; filesEl.disabled = false; // allow another pass
+        } else {
+          line(`<strong>Done — all ${okCount} module(s) added.</strong> Review the order, then click <strong>Publish</strong> when it’s ready.`);
+          setTimeout(() => viewCourseAdmin(`Added ${okCount} module(s). Review and publish when ready.`), 1600);
+        }
       } catch (err) {
-        line(`✗ ${esc(err.message)}`);
+        line(`<span style="color:var(--danger)">✗ ${esc(err.message)}</span>`);
         startBtn.disabled = false; target.disabled = false; filesEl.disabled = false;
       }
     });
