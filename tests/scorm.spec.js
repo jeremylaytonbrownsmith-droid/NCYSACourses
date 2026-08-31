@@ -11,7 +11,8 @@ test('scorm module completion through the browser', async ({ page, playwright })
   expect(r.ok()).toBeTruthy();
   r = await api.post('/api/admin/courses', { data: { title: 'Browser SCORM Recert', audience: 'referees', badge: 'Recertification' } });
   const courseId = (await r.json()).course.id;
-  r = await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'Module 1', packageId: 'test-module' } });
+  // minMinutes: 0 turns the anti-skip time gate off for this completion test.
+  r = await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'Module 1', packageId: 'test-module', minMinutes: 0 } });
   const lessonId = (await r.json()).lesson.id;
   await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
 
@@ -39,4 +40,40 @@ test('scorm module completion through the browser', async ({ page, playwright })
   await expect(page.locator('.complete-hero h1')).toContainText('Congratulations', { timeout: 15000 });
   await page.click('text=View your certificate');
   await expect(page.locator('.certificate .learner-name')).toContainText('Bro Wser');
+});
+
+test('scorm time gate holds completion until the minimum time is met', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  let r = await api.post('/api/admin/courses', { data: { title: 'Gated SCORM Recert', audience: 'referees' } });
+  const courseId = (await r.json()).course.id;
+  // 0.5 minutes = 30 seconds minimum (above the 15s per-heartbeat cap, so no
+  // single call can satisfy it).
+  r = await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'Gated Module', packageId: 'test-module', minMinutes: 0.5 } });
+  const lessonId = (await r.json()).lesson.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  // Learner registers + enrolls (separate cookie jar).
+  const learner = await playwright.request.newContext({ baseURL: BASE });
+  await learner.post('/api/register', { data: { firstName: 'Gate', lastName: 'Test', email: 'gate.test@example.com' } });
+  await learner.post(`/api/courses/${courseId}/enroll`);
+
+  const post = (body) => learner.post(`/api/courses/${courseId}/lessons/${lessonId}/scorm`, { data: body }).then((x) => x.json());
+
+  // Reaching the end immediately must NOT complete — the time gate isn't met.
+  let res = await post({ status: 'completed', activeDelta: 0 });
+  expect(res.reachedEnd).toBe(true);
+  expect(res.completed).toBe(false);
+  expect(res.remaining).toBeGreaterThan(0);
+
+  // A single forged huge delta is capped, so it still can't jump the gate.
+  res = await post({ status: 'completed', activeDelta: 9999 });
+  expect(res.completed).toBe(false);
+  expect(res.activeSeconds).toBeLessThanOrEqual(15); // one step cap
+
+  // Accrue enough real-time credit across heartbeats → now it completes.
+  for (let i = 0; i < 5 && !res.completed; i++) res = await post({ status: 'completed', activeDelta: 15 });
+  expect(res.completed).toBe(true);
+  expect(res.courseCompleted).toBe(true);
+  expect(res.certId).toBeTruthy();
 });

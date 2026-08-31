@@ -474,6 +474,8 @@ function upsertProgress(db, userId, courseId, lessonId) {
 // real time). Legacy `secondsWatched` (a delta) is still accepted for safety.
 const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
+const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
+const DEFAULT_SCORM_MIN_SECONDS = 120; // default minimum time in a module before completion counts
 
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This
@@ -605,13 +607,25 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
 
   const b = req.body || {};
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
-  rec.scorm = rec.scorm || { status: 'not attempted', location: '', suspendData: '' };
+  rec.scorm = rec.scorm || { status: 'not attempted', location: '', suspendData: '', activeSeconds: 0 };
+  if (typeof rec.scorm.activeSeconds !== 'number') rec.scorm.activeSeconds = 0;
+  // Accrue time spent in the module. The client sends small deltas on a heartbeat;
+  // each is capped so accrued time can't be jumped ahead in a single forged call —
+  // real time must actually pass (same anti-skip principle as the video gate).
+  const delta = Math.max(0, Math.min(SCORM_STEP_CAP, Number(b.activeDelta) || 0));
+  rec.scorm.activeSeconds += delta;
   if (typeof b.status === 'string' && b.status) rec.scorm.status = b.status;
   if (b.location != null) rec.scorm.location = String(b.location).slice(0, 4096);
   if (b.suspendData != null) rec.scorm.suspendData = String(b.suspendData).slice(0, 4096);
 
+  // Minimum time before completion counts. Modules uploaded before this gate
+  // existed have no minSeconds field, so they fall back to the default (rather
+  // than 0 = no gate) — the anti-skip protection applies without re-uploading.
+  const required = lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS;
+  const timeMet = rec.scorm.activeSeconds >= required;
+  const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
   let newlyCompleted = false;
-  if ((rec.scorm.status === 'completed' || rec.scorm.status === 'passed') && !rec.completed) {
+  if (reachedEnd && timeMet && !rec.completed) {
     rec.completed = true;
     rec.completedAt = new Date().toISOString();
     newlyCompleted = true;
@@ -620,6 +634,9 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   const completion = newlyCompleted ? await maybeCompleteCourse(req.user, course) : null;
   res.json({
     ok: true, status: rec.scorm.status, completed: rec.completed,
+    activeSeconds: Math.floor(rec.scorm.activeSeconds), required,
+    remaining: Math.max(0, required - Math.floor(rec.scorm.activeSeconds)),
+    reachedEnd,
     courseCompleted: !!completion, certId: completion?.certId || null,
   });
 });
@@ -770,7 +787,14 @@ function buildLesson(body) {
     // lesson can never point outside its package folder.
     const packageId = String(body.packageId || '').replace(/[^A-Za-z0-9._-]/g, '');
     const launchFile = (String(body.launchFile || 'index.html').replace(/[^A-Za-z0-9._/-]/g, '').replace(/\.\.+/g, '') || 'index.html');
-    return { ...base, html: String(body.html || ''), packageId, launchFile };
+    // Minimum time (seconds) a learner must spend in the module before its
+    // completion is accepted — the anti-skip gate. Set via "minMinutes" in the
+    // Course Designer; minMinutes:0 disables the gate. Defaults when unspecified.
+    let minSeconds;
+    if (body.minMinutes != null) minSeconds = Math.max(0, Math.round(Number(body.minMinutes) * 60)) || 0;
+    else if (body.minSeconds != null) minSeconds = Math.max(0, Math.round(Number(body.minSeconds))) || 0;
+    else minSeconds = DEFAULT_SCORM_MIN_SECONDS;
+    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({

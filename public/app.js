@@ -646,45 +646,85 @@ function renderScormLesson(pane, course, lesson, lp) {
     'cmi.core.student_id': (me && me.user && me.user.id) || '',
     'cmi.core.student_name': (me && me.user && me.user.name) || '',
   };
+  // Anti-skip time gate: a module only completes after the learner has spent a
+  // minimum amount of real time in it (so clicking to the last slide doesn't
+  // finish it instantly). Server enforces this; here we track time and show it.
+  const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 120));
+  let active = Math.max(0, Number(saved.activeSeconds) || 0);
   let done = false;
+  let reachedEnd = saved.status === 'completed' || saved.status === 'passed';
+  const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s)) % 60).padStart(2, '0')}`;
 
-  function relay(onDone) {
+  const actionsEl = document.getElementById('scormActions');
+  if (required > 0 && actionsEl) {
+    actionsEl.innerHTML =
+      `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div>` +
+      `<span class="meta" id="scormHint"></span></div>`;
+  }
+  function paintGate(r) {
+    if (r && typeof r.activeSeconds === 'number') active = r.activeSeconds;
+    const req = (r && r.required != null) ? r.required : required;
+    const fill = document.getElementById('scormFill');
+    if (fill && req > 0) fill.style.width = Math.min(100, (active / req) * 100) + '%';
+    const hint = document.getElementById('scormHint');
+    if (!hint || done) return;
+    const remaining = Math.max(0, req - active);
+    if (reachedEnd && remaining > 0) hint.innerHTML = `You’ve reached the end — keep this module open <strong>${fmt(remaining)}</strong> more and it will complete automatically.`;
+    else if (remaining > 0) hint.textContent = `Work through the whole module — it completes at the end (minimum ${fmt(req)} on this module).`;
+    else hint.textContent = `Minimum time met — reach the end of the module to complete it.`;
+  }
+
+  function finalize(r) {
+    if (done) return;
+    done = true; stopBeat();
+    if (r && r.courseCompleted) { showCourseComplete(course, r.certId); return; }
+    const a = document.getElementById('scormActions');
+    if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
+    toast('✓ Module complete!');
+  }
+
+  function sync(activeDelta, onDone) {
     api(`/api/courses/${course.id}/lessons/${lesson.id}/scorm`, {
       method: 'POST',
       body: {
         status: cmi['cmi.core.lesson_status'],
         location: cmi['cmi.core.lesson_location'],
         suspendData: cmi['cmi.suspend_data'],
+        activeDelta,
       },
-    }).then((r) => { if (onDone) onDone(r); }).catch(() => { /* keep playing; retried on next commit */ });
+    }).then((r) => { if (r) { paintGate(r); if (r.completed) finalize(r); } if (onDone) onDone(r); }).catch(() => { /* retried next heartbeat */ });
   }
+
+  // Heartbeat: credit ~5s of module time every 5s, only while the tab is visible
+  // (so leaving it in a background tab doesn't rack up time).
+  let beat = null;
+  function startBeat() { if (!beat) beat = setInterval(() => { if (!done && document.visibilityState === 'visible') sync(5); }, 5000); }
+  function stopBeat() { if (beat) { clearInterval(beat); beat = null; } }
 
   window.API = {
     LMSInitialize: function () { return 'true'; },
-    LMSFinish: function () { relay(); return 'true'; },
+    LMSFinish: function () { sync(0); return 'true'; },
     LMSGetValue: function (k) { return cmi[k] != null ? String(cmi[k]) : ''; },
     LMSSetValue: function (k, v) {
       cmi[k] = v;
-      if (k === 'cmi.core.lesson_status' && (v === 'completed' || v === 'passed') && !done) {
-        done = true;
-        relay((r) => {
-          if (r && r.courseCompleted) { showCourseComplete(course, r.certId); return; }
-          const a = document.getElementById('scormActions');
-          if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
-          toast('✓ Module complete!');
-        });
+      if (k === 'cmi.core.lesson_status' && (v === 'completed' || v === 'passed') && !reachedEnd) {
+        reachedEnd = true;
+        sync(0); // push the "reached end" status; server completes now if the time is already met, else on a later heartbeat
       }
       return 'true';
     },
-    LMSCommit: function () { relay(); return 'true'; },
+    LMSCommit: function () { sync(0); return 'true'; },
     LMSGetLastError: function () { return '0'; },
     LMSGetErrorString: function () { return ''; },
     LMSGetDiagnostic: function () { return ''; },
   };
 
-  // Remove the global when the learner leaves this lesson so it can't leak into
-  // the next module's session.
+  paintGate({ activeSeconds: active, required });
+  startBeat();
+
+  // Remove the global and stop the heartbeat when the learner leaves the lesson.
   window.addEventListener('hashchange', function cleanup() {
+    stopBeat();
     try { delete window.API; } catch (e) { window.API = undefined; }
     window.removeEventListener('hashchange', cleanup);
   });
@@ -1580,7 +1620,10 @@ async function viewCourseAdmin(flash) {
         </div>
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
-        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page and marks itself complete when the learner reaches the end. Add one lesson per module, in order.</p>`;
+        <label>Minimum time on this module (minutes)
+          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 2}" />
+        </label>
+        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the minimum time above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. Add one lesson per module, in order.</p>`;
     }
     return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
@@ -1641,6 +1684,7 @@ async function viewCourseAdmin(flash) {
       if (type === 'scorm') {
         payload.packageId = fd.get('packageId');
         payload.launchFile = fd.get('launchFile') || 'index.html';
+        payload.minMinutes = fd.get('minMinutes');
         if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
       }
       if (type === 'quiz') {
