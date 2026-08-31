@@ -7,6 +7,13 @@
 # (see .github/workflows/keepalive.yml) prevents cold starts. To upgrade later,
 # change `plan: free` to `plan: starter` (~$7/mo) for an always-on instance.
 #
+# SCORM course packages (uploaded .zip modules) are FILES, too big for Firestore.
+# On the free tier they live on the ephemeral disk and are lost on each redeploy,
+# which is fine for testing but NOT for production. For durable uploads: set
+# `plan: starter`, uncomment the `disk:` block and the SCORM_DIR env var below,
+# and size the disk to a couple GB (roughly 2× the total size of your .zip
+# modules). Uploaded packages then survive restarts and redeploys.
+#
 # You will be prompted to enter these values in the Render dashboard (they are
 # NOT stored in this file, so no secret is ever committed to git):
 #   FIREBASE_SERVICE_ACCOUNT — the Firebase service-account JSON (paste the whole
@@ -22,11 +29,22 @@ services:
     buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /api/courses
+    # Durable storage for uploaded SCORM packages. Uncomment together with the
+    # SCORM_DIR env var below, and set plan: starter (a disk needs a paid plan).
+    # disk:
+    #   name: scorm-packages
+    #   mountPath: /var/scorm
+    #   sizeGB: 2
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATA_DIR
         value: /tmp/ncysa-data # ephemeral local cache; Firestore is the source of truth
+      # Where uploaded SCORM packages are stored. Leave unset on free tier
+      # (defaults beside DATA_DIR, ephemeral). For production, uncomment and
+      # point it at the persistent disk's mountPath above.
+      # - key: SCORM_DIR
+      #   value: /var/scorm
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false # paste the entire service-account JSON here (never committed)
       - key: ADMIN_EMAIL
