@@ -25,26 +25,24 @@ services:
   - type: web
     name: ncysa-learn
     runtime: node
-    plan: free
+    plan: standard # 1 CPU / 2 GB RAM — enough memory to accept large SCORM uploads
     buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /api/courses
-    # Durable storage for uploaded SCORM packages. Uncomment together with the
-    # SCORM_DIR env var below, and set plan: starter (a disk needs a paid plan).
-    # disk:
-    #   name: scorm-packages
-    #   mountPath: /var/scorm
-    #   sizeGB: 2
+    # Durable storage for uploaded SCORM packages (needs a paid plan, above).
+    disk:
+      name: scorm-packages
+      mountPath: /var/scorm
+      sizeGB: 5
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATA_DIR
         value: /tmp/ncysa-data # ephemeral local cache; Firestore is the source of truth
-      # Where uploaded SCORM packages are stored. Leave unset on free tier
-      # (defaults beside DATA_DIR, ephemeral). For production, uncomment and
-      # point it at the persistent disk's mountPath above.
-      # - key: SCORM_DIR
-      #   value: /var/scorm
+      # Uploaded SCORM packages live on the persistent disk so they survive
+      # restarts/redeploys.
+      - key: SCORM_DIR
+        value: /var/scorm
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false # paste the entire service-account JSON here (never committed)
       - key: ADMIN_EMAIL
