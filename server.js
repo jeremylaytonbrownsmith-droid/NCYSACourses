@@ -17,7 +17,10 @@ const AdmZip = require('adm-zip');
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
 const courseSeed = require('./data/courses');
-const ncsraPilot = require('./data/ncsra-pilot');
+// The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
+// favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
+// is kept for reference/restore, but it is no longer code-managed into the store,
+// and its id is retired below so the live copy is removed on boot.
 
 // Courses live in the persisted store so admins can edit them at runtime.
 // Seed from the static catalog on first boot.
@@ -34,6 +37,17 @@ function seedCourses() {
     db.courses = structuredClone(courseSeed);
     save();
   }
+}
+
+// Courses we've retired: remove them from the live store on boot so a formerly
+// code-managed course that was later dropped doesn't linger (and can't be kept
+// alive by re-seeding). To retire a course, add its id here.
+const RETIRED_COURSE_IDS = ['ncsra-referee-2026-part-1'];
+function removeRetiredCourses() {
+  const db = load();
+  const before = db.courses.length;
+  db.courses = db.courses.filter((c) => !RETIRED_COURSE_IDS.includes(c.id));
+  if (db.courses.length !== before) save();
 }
 
 // Add a specific course if it isn't already present, without touching the rest.
@@ -911,7 +925,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); ensureCourse(ncsraPilot); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); removeRetiredCourses(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
