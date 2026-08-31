@@ -84,7 +84,7 @@ app.get('/scorm/:pkg/*', (req, res) => {
   let rel = String(req.params[0] || 'index.html').replace(/\\/g, '/').replace(/^\/+/, '');
   if (!rel) rel = 'index.html';
   for (const root of [SCORM_DIR, BUNDLED_SCORM_DIR]) {
-    const base = path.join(root, pkg);
+    const base = path.resolve(root, pkg); // absolute base so containment holds for relative SCORM_DIR
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
@@ -864,7 +864,7 @@ app.post('/api/admin/scorm', requireEditor,
       );
 
       const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
-      const dest = path.join(SCORM_DIR, packageId);
+      const dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
       fs.mkdirSync(dest, { recursive: true });
       let wrote = 0;
       for (const e of entries) {

@@ -1262,7 +1262,10 @@ async function viewCourseAdmin(flash) {
           <h1>${isAdmin ? 'Manage courses' : 'Course Designer'}</h1>
           ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
         </div>
-        <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
+        <div class="admin-head-actions">
+          <button class="btn btn-ghost" id="bulkScormBtn">⬆ Bulk-upload modules</button>
+          <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
+        </div>
       </div>
       <div id="editorMsg" class="editor-msg"></div>
       <div id="newCoursePanel"></div>
@@ -1306,6 +1309,10 @@ async function viewCourseAdmin(flash) {
   document.getElementById('newCourseBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = courseForm();
     bindCourseForm(null);
+  });
+  document.getElementById('bulkScormBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = bulkScormPanel();
+    bindBulkScorm();
   });
   document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
     const c = list.find((x) => x.id === b.dataset.course);
@@ -1381,6 +1388,101 @@ async function viewCourseAdmin(flash) {
         else await api('/api/admin/courses', { method: 'POST', body: v });
         viewCourseAdmin(c ? 'Course updated.' : 'Course created.');
       } catch (err) { msg(err.message, true); }
+    });
+  }
+
+  // ---- Bulk SCORM upload: drop all module .zips at once → one course, one
+  // lesson per module, in filename order. Pure client orchestration over the
+  // existing create-course / upload-package / add-lesson endpoints.
+  function bulkScormPanel() {
+    return `<form class="editor-form" id="bulkForm">
+      <h3>Bulk-upload SCORM modules</h3>
+      <p class="form-hint">Choose all your module <strong>.zip</strong> files at once. Each becomes a module lesson, added <strong>in filename order</strong>, inside one course. Tip: name the files so they sort right (e.g. <em>Module 01</em>, <em>Module 02</em>…).</p>
+      <label>Course
+        <select name="target" id="bulkTarget">
+          <option value="__new__">➕ Create a new course</option>
+          ${list.map((c) => `<option value="${c.id}">Add to: ${esc(c.title)}</option>`).join('')}
+        </select>
+      </label>
+      <div id="bulkNewFields">
+        <label>New course title<input name="title" value="Regional Referee Recertification" /></label>
+        <label>Audience
+          <select name="audience">
+            <option value="referees" selected>Referees only</option>
+            <option value="everyone">Everyone</option>
+            <option value="coaches">Coaches only</option>
+            <option value="staff">Staff</option>
+          </select>
+        </label>
+      </div>
+      <label>Module packages (.zip — pick all at once)
+        <input type="file" id="bulkFiles" accept=".zip,application/zip,application/x-zip-compressed" multiple />
+      </label>
+      <ol id="bulkList" class="bulk-list"></ol>
+      <div class="form-actions"><button class="btn btn-accent" type="submit" id="bulkStart" disabled>Upload &amp; build course</button></div>
+      <div id="bulkLog" class="bulk-log"></div>
+    </form>`;
+  }
+  function bindBulkScorm() {
+    const form = document.getElementById('bulkForm');
+    const target = document.getElementById('bulkTarget');
+    const newFields = document.getElementById('bulkNewFields');
+    const filesEl = document.getElementById('bulkFiles');
+    const listEl = document.getElementById('bulkList');
+    const startBtn = document.getElementById('bulkStart');
+    const log = document.getElementById('bulkLog');
+    const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    let files = [];
+
+    const syncNew = () => { newFields.style.display = target.value === '__new__' ? '' : 'none'; };
+    target.addEventListener('change', syncNew); syncNew();
+
+    filesEl.addEventListener('change', () => {
+      files = Array.from(filesEl.files).filter((f) => /\.zip$/i.test(f.name)).sort(byName);
+      listEl.innerHTML = files.map((f) => `<li>${esc(f.name)} <span class="meta">(${(f.size / 1048576).toFixed(1)} MB)</span></li>`).join('');
+      startBtn.disabled = files.length === 0;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!files.length) return;
+      startBtn.disabled = true; target.disabled = true; filesEl.disabled = true;
+      const line = (html) => { const p = document.createElement('div'); p.innerHTML = html; log.appendChild(p); };
+      try {
+        // 1) Resolve the target course.
+        let courseId = target.value;
+        if (courseId === '__new__') {
+          const title = form.querySelector('[name=title]').value || 'Regional Referee Recertification';
+          const audience = form.querySelector('[name=audience]').value || 'referees';
+          line(`Creating course “${esc(title)}”…`);
+          const r = await api('/api/admin/courses', { method: 'POST', body: { title, audience, badge: 'Recertification', estMinutes: 60 } });
+          courseId = r.course.id;
+          line('✓ Course created (starts as a Draft).');
+        }
+        // 2) Upload each package and add it as a module, in order.
+        let okCount = 0;
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const nameHint = f.name.replace(/\.zip$/i, '');
+          line(`Uploading ${i + 1}/${files.length}: ${esc(f.name)}…`);
+          try {
+            const up = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f });
+            const data = await up.json().catch(() => ({}));
+            if (!up.ok) throw new Error(data.error || 'upload failed');
+            const title = data.title || nameHint;
+            await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
+            okCount++;
+            line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
+          } catch (err) {
+            line(`✗ ${esc(f.name)} — ${esc(err.message)} (skipped)`);
+          }
+        }
+        line(`<strong>Done — ${okCount} of ${files.length} module(s) added.</strong> Review the order below, then click <strong>Publish</strong> when it’s ready.`);
+        setTimeout(() => viewCourseAdmin(`Added ${okCount} module(s). Review and publish when ready.`), 1500);
+      } catch (err) {
+        line(`✗ ${esc(err.message)}`);
+        startBtn.disabled = false; target.disabled = false; filesEl.disabled = false;
+      }
     });
   }
 
