@@ -170,11 +170,17 @@ function requireEditor(req, res, next) {
 // Seed the NCYSA admin account. Staff sign-in requires a password so random
 // visitors can't reach the dashboard just by typing the admin email. Set a
 // strong ADMIN_PASSWORD in production; the default exists only for local/demo.
+// The platform owner's personal admin login (separate from the shared NCYSA
+// staff account and from Colin's designer account). Change OWNER_EMAIL /
+// OWNER_PASSWORD in the environment for production.
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || 'jeremy.layton.brown.smith@gmail.com').toLowerCase();
+
 function seedAdmin() {
   const db = load();
   const email = process.env.ADMIN_EMAIL || 'admin@ncysa.org';
   const password = seedPassword('ADMIN_PASSWORD', 'ncysa-staff-2026');
-  const existing = db.users.find((u) => u.role === 'admin');
+  // Match the shared staff admin by role but never the owner's personal admin.
+  const existing = db.users.find((u) => u.role === 'admin' && u.email.toLowerCase() !== OWNER_EMAIL);
   const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
   const passHash = hashPassword(password, salt);
   if (!existing) {
@@ -207,6 +213,27 @@ function seedEditor() {
     save();
   } else if (existing.role !== 'editor' || existing.passHash !== passHash) {
     existing.role = 'editor'; existing.salt = salt; existing.passHash = passHash;
+    save();
+  }
+}
+
+// Seed the owner's personal admin login (Jeremy) — full access: build courses
+// AND the completion dashboard/export, separate from Colin's designer account.
+function seedOwner() {
+  const db = load();
+  const password = seedPassword('OWNER_PASSWORD', 'ncysa-admin-2026');
+  const existing = db.users.find((u) => u.email.toLowerCase() === OWNER_EMAIL);
+  const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
+  const passHash = hashPassword(password, salt);
+  if (!existing) {
+    db.users.push({
+      id: id('usr'), name: 'Jeremy Layton-Brown-Smith',
+      email: process.env.OWNER_EMAIL || 'jeremy.layton.brown.smith@gmail.com',
+      role: 'admin', salt, passHash, createdAt: new Date().toISOString(),
+    });
+    save();
+  } else if (existing.role !== 'admin' || existing.passHash !== passHash) {
+    existing.role = 'admin'; existing.salt = salt; existing.passHash = passHash;
     save();
   }
 }
@@ -925,7 +952,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); removeRetiredCourses(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
