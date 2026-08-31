@@ -250,11 +250,16 @@ function bindCourseCards() {
 
 async function viewCatalog() {
   const { courses } = await api('/api/courses');
+  const coach = courses.filter(isCoachCourse);
+  const referee = courses.filter((c) => c.audience === 'referees');
   app.innerHTML = `
     <section class="section">
       <h2>Course catalog</h2>
-      <p class="lead">Official NCYSA coaching education courses. Enroll free with your NCYSA Learn account.</p>
-      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
+      <p class="lead">Official NCYSA courses. Enroll free with your NCYSA Learn account.</p>
+      ${coach.length ? `<h3 class="catalog-group">Coach courses</h3>
+        <div class="course-grid">${coach.map(courseCard).join('')}</div>` : ''}
+      ${referee.length ? `<h3 class="catalog-group">Referee courses</h3>
+        <div class="course-grid">${referee.map(courseCard).join('')}</div>` : ''}
     </section>`;
   bindCourseCards();
 }

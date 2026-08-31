@@ -288,6 +288,8 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .course-intro > summary::before { content: '▸ '; }
 .course-intro[open] > summary::before { content: '▾ '; }
 .course-intro-body { margin-top: 10px; }
+.catalog-group { margin: 26px 0 12px; font-size: 1.05rem; color: var(--ink-soft); }
+.catalog-group:first-of-type { margin-top: 10px; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
