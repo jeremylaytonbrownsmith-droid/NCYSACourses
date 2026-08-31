@@ -532,6 +532,10 @@ async function viewCourse(courseId, lessonId) {
 
   const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module' };
   app.innerHTML = `
+    ${course.instructions ? `<details class="course-intro" open>
+      <summary>Start here — how this works</summary>
+      <div class="course-intro-body lesson-content">${course.instructions}</div>
+    </details>` : ''}
     <div class="player-layout">
       <aside class="curriculum">
         <div class="course-head">
@@ -1449,6 +1453,7 @@ async function viewCourseAdmin(flash) {
       <label>When finished, send learners to (optional web address)
         <input name="completionRedirectUrl" type="url" value="${c ? esc(c.completionRedirectUrl || '') : ''}" placeholder="https://www.ncsra.org/referees" />
       </label>
+      ${richTextField('instructions', 'Start Here — how this works (optional; shows as a banner at the top of the course)', c ? (c.instructions || '') : '', 110)}
       <label class="opt-row" style="flex-direction:row;align-items:center;gap:8px;font-weight:400">
         <input type="checkbox" name="publicVideoGate" ${c && c.publicVideoGate ? 'checked' : ''} style="flex:none" />
         No-login video page: viewers just watch the video, then get sent to the address above (for a test hosted elsewhere, e.g. Brainshark).
@@ -1458,8 +1463,15 @@ async function viewCourseAdmin(flash) {
     </form>`;
   }
   function bindCourseForm(c) {
-    document.getElementById('courseForm').addEventListener('submit', async (e) => {
+    const form = document.getElementById('courseForm');
+    initRichText(form); // activate the visual editor for the "Start Here" field
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Capture the visual editor's HTML into its hidden field before reading the form.
+      form.querySelectorAll('.rte').forEach((rte) => {
+        const a = rte.querySelector('.rte-area'), o = rte.querySelector('.rte-html');
+        if (a && o) o.value = a.innerHTML;
+      });
       const v = Object.fromEntries(new FormData(e.target).entries());
       v.publicVideoGate = !!e.target.querySelector('[name=publicVideoGate]')?.checked; // checkbox: always send a boolean
       try {

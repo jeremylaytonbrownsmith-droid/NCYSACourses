@@ -282,6 +282,12 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .admin-grid { display: grid; gap: 22px; margin-top: 24px; }
 .admin-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; overflow-x: auto; }
 .admin-card h2 { font-size: 1.1rem; margin-bottom: 14px; }
+.course-intro { background: #eef3fa; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 10px; padding: 12px 18px; margin: 0 0 16px; }
+.course-intro > summary { font-weight: 700; cursor: pointer; color: var(--brand); list-style: none; }
+.course-intro > summary::-webkit-details-marker { display: none; }
+.course-intro > summary::before { content: '▸ '; }
+.course-intro[open] > summary::before { content: '▾ '; }
+.course-intro-body { margin-top: 10px; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
