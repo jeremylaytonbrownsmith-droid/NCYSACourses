@@ -142,7 +142,10 @@ test('full learner journey through the coaching license course', async ({ page }
   await page.click('button:has-text("Sign in")');
   await page.click('text=NCYSA Dashboard');
 
-  await expect(page.locator('.admin-table')).toContainText('Jordan Ellis');
+  const record = page.locator('.admin-table tr', { hasText: 'Jordan Ellis' });
+  await expect(record).toContainText('9/9');          // module progress column
+  await expect(record).toContainText('✓ Complete');   // status column
+  await expect(page.locator('#exportCsvBtn')).toBeVisible(); // Excel export
   await expect(page.locator('.admin-card', { hasText: 'NCYSA notifications' }))
     .toContainText('Course completion: NCYSA Grassroots Soccer Coaching License');
   const outbox = page.locator('.admin-card', { hasText: 'Email outbox' });

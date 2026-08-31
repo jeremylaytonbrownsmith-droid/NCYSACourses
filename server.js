@@ -651,6 +651,23 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
         };
       })
       .sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
+    // Every enrollment with its module progress — so the dashboard can show and
+    // export in-progress referees (X of N modules), not just finished ones.
+    // This is what the Arbiter hand-off is built from.
+    enrollments: db.enrollments.map((e) => {
+      const u = db.users.find((x) => x.id === e.userId);
+      const course = allCourses().find((c) => c.id === e.courseId);
+      const total = course ? course.lessons.length : 0;
+      const prog = course ? getProgress(db, e.userId, e.courseId) : [];
+      const doneCount = course ? course.lessons.filter((l) => prog.some((p) => p.lessonId === l.id && p.completed)).length : 0;
+      return {
+        learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
+        email: u?.email, course: course?.title, courseId: e.courseId,
+        modulesComplete: doneCount, totalModules: total,
+        completedAt: e.completedAt || null, certId: e.certId || null,
+        startedAt: e.startedAt || null,
+      };
+    }).sort((a, b) => String(b.completedAt || b.startedAt || '').localeCompare(String(a.completedAt || a.startedAt || ''))),
     ncysaNotifications: db.notifications
       .filter((n) => n.audience === 'ncysa')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

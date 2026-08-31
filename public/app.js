@@ -1085,18 +1085,24 @@ async function viewAdmin() {
         </div>
       </div>
       <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
-        ${d.completions.length} course completion${d.completions.length === 1 ? '' : 's'}</p>
+        ${(d.enrollments || []).filter((e) => e.completedAt).length} completed ·
+        ${(d.enrollments || []).filter((e) => !e.completedAt).length} in progress</p>
       <div class="admin-grid">
         <div class="admin-card">
           <div class="card-head">
-            <h2>🏅 Course completions (license records)</h2>
-            <button class="btn btn-primary btn-sm" id="exportCsvBtn">⬇ Export CSV</button>
+            <h2>🏅 Progress &amp; completions (records)</h2>
+            <button class="btn btn-primary btn-sm" id="exportCsvBtn">⬇ Export CSV (Excel)</button>
           </div>
           <div class="filter-bar">
             <input id="fltSearch" placeholder="Search name or email…" />
             <select id="fltCourse">
               <option value="">All courses</option>
-              ${[...new Set(d.completions.map((c) => c.course).filter(Boolean))].map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+              ${[...new Set((d.enrollments || []).map((c) => c.course).filter(Boolean))].map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+            </select>
+            <select id="fltStatus">
+              <option value="">All statuses</option>
+              <option value="done">Completed only</option>
+              <option value="prog">In progress</option>
             </select>
             <label class="date-flt">From <input id="fltFrom" type="date" /></label>
             <label class="date-flt">To <input id="fltTo" type="date" /></label>
@@ -1130,56 +1136,80 @@ async function viewAdmin() {
       </div>
     </div>`;
 
-  // ---- completions: search, filter, and CSV export ----
-  const rows = d.completions;
+  // ---- progress + completions: search, filter, and CSV export ----
+  // Rows are every enrollment with its module progress, so the dashboard shows
+  // both finished referees and those partway through the modules.
+  const rows = d.enrollments || d.completions || [];
   const els = {
     search: document.getElementById('fltSearch'),
     course: document.getElementById('fltCourse'),
+    status: document.getElementById('fltStatus'),
     from: document.getElementById('fltFrom'),
     to: document.getElementById('fltTo'),
     table: document.getElementById('completionsTable'),
   };
+  const whenOf = (c) => c.completedAt || c.startedAt || null;
   function filtered() {
     const q = els.search.value.trim().toLowerCase();
     const course = els.course.value;
+    const status = els.status ? els.status.value : '';
     const from = els.from.value ? new Date(els.from.value + 'T00:00:00') : null;
     const to = els.to.value ? new Date(els.to.value + 'T23:59:59') : null;
     return rows.filter((c) => {
       if (q && !((c.learner || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))) return false;
       if (course && c.course !== course) return false;
-      const when = new Date(c.completedAt);
-      if (from && when < from) return false;
-      if (to && when > to) return false;
+      if (status === 'done' && !c.completedAt) return false;
+      if (status === 'prog' && c.completedAt) return false;
+      if (from || to) {
+        const w = whenOf(c);
+        if (!w) return false;
+        const when = new Date(w);
+        if (from && when < from) return false;
+        if (to && when > to) return false;
+      }
       return true;
     });
   }
+  const progOf = (c) => (c.totalModules ? `${c.modulesComplete}/${c.totalModules}` : (c.completedAt ? '✓' : '—'));
   function renderTable() {
     const list = filtered();
     els.table.innerHTML = list.length ? `
-      <table class="admin-table">
-        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Completed</th><th>Certificate</th></tr>
-        ${list.map((c) => `<tr><td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
-          <td>${new Date(c.completedAt).toLocaleString()}</td><td>${esc(c.certId)}</td></tr>`).join('')}
-      </table>
-      <p class="filter-count">${list.length} of ${rows.length} completion${rows.length === 1 ? '' : 's'}</p>`
-      : '<p class="empty">No completions match these filters.</p>';
+      <div class="table-scroll"><table class="admin-table">
+        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Completed</th><th>Certificate</th></tr>
+        ${list.map((c) => `<tr>
+          <td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
+          <td>${progOf(c)}</td>
+          <td>${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
+          <td>${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
+          <td>${esc(c.certId || '—')}</td></tr>`).join('')}
+      </table></div>
+      <p class="filter-count">${list.length} of ${rows.length} record${rows.length === 1 ? '' : 's'}</p>`
+      : '<p class="empty">No records match these filters.</p>';
   }
   if (els.table) {
     ['input', 'change'].forEach((ev) => {
       els.search.addEventListener(ev, renderTable); els.course.addEventListener(ev, renderTable);
+      if (els.status) els.status.addEventListener(ev, renderTable);
       els.from.addEventListener(ev, renderTable); els.to.addEventListener(ev, renderTable);
     });
     renderTable();
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const csv = [['Last Name', 'First Name', 'Full Name', 'Email', 'Course', 'Completed', 'Certificate ID'].join(',')]
-        .concat(list.map((c) => [c.lastName || '', c.firstName || '', c.learner, c.email, c.course, new Date(c.completedAt).toISOString(), c.certId].map(cell).join(',')))
+      const header = ['Last Name', 'First Name', 'Full Name', 'Email (Arbiter)', 'Course', 'Modules Complete', 'Total Modules', 'Status', 'Completed', 'Certificate ID'];
+      const csv = [header.join(',')]
+        .concat(list.map((c) => [
+          c.lastName || '', c.firstName || '', c.learner || '', c.email || '', c.course || '',
+          c.modulesComplete ?? '', c.totalModules ?? '',
+          c.completedAt ? 'Completed' : 'In progress',
+          c.completedAt ? new Date(c.completedAt).toISOString() : '',
+          c.certId || '',
+        ].map(cell).join(',')))
         .join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `ncysa-completions-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `ncysa-records-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     });
