@@ -79,6 +79,14 @@ function ensureCourse(courseObj) {
 
 const app = express();
 app.use(express.json());
+// Always revalidate the app shell (HTML/JS/CSS) so a new deploy is picked up on
+// the next page load instead of a stale cached copy lingering in the browser.
+app.use((req, res, next) => {
+  if (req.method === 'GET' && /(\/|\.html|\.js|\.css)$/.test(req.path)) {
+    res.setHeader('Cache-Control', 'no-cache');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Where uploaded SCORM course packages live on disk. They must be served
@@ -175,12 +183,16 @@ function requireEditor(req, res, next) {
 // OWNER_PASSWORD in the environment for production.
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || 'jeremy.layton.brown.smith@gmail.com').toLowerCase();
 
+const MANAGER_EMAIL = (process.env.EDITOR_EMAIL || 'DA@ncsoccer.org').toLowerCase(); // Colin
+
 function seedAdmin() {
   const db = load();
   const email = process.env.ADMIN_EMAIL || 'admin@ncysa.org';
   const password = seedPassword('ADMIN_PASSWORD', 'ncysa-staff-2026');
-  // Match the shared staff admin by role but never the owner's personal admin.
-  const existing = db.users.find((u) => u.role === 'admin' && u.email.toLowerCase() !== OWNER_EMAIL);
+  // Match the shared staff admin by role, but never the named personal admins
+  // (owner or manager) — those are managed by their own seeds below.
+  const reserved = new Set([OWNER_EMAIL, MANAGER_EMAIL]);
+  const existing = db.users.find((u) => u.role === 'admin' && !reserved.has(u.email.toLowerCase()));
   const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
   const passHash = hashPassword(password, salt);
   if (!existing) {
@@ -196,8 +208,8 @@ function seedAdmin() {
   }
 }
 
-// Seed a course-designer (collaborator) account — can build courses but has no
-// access to completion records or the staff dashboard.
+// Seed the course manager (Colin) — a full admin: builds courses AND can view
+// and download the learner completion records/export, same as the owner.
 function seedEditor() {
   const db = load();
   const email = process.env.EDITOR_EMAIL || 'DA@ncsoccer.org';
@@ -207,12 +219,12 @@ function seedEditor() {
   const passHash = hashPassword(password, salt);
   if (!existing) {
     db.users.push({
-      id: id('usr'), name: 'Course Designer', email,
-      role: 'editor', salt, passHash, createdAt: new Date().toISOString(),
+      id: id('usr'), name: 'Course Manager', email,
+      role: 'admin', salt, passHash, createdAt: new Date().toISOString(),
     });
     save();
-  } else if (existing.role !== 'editor' || existing.passHash !== passHash) {
-    existing.role = 'editor'; existing.salt = salt; existing.passHash = passHash;
+  } else if (existing.role !== 'admin' || existing.passHash !== passHash) {
+    existing.role = 'admin'; existing.salt = salt; existing.passHash = passHash;
     save();
   }
 }
