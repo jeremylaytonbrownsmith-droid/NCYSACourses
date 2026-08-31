@@ -193,6 +193,12 @@ async function viewHome() {
       <p class="lead">Official NCYSA coaching education courses.</p>
       <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
     </section>
+    ${courses.some((c) => c.audience === 'referees') ? `
+    <section class="section" id="referee-courses">
+      <h2>Referee courses</h2>
+      <p class="lead">Certification and recertification for North Carolina soccer referees.</p>
+      <div class="course-grid">${courses.filter((c) => c.audience === 'referees').map(courseCard).join('')}</div>
+    </section>` : ''}
     <footer class="footer">© ${new Date().getFullYear()} North Carolina Youth Soccer Association · NCYSA Learn</footer>`;
   bindCourseCards();
 }
