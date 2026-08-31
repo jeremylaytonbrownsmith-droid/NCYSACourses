@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample Module — SCORM check</title>
+<style>
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0e1726;color:#eef3fa}
+  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box}
+  h1{font-size:1.4rem;margin:0 0 6px}
+  .slide{font-size:1.1rem;margin:14px 0;max-width:520px}
+  .count{color:#9fb4d6;font-size:.9rem;letter-spacing:.02em}
+  .status{margin-top:10px;font-weight:700}
+  button{margin-top:22px;padding:12px 26px;font-size:1rem;border:0;border-radius:8px;background:#f6c945;color:#1a2436;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .done{color:#7ee08a}
+  .nolms{color:#ffb4b4}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sample Recertification Module</h1>
+  <div class="count" id="count">Slide 1 of 3</div>
+  <div class="slide" id="slide">This is a stand-in module used to prove the portal records completion. Click <strong>Next</strong> to move through the slides.</div>
+  <div class="status" id="status"></div>
+  <button id="next" type="button">Next →</button>
+</div>
+<script>
+/* Minimal SCORM 1.2 SCO — same API-discovery contract as the real packages:
+   walk up window.parent looking for a `.API`, LMSInitialize, bookmark each
+   slide, and report "completed" on the final slide. No-ops (still playable)
+   if no LMS is present. */
+(function(){"use strict";
+  var SLIDES=[
+    "This is a stand-in module used to prove the portal records completion. Click Next to move through the slides.",
+    "Halfway there. Your place is saved as you go, so leaving and returning resumes here.",
+    "Final slide — reaching this reports the module as complete to the portal."
+  ];
+  function find(w){var t=0;while(w&&w.API==null&&w.parent&&w.parent!==w&&t<15){t++;w=w.parent;}return w?w.API:null;}
+  var API=null;try{API=find(window);}catch(e){}
+  if(API==null&&window.opener){try{API=find(window.opener);}catch(e){}}
+  var have=!!API, fin=false;
+  function get(k){return have?API.LMSGetValue(k):"";}
+  function set(k,v){if(have){API.LMSSetValue(k,v);API.LMSCommit("");}}
+  if(have){API.LMSInitialize("");var s=get("cmi.core.lesson_status");if(!s||s==="not attempted"||s===""){set("cmi.core.lesson_status","incomplete");}}
+
+  var cur=0;
+  var l0=get("cmi.core.lesson_location");
+  if(l0!==""&&!isNaN(parseInt(l0,10))){var n=parseInt(l0,10);if(n>=0&&n<SLIDES.length)cur=n;}
+
+  var slide=document.getElementById("slide"),count=document.getElementById("count"),
+      status=document.getElementById("status"),next=document.getElementById("next");
+  function render(){
+    slide.textContent=SLIDES[cur];
+    count.textContent="Slide "+(cur+1)+" of "+SLIDES.length;
+    set("cmi.core.lesson_location",String(cur));
+    if(cur===SLIDES.length-1){
+      set("cmi.core.lesson_status","completed");
+      next.disabled=true;next.textContent="Complete ✓";
+      status.className="status done";
+      status.textContent=have?"Module complete — sent to the portal.":"Module complete (no LMS detected — nothing recorded).";
+    }else{
+      status.className="status"+(have?"":" nolms");
+      status.textContent=have?"":"No LMS detected — completion won't be recorded.";
+    }
+  }
+  next.addEventListener("click",function(){if(cur<SLIDES.length-1){cur++;render();}});
+  render();
+  function finish(){if(!have||fin)return;fin=true;try{API.LMSCommit("");}catch(e){}try{API.LMSFinish("");}catch(e){}}
+  window.addEventListener("beforeunload",finish);
+  window.addEventListener("pagehide",finish);
+})();
+</script>
+</body>
+</html>

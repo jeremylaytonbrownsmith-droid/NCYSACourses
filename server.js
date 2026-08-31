@@ -212,6 +212,7 @@ function progressSummary(course, progress) {
         unlocked: st.unlocked,
         watchedSeconds: rec?.watchedSeconds || 0,
         quizScore: rec?.quizScore ?? null,
+        scorm: rec?.scorm || null,
       };
     }),
   };
@@ -506,6 +507,43 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async
   res.json({ ok: true, courseCompleted: !!completion, certId: completion?.certId || null });
 });
 
+// SCORM 1.2 runtime callback. The in-page window.API (public/app.js) relays the
+// module's cmi values here. These modules complete on reaching the final slide,
+// which the package reports as cmi.core.lesson_status = "completed"; we record
+// that against the enrolled referee. lesson_location / suspend_data are stored so
+// a learner resumes where they left off. No score to grade — completion is the
+// signal that feeds the dashboard export.
+app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (req, res) => {
+  const found = findLesson(req, res);
+  if (!found) return;
+  const { course, lesson, db } = found;
+  if (lesson.type !== 'scorm') return res.status(400).json({ error: 'Not a SCORM module' });
+  const progress = getProgress(db, req.user.id, course.id);
+  const st = lessonState(course, progress, lesson.id);
+  if (!st.unlocked)
+    return res.status(403).json({ error: 'This module is locked. Complete the previous modules first.' });
+
+  const b = req.body || {};
+  const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
+  rec.scorm = rec.scorm || { status: 'not attempted', location: '', suspendData: '' };
+  if (typeof b.status === 'string' && b.status) rec.scorm.status = b.status;
+  if (b.location != null) rec.scorm.location = String(b.location).slice(0, 4096);
+  if (b.suspendData != null) rec.scorm.suspendData = String(b.suspendData).slice(0, 4096);
+
+  let newlyCompleted = false;
+  if ((rec.scorm.status === 'completed' || rec.scorm.status === 'passed') && !rec.completed) {
+    rec.completed = true;
+    rec.completedAt = new Date().toISOString();
+    newlyCompleted = true;
+  }
+  save();
+  const completion = newlyCompleted ? await maybeCompleteCourse(req.user, course) : null;
+  res.json({
+    ok: true, status: rec.scorm.status, completed: rec.completed,
+    courseCompleted: !!completion, certId: completion?.certId || null,
+  });
+});
+
 // When every lesson is done: complete the course, mint a certificate,
 // notify the learner and NCYSA.
 async function maybeCompleteCourse(user, course) {
@@ -614,7 +652,7 @@ function slugify(s) {
 
 // Normalize a lesson payload from the editor into a stored lesson.
 function buildLesson(body) {
-  const type = ['text', 'video', 'quiz'].includes(body.type) ? body.type : 'text';
+  const type = ['text', 'video', 'quiz', 'scorm'].includes(body.type) ? body.type : 'text';
   const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
   if (type === 'text') return { ...base, html: String(body.html || '') };
   if (type === 'video') {
@@ -626,6 +664,16 @@ function buildLesson(body) {
       durationSeconds: duration,
       minWatchSeconds: Math.min(duration, Math.max(1, Number(body.minWatchSeconds) || Math.max(1, duration - 2))),
     };
+  }
+  if (type === 'scorm') {
+    // A SCORM module: a self-contained package served same-origin under
+    // /scorm/<packageId>/. packageId is the folder; launchFile is its entry
+    // page. Completion is recorded when the module reports lesson_status
+    // "completed" (see the /scorm endpoint below). Sanitize both so a stored
+    // lesson can never point outside its package folder.
+    const packageId = String(body.packageId || '').replace(/[^A-Za-z0-9._-]/g, '');
+    const launchFile = (String(body.launchFile || 'index.html').replace(/[^A-Za-z0-9._/-]/g, '').replace(/\.\.+/g, '') || 'index.html');
+    return { ...base, html: String(body.html || ''), packageId, launchFile };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({

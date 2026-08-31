@@ -554,6 +554,7 @@ async function viewCourse(courseId, lessonId) {
   const pane = document.getElementById('lessonPane');
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
+  else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
   else renderTextLesson(pane, course, lesson, lp);
 }
 
@@ -588,6 +589,93 @@ function renderTextLesson(pane, course, lesson, lp) {
     const idx = course.lessons.findIndex((l) => l.id === lesson.id);
     const next = course.lessons[idx + 1];
     location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
+  });
+}
+
+// --- SCORM module lesson ----------------------------------------------------
+// A self-contained SCORM 1.2 package runs in an iframe. Per the SCORM 1.2 API
+// discovery rule, the package walks up window.parent looking for a `.API`
+// object, so we expose one on the top window (this requires the package to be
+// served same-origin, which it is — /scorm/<packageId>/…). The runtime relays
+// the module's cmi values to the server; when the module reports
+// lesson_status "completed" (these modules do that on the final slide), the
+// server records completion and, if it was the last module, completes the
+// course and mints the certificate.
+function renderScormLesson(pane, course, lesson, lp) {
+  const saved = lp.scorm || {};
+  const base = `/scorm/${encodeURIComponent(lesson.packageId || '')}/`;
+  const launch = base + (lesson.launchFile || 'index.html');
+  const missing = !lesson.packageId;
+  pane.innerHTML = `
+    ${lessonHeader(lesson, course)}
+    ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}
+    ${missing
+      ? `<div class="card notice-card"><h3>Module not uploaded yet</h3><p>This module has no course package attached. An administrator can upload it in the Course Designer.</p></div>`
+      : `<div class="scorm-shell"><iframe id="scormFrame" class="scorm-frame" title="${esc(lesson.title)}" src="${esc(launch)}" allow="fullscreen; autoplay" allowfullscreen></iframe></div>`}
+    <div class="lesson-actions" id="scormActions">
+      ${lp.completed
+        ? `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`
+        : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you reach the end. Your place is saved if you leave.</span>`}
+    </div>`;
+
+  function goNext() {
+    const idx = course.lessons.findIndex((l) => l.id === lesson.id);
+    const next = course.lessons[idx + 1];
+    location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
+  }
+  function bindNext() { document.getElementById('nextBtn')?.addEventListener('click', goNext); }
+  bindNext();
+  if (missing || lp.completed) return;
+
+  // The SCORM 1.2 runtime (window.API) the embedded package talks to.
+  const cmi = {
+    'cmi.core.lesson_status': saved.status || 'not attempted',
+    'cmi.core.lesson_location': saved.location || '',
+    'cmi.suspend_data': saved.suspendData || '',
+    'cmi.core.student_id': (me && me.user && me.user.id) || '',
+    'cmi.core.student_name': (me && me.user && me.user.name) || '',
+  };
+  let done = false;
+
+  function relay(onDone) {
+    api(`/api/courses/${course.id}/lessons/${lesson.id}/scorm`, {
+      method: 'POST',
+      body: {
+        status: cmi['cmi.core.lesson_status'],
+        location: cmi['cmi.core.lesson_location'],
+        suspendData: cmi['cmi.suspend_data'],
+      },
+    }).then((r) => { if (onDone) onDone(r); }).catch(() => { /* keep playing; retried on next commit */ });
+  }
+
+  window.API = {
+    LMSInitialize: function () { return 'true'; },
+    LMSFinish: function () { relay(); return 'true'; },
+    LMSGetValue: function (k) { return cmi[k] != null ? String(cmi[k]) : ''; },
+    LMSSetValue: function (k, v) {
+      cmi[k] = v;
+      if (k === 'cmi.core.lesson_status' && (v === 'completed' || v === 'passed') && !done) {
+        done = true;
+        relay((r) => {
+          if (r && r.courseCompleted) { showCourseComplete(course, r.certId); return; }
+          const a = document.getElementById('scormActions');
+          if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
+          toast('✓ Module complete!');
+        });
+      }
+      return 'true';
+    },
+    LMSCommit: function () { relay(); return 'true'; },
+    LMSGetLastError: function () { return '0'; },
+    LMSGetErrorString: function () { return ''; },
+    LMSGetDiagnostic: function () { return ''; },
+  };
+
+  // Remove the global when the learner leaves this lesson so it can't leak into
+  // the next module's session.
+  window.addEventListener('hashchange', function cleanup() {
+    try { delete window.API; } catch (e) { window.API = undefined; }
+    window.removeEventListener('hashchange', cleanup);
   });
 }
 

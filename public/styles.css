@@ -218,6 +218,9 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 /* ---------- video player ---------- */
 .video-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .video-shell video { width: 100%; display: block; }
+.scorm-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.scorm-frame { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
+@media (max-width: 640px) { .scorm-frame { aspect-ratio: 4 / 3; } }
 .v-controls { display: flex; align-items: center; gap: 12px; background: #0d0a24; padding: 10px 14px; color: #e7eef5; }
 .v-controls button { background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .v-controls button:hover { background: rgba(255,255,255,0.12); }
