@@ -111,6 +111,17 @@ app.get('/scorm/:pkg/*', (req, res) => {
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
   }
+  // The launch page missing usually means the package files aren't on disk
+  // (e.g. uploaded to ephemeral storage, then lost on a redeploy). Show a clear
+  // message inside the iframe instead of a blank black player, so it's obvious
+  // the module needs re-uploading rather than looking like a broken video.
+  if (/\.html?$/.test(rel)) {
+    return res.status(404).type('html').send(
+      '<!doctype html><meta charset="utf-8"><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0e1726;color:#eef3fa;font-family:system-ui,Arial,sans-serif;text-align:center;padding:24px">' +
+      '<div><h2 style="margin:0 0 8px">This module’s files aren’t available</h2>' +
+      '<p style="color:#9fb4d6;max-width:420px">The course package isn’t on the server. An administrator needs to re-upload this module in the Course Designer (make sure the persistent disk is attached first).</p></div></body>'
+    );
+  }
   res.status(404).end();
 });
 
