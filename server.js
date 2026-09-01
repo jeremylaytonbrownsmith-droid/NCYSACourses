@@ -99,6 +99,59 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const SCORM_DIR = process.env.SCORM_DIR || path.join(DATA_DIR, 'scorm');
 const BUNDLED_SCORM_DIR = path.join(__dirname, 'public', 'scorm'); // e.g. the sample module
 
+// Optional: offload module VIDEOS to a Bunny CDN (bunny.net) so they don't
+// stream through this server. The SCORM shell (HTML/JS/images) stays same-origin
+// — required for the window.parent.API discovery — while the heavy .mp4 files are
+// pushed to Bunny at upload time and rewritten to the CDN URL at play time.
+// Entirely OFF unless all four env vars are set, so nothing changes until Bunny
+// is configured. Set in Render (BUNNY_STORAGE_KEY is a secret; never committed):
+//   BUNNY_STORAGE_ZONE  e.g. ncysa-modules
+//   BUNNY_STORAGE_HOST  region endpoint host, e.g. ny.storage.bunnycdn.com
+//   BUNNY_STORAGE_KEY   the storage zone password (Access Key)
+//   BUNNY_CDN_HOST      the pull-zone hostname, e.g. ncysa-modules.b-cdn.net
+const BUNNY = {
+  zone: process.env.BUNNY_STORAGE_ZONE || '',
+  host: process.env.BUNNY_STORAGE_HOST || '',
+  key: process.env.BUNNY_STORAGE_KEY || '',
+  cdn: process.env.BUNNY_CDN_HOST || '',
+};
+function bunnyEnabled() { return !!(BUNNY.zone && BUNNY.host && BUNNY.key && BUNNY.cdn); }
+async function bunnyPut(remotePath, buf) {
+  const url = `https://${BUNNY.host.replace(/\/+$/, '')}/${BUNNY.zone}/${remotePath}`;
+  const res = await fetch(url, { method: 'PUT', headers: { AccessKey: BUNNY.key, 'Content-Type': 'application/octet-stream' }, body: buf });
+  if (!res.ok) throw new Error(`Bunny PUT ${res.status} for ${remotePath}`);
+}
+// Push a freshly-extracted package's videos to Bunny. All-or-nothing: only marks
+// the package CDN-backed (and drops the local .mp4s) if EVERY video uploads;
+// otherwise everything stays served from disk, unchanged.
+async function offloadVideosToBunny(pkg, dest) {
+  if (!bunnyEnabled()) return { cdn: false };
+  const vids = [];
+  (function walk(dir, rel) {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name), r = rel ? rel + '/' + name : name;
+      if (fs.statSync(full).isDirectory()) walk(full, r);
+      else if (/\.mp4$/i.test(name)) vids.push({ full, rel: r });
+    }
+  })(dest, '');
+  if (!vids.length) return { cdn: false };
+  try {
+    for (const v of vids) await bunnyPut(`${pkg}/${v.rel}`, fs.readFileSync(v.full));
+  } catch (e) {
+    return { cdn: false, error: e.message }; // keep everything local on any failure
+  }
+  for (const v of vids) { try { fs.rmSync(v.full, { force: true }); } catch { /* ignore */ } }
+  fs.writeFileSync(path.join(dest, '.cdn'), `https://${BUNNY.cdn.replace(/\/+$/, '')}/${pkg}/`);
+  return { cdn: true, count: vids.length };
+}
+// Rewrite relative .mp4 references to the package's CDN base, by overriding the
+// <video> src setter before the module's own scripts run.
+function injectCdnShim(html, cdnBase) {
+  const shim = '<script>/* CDN video */(function(){var C=' + JSON.stringify(cdnBase) +
+    ';try{var p=HTMLMediaElement.prototype,d=Object.getOwnPropertyDescriptor(p,"src");if(d&&d.set)Object.defineProperty(p,"src",{configurable:true,get:function(){return d.get.call(this);},set:function(v){try{if(typeof v==="string"&&!/^https?:/i.test(v)&&/\\.mp4(\\?|$)/i.test(v))v=C+v.replace(/^\\.?\\//,"");}catch(e){}d.set.call(this,v);}});}catch(e){}})();</script>';
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + shim) : shim + html;
+}
+
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
 app.get('/scorm/:pkg/*', (req, res) => {
@@ -109,7 +162,15 @@ app.get('/scorm/:pkg/*', (req, res) => {
     const base = path.resolve(root, pkg); // absolute base so containment holds for relative SCORM_DIR
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
-    if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+      // If this package's videos are on the CDN, inject the rewrite shim into the
+      // launch HTML so the <video> loads from Bunny instead of from us.
+      if (/\.html?$/i.test(rel) && fs.existsSync(path.join(base, '.cdn'))) {
+        const cdnBase = fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim();
+        return res.type('html').send(injectCdnShim(fs.readFileSync(file, 'utf8'), cdnBase));
+      }
+      return res.sendFile(file);
+    }
   }
   // The launch page missing usually means the package files aren't on disk
   // (e.g. uploaded to ephemeral storage, then lost on a redeploy). Show a clear
@@ -939,7 +1000,7 @@ function decodeEntities(s) {
 // The package is served same-origin at /scorm/<packageId>/.
 app.post('/api/admin/scorm', requireEditor,
   express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '500mb' }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const buf = req.body;
       if (!buf || !buf.length) return res.status(400).json({ error: 'No file received.' });
@@ -975,12 +1036,16 @@ app.post('/api/admin/scorm', requireEditor,
         wrote++;
       }
       if (!wrote) { fs.rmSync(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'The .zip was empty.' }); }
+      // Offload videos to the Bunny CDN if configured (no-op otherwise).
+      let cdn = { cdn: false };
+      try { cdn = await offloadVideosToBunny(packageId, dest); }
+      catch (e) { cdn = { cdn: false, error: e.message }; }
       if (!fs.existsSync(path.join(dest, launchFile))) {
         // Launch file named in the manifest isn't where expected — flag it rather
         // than silently shipping a broken module.
-        return res.json({ packageId, launchFile, title, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
+        return res.json({ packageId, launchFile, title, cdn: cdn.cdn, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
       }
-      res.json({ packageId, launchFile, title });
+      res.json({ packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0 });
     } catch (e) {
       res.status(400).json({ error: 'Could not read package: ' + e.message });
     }

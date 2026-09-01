@@ -45,6 +45,16 @@ services:
         value: /var/scorm
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false # paste the entire service-account JSON here (never committed)
+      # ---- Optional: offload module videos to a Bunny CDN (all four required to
+      #      enable it; leave unset to serve videos from the disk as normal) ----
+      - key: BUNNY_STORAGE_ZONE
+        sync: false # e.g. ncysa-modules
+      - key: BUNNY_STORAGE_HOST
+        sync: false # region endpoint host, e.g. ny.storage.bunnycdn.com
+      - key: BUNNY_STORAGE_KEY
+        sync: false # storage zone Access Key / Password (secret)
+      - key: BUNNY_CDN_HOST
+        sync: false # pull-zone hostname, e.g. ncysa-modules.b-cdn.net
       - key: ADMIN_EMAIL
         value: education@ncysa.org
       - key: ADMIN_PASSWORD

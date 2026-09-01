@@ -1,6 +1,8 @@
 // A SCORM module runs in the browser, discovers the portal's window.API, and
 // reports completion — which completes the course and mints the certificate.
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
 const BASE = 'http://localhost:3100';
 
@@ -76,4 +78,21 @@ test('scorm time gate holds completion until the minimum time is met', async ({ 
   expect(res.completed).toBe(true);
   expect(res.courseCompleted).toBe(true);
   expect(res.certId).toBeTruthy();
+});
+
+test('CDN video shim is injected only for packages marked CDN-backed', async ({ request }) => {
+  // The webServer serves packages from .test-data/scorm (shared filesystem).
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+  fs.mkdirSync(path.join(dir, 'cdn-yes'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'cdn-no'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'cdn-yes', 'index.html'), '<!doctype html><head></head><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'cdn-yes', '.cdn'), 'https://ncysa-modules.b-cdn.net/cdn-yes/');
+  fs.writeFileSync(path.join(dir, 'cdn-no', 'index.html'), '<!doctype html><head></head><body>m</body>');
+
+  const yes = await (await request.get(`${BASE}/scorm/cdn-yes/index.html`)).text();
+  expect(yes).toContain('HTMLMediaElement');                     // shim present
+  expect(yes).toContain('ncysa-modules.b-cdn.net/cdn-yes');      // points at the CDN base
+
+  const no = await (await request.get(`${BASE}/scorm/cdn-no/index.html`)).text();
+  expect(no).not.toContain('HTMLMediaElement');                  // no shim without the marker
 });

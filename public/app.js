@@ -1602,7 +1602,7 @@ async function viewCourseAdmin(flash) {
               const title = data.title || nameHint;
               await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
               okCount++; ok = true;
-              line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
+              line(`✓ Module ${i + 1}: “${esc(title)}” added${data.cdn ? ' <span class="meta">(video → CDN)</span>' : ''}${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
             } catch (err) {
               lastErr = err.message;
               if (attempt === 1) line(`… retrying ${esc(f.name)}…`);
