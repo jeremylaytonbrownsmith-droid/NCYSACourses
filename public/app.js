@@ -1380,6 +1380,7 @@ async function viewCourseAdmin(flash) {
         </div>
         <div class="admin-head-actions">
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
+          <button class="btn btn-ghost" id="storageBtn">Module storage</button>
           <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
         </div>
       </div>
@@ -1429,6 +1430,10 @@ async function viewCourseAdmin(flash) {
   document.getElementById('bulkScormBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = bulkScormPanel();
     bindBulkScorm();
+  });
+  document.getElementById('storageBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = storagePanel();
+    loadStorage();
   });
   document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
     const c = list.find((x) => x.id === b.dataset.course);
@@ -1531,6 +1536,55 @@ async function viewCourseAdmin(flash) {
   // ---- Bulk SCORM upload: drop all module .zips at once → one course, one
   // lesson per module, in filename order. Pure client orchestration over the
   // existing create-course / upload-package / add-lesson endpoints.
+  function fmtBytes(n) {
+    if (n == null) return '—';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GB';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + ' MB';
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + ' KB';
+    return n + ' B';
+  }
+  function storagePanel() {
+    return `<div class="editor-form" id="storagePanel">
+      <h3>Module storage</h3>
+      <p class="form-hint">Uploaded modules live on the server's disk. Every failed upload or deleted course can leave <strong>orphaned</strong> files behind that fill the disk and block new uploads (“no space left on device”). Reclaim that space here.</p>
+      <div id="storageBody"><p class="meta">Loading…</p></div>
+    </div>`;
+  }
+  async function loadStorage() {
+    const body = document.getElementById('storageBody');
+    let d;
+    try { d = await api('/api/admin/scorm/storage'); }
+    catch (e) { body.innerHTML = `<p class="editor-msg err">Couldn't read storage: ${esc(e.message)}</p>`; return; }
+    const rows = d.packages.map((p) => `
+      <li class="${p.referenced ? '' : 'orphan'}">
+        <span>${p.referenced ? '✅ in use' : '🗑️ unused'} — <code>${esc(p.packageId)}</code></span>
+        <span class="meta">${fmtBytes(p.bytes)}</span>
+      </li>`).join('') || '<li class="empty">No module packages on disk.</li>';
+    body.innerHTML = `
+      <div class="storage-stats">
+        <div><span class="meta">Used by modules</span><strong>${fmtBytes(d.usedByPackages)}</strong></div>
+        <div><span class="meta">Free on disk</span><strong>${fmtBytes(d.freeBytes)}${d.totalBytes ? ' / ' + fmtBytes(d.totalBytes) : ''}</strong></div>
+        <div><span class="meta">Unused (reclaimable)</span><strong>${fmtBytes(d.orphanBytes)} · ${d.orphanCount} folder${d.orphanCount === 1 ? '' : 's'}</strong></div>
+      </div>
+      <ol class="bulk-list storage-list">${rows}</ol>
+      <div class="form-actions">
+        <button class="btn btn-accent" id="cleanOrphans" ${d.orphanCount ? '' : 'disabled'}>Remove unused files (${fmtBytes(d.orphanBytes)})</button>
+        <button class="btn btn-ghost danger" id="cleanAll">Wipe ALL module files</button>
+      </div>
+      <div id="storageMsg" class="editor-msg"></div>`;
+    const sMsg = (t, err) => { const e = document.getElementById('storageMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
+    document.getElementById('cleanOrphans').addEventListener('click', async () => {
+      const r = await api('/api/admin/scorm/cleanup', { method: 'POST', body: { mode: 'orphans' } });
+      sMsg(`Removed ${r.removed} unused folder(s), freed ${fmtBytes(r.freedBytes)}.`);
+      loadStorage();
+    });
+    document.getElementById('cleanAll').addEventListener('click', async () => {
+      if (!confirm('Delete ALL uploaded module files from the disk? Courses stay, but every module will need re-uploading before it plays. Use this for a clean re-upload.')) return;
+      const r = await api('/api/admin/scorm/cleanup', { method: 'POST', body: { mode: 'all' } });
+      sMsg(`Wiped ${r.removed} folder(s), freed ${fmtBytes(r.freedBytes)}. You can now re-upload.`);
+      loadStorage();
+    });
+  }
   function bulkScormPanel() {
     return `<form class="editor-form" id="bulkForm">
       <h3>Bulk-upload SCORM modules</h3>

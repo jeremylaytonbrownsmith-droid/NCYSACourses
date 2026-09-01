@@ -1002,6 +1002,7 @@ function decodeEntities(s) {
 app.post('/api/admin/scorm', requireEditor,
   express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '500mb' }),
   async (req, res) => {
+    let dest = null; // hoisted so a failed extraction can clean up its partial folder
     try {
       const buf = req.body;
       if (!buf || !buf.length) return res.status(400).json({ error: 'No file received.' });
@@ -1022,7 +1023,7 @@ app.post('/api/admin/scorm', requireEditor,
       );
 
       const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
-      const dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
+      dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
       fs.mkdirSync(dest, { recursive: true });
       let wrote = 0;
       for (const e of entries) {
@@ -1048,10 +1049,76 @@ app.post('/api/admin/scorm', requireEditor,
       }
       res.json({ packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0 });
     } catch (e) {
-      res.status(400).json({ error: 'Could not read package: ' + e.message });
+      // A failed upload (e.g. ENOSPC mid-extract) must not leave a half-written
+      // package folder behind — that would silently eat disk on every retry.
+      if (dest) { try { fs.rmSync(dest, { recursive: true, force: true }); } catch { /* ignore */ } }
+      const msg = /ENOSPC/.test(e.message || '')
+        ? 'Out of disk space. Free up module storage (Manage courses → Module storage → clean up) or enlarge the disk, then re-upload.'
+        : 'Could not read package: ' + e.message;
+      res.status(400).json({ error: msg });
     }
   }
 );
+
+// ---- Module storage housekeeping -------------------------------------------
+// Every package folder in SCORM_DIR that no lesson points at is dead weight
+// (an orphan from a deleted course or a failed upload). These endpoints report
+// disk usage and let an editor reclaim the space — critical because module
+// videos are large and the disk is finite.
+function referencedPackageIds() {
+  const ids = new Set();
+  for (const c of allCourses()) for (const l of (c.lessons || [])) {
+    if (l.type === 'scorm' && l.packageId) ids.add(l.packageId);
+  }
+  return ids;
+}
+function dirSizeBytes(dir) {
+  let total = 0;
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) total += dirSizeBytes(full);
+    else { try { total += fs.statSync(full).size; } catch { /* ignore */ } }
+  }
+  return total;
+}
+function listScormPackages() {
+  const referenced = referencedPackageIds();
+  let names = [];
+  try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); }
+  catch { names = []; }
+  return names.map((name) => ({
+    packageId: name,
+    bytes: dirSizeBytes(path.join(SCORM_DIR, name)),
+    referenced: referenced.has(name),
+  })).sort((a, b) => b.bytes - a.bytes);
+}
+app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
+  const packages = listScormPackages();
+  let freeBytes = null, totalBytes = null;
+  try { const s = fs.statfsSync(SCORM_DIR); freeBytes = s.bfree * s.bsize; totalBytes = s.blocks * s.bsize; } catch { /* older node / unsupported */ }
+  res.json({
+    dir: SCORM_DIR,
+    usedByPackages: packages.reduce((n, p) => n + p.bytes, 0),
+    orphanBytes: packages.filter((p) => !p.referenced).reduce((n, p) => n + p.bytes, 0),
+    orphanCount: packages.filter((p) => !p.referenced).length,
+    freeBytes, totalBytes,
+    packages,
+  });
+});
+app.post('/api/admin/scorm/cleanup', requireEditor, (req, res) => {
+  const mode = (req.body && req.body.mode) === 'all' ? 'all' : 'orphans';
+  const referenced = referencedPackageIds();
+  const packages = listScormPackages();
+  let removed = 0, freed = 0;
+  for (const p of packages) {
+    if (mode === 'orphans' && referenced.has(p.packageId)) continue;
+    try { fs.rmSync(path.resolve(SCORM_DIR, p.packageId), { recursive: true, force: true }); removed++; freed += p.bytes; }
+    catch { /* ignore */ }
+  }
+  res.json({ mode, removed, freedBytes: freed });
+});
 
 // Full course (with quiz answers) for the admin editor.
 app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {

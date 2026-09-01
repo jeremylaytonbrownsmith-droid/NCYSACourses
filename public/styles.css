@@ -607,3 +607,12 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .topnav .nav-training { display: inline-block; }
 @media (max-width: 600px) { .topnav .nav-training { display: none; } }
+
+/* Module storage panel */
+.storage-stats { display:flex; gap:22px; flex-wrap:wrap; margin:6px 0 14px; }
+.storage-stats > div { display:flex; flex-direction:column; }
+.storage-stats strong { font-size:1.15rem; }
+.storage-list { max-height:280px; overflow:auto; }
+.storage-list li { display:flex; justify-content:space-between; gap:12px; padding:6px 10px; border-radius:8px; }
+.storage-list li.orphan { background:rgba(220,80,80,.10); }
+.storage-list code { font-size:.82rem; word-break:break-all; }
