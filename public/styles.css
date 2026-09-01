@@ -241,7 +241,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
    the module manage its own scrolling inside. */
 .scorm-frame { width: 100%; height: 85vh; min-height: 600px; border: 0; display: block; }
 /* Module lessons use a wider pane than reading lessons. */
-.lesson-pane.scorm-lesson { max-width: 1200px; }
+/* Modules fill the whole content area (no reading-width cap) and use slim
+   padding, so app-style modules render in their full-width desktop layout
+   instead of a cramped narrow one. */
+.lesson-pane.scorm-lesson { max-width: none; padding: 24px clamp(10px, 1.5vw, 28px); }
 @media (max-width: 640px) {
   .scorm-frame { height: 80vh; min-height: 480px; }
 }
