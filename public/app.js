@@ -1640,16 +1640,18 @@ async function viewCourseAdmin(flash) {
           <a class="peek-pkg" href="#" data-pkg="${esc(p.packageId)}" style="margin-left:8px;font-size:.8rem">peek inside</a></span>
         <span class="meta">${fmtBytes(p.bytes)}</span>
       </li>`).join('') || '<li class="empty">No module packages on disk.</li>';
+    const firstPending = (d.packages.find((p) => !p.cdn) || {}).packageId || '';
     const cdnBlock = d.bunny
       ? `<div class="cdn-box ok">
            <strong>☁️ Bunny CDN is connected.</strong>
-           ${d.cdnPending ? `<p>${d.cdnPending} module(s) still stream their video from this server. Move them to the CDN so big launches don't overload it — no re-upload needed.</p>
-             <button class="btn btn-accent" id="migrateCdn">Move videos to CDN (${d.cdnPending})</button>`
+           ${d.cdnPending ? `<p>${d.cdnPending} module(s) still stream video from this server. <strong>Move one first as a test</strong>, open that module to confirm the video still plays, then move the rest — no re-upload needed.</p>
+             <button class="btn btn-accent" id="migrateOne" data-pkg="${esc(firstPending)}">Move 1 module (test)</button>
+             <button class="btn btn-ghost" id="migrateAll" style="margin-left:8px">Move all ${d.cdnPending}</button>`
              : `<p>All modules with video are already served from the CDN. ✅</p>`}
          </div>`
       : `<div class="cdn-box">
            <strong>☁️ Bunny CDN — not connected yet.</strong>
-           <p>For a large launch, set the four <code>BUNNY_*</code> variables in Render (Claude will walk you through it), then this button appears to move your existing videos to the CDN — no re-upload.</p>
+           <p>For a large launch, set the four <code>BUNNY_*</code> variables in Render (Claude will walk you through it), then a button appears here to move your existing videos to the CDN — no re-upload.</p>
          </div>`;
     body.innerHTML = `
       <div class="storage-stats">
@@ -1664,8 +1666,18 @@ async function viewCourseAdmin(flash) {
         <button class="btn btn-ghost danger" id="cleanAll">Wipe ALL module files</button>
       </div>
       <div id="storageMsg" class="editor-msg"></div>`;
-    document.getElementById('migrateCdn')?.addEventListener('click', async (ev) => {
-      ev.target.disabled = true; ev.target.textContent = 'Moving videos to CDN… (may take a minute)';
+    document.getElementById('migrateOne')?.addEventListener('click', async (ev) => {
+      const pkg = ev.target.dataset.pkg;
+      ev.target.disabled = true; ev.target.textContent = 'Moving 1 module…';
+      try {
+        const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST', body: { packageId: pkg } });
+        sMsg(`Moved 1 module (${r.videos} video). ✅ Now open that module and confirm the video still plays. If it does, come back and click “Move all”.`);
+      } catch (e) { sMsg('Migration failed: ' + e.message, true); }
+      loadStorage();
+    });
+    document.getElementById('migrateAll')?.addEventListener('click', async (ev) => {
+      if (!confirm('Move every module\'s video to the CDN? Test one module first (the button to the left) and confirm its video plays before doing all of them.')) return;
+      ev.target.disabled = true; ev.target.textContent = 'Moving all… (may take a minute)';
       try {
         const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST' });
         sMsg(`Moved ${r.migrated} module(s) · ${r.videos} video(s) to the CDN${r.errors ? ` · ${r.errors} error(s)` : ''}.`);

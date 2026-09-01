@@ -184,11 +184,22 @@ async function offloadVideosToBunny(pkg, dest) {
   fs.writeFileSync(path.join(dest, '.cdn'), `https://${BUNNY.cdn.replace(/\/+$/, '')}/${pkg}/`);
   return { cdn: true, count: vids.length };
 }
-// Rewrite relative .mp4 references to the package's CDN base, by overriding the
-// <video> src setter before the module's own scripts run.
+// Rewrite relative video references (.mp4/.m4v/.webm/.mov) to the package's CDN
+// base. Robust across how framework modules (Adapt/Evolve, iSpring, etc.) load
+// video: it patches the media-element src setter AND Element.setAttribute, sweeps
+// any <video>/<source> already in the page, and watches (MutationObserver) for
+// ones added later — reloading the <video> when its source is rewritten. Runs
+// before the module's own scripts so the video loads from Bunny, not from us.
 function injectCdnShim(html, cdnBase) {
-  const shim = '<script>/* CDN video */(function(){var C=' + JSON.stringify(cdnBase) +
-    ';try{var p=HTMLMediaElement.prototype,d=Object.getOwnPropertyDescriptor(p,"src");if(d&&d.set)Object.defineProperty(p,"src",{configurable:true,get:function(){return d.get.call(this);},set:function(v){try{if(typeof v==="string"&&!/^https?:/i.test(v)&&/\\.mp4(\\?|$)/i.test(v))v=C+v.replace(/^\\.?\\//,"");}catch(e){}d.set.call(this,v);}});}catch(e){}})();</script>';
+  const body = '(function(){var C=' + JSON.stringify(cdnBase) + ';' +
+    'function fix(u){try{if(typeof u==="string"&&!/^https?:/i.test(u)&&/\\.(mp4|m4v|webm|mov)(\\?|$)/i.test(u))return C+u.replace(/^\\.?\\//,"");}catch(e){}return u;}' +
+    'try{var p=HTMLMediaElement.prototype,d=Object.getOwnPropertyDescriptor(p,"src");if(d&&d.set)Object.defineProperty(p,"src",{configurable:true,get:function(){return d.get.call(this);},set:function(v){d.set.call(this,fix(v));}});}catch(e){}' +
+    'try{var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){try{if(n==="src"){var t=this.tagName;if(t==="SOURCE"||t==="VIDEO"||t==="AUDIO")v=fix(v);}}catch(e){}return sa.call(this,n,v);};}catch(e){}' +
+    'function sweep(r){try{var e=r.querySelectorAll?r.querySelectorAll("video[src],source[src]"):[];for(var i=0;i<e.length;i++){var el=e[i],s=el.getAttribute("src"),f=fix(s);if(f!==s){el.setAttribute("src",f);var v=el.tagName==="SOURCE"?el.parentNode:el;if(v&&v.load){try{v.load();}catch(x){}}}}}catch(x){}}' +
+    'try{new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var m=ms[i];if(m.type==="attributes")sweep(m.target.parentNode||document);if(m.addedNodes)for(var j=0;j<m.addedNodes.length;j++){var n=m.addedNodes[j];if(n.nodeType===1)sweep(n);}}}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["src"]});}catch(e){}' +
+    'if(document.readyState!=="loading")sweep(document);else document.addEventListener("DOMContentLoaded",function(){sweep(document);});' +
+    '})();';
+  const shim = '<script>/* CDN video rewrite (HTMLMediaElement) */' + body + '</script>';
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + shim) : shim + html;
 }
 
@@ -1208,6 +1219,9 @@ app.post('/api/admin/scorm/migrate-cdn', requireEditor, async (req, res) => {
   if (!bunnyEnabled()) return res.status(400).json({ error: 'Bunny CDN is not configured yet — set the four BUNNY_* variables in Render, then try again.' });
   let names = [];
   try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); } catch { /* none */ }
+  // Optionally migrate just one package first (to test before doing them all).
+  const only = req.body && req.body.packageId ? String(req.body.packageId).replace(/[^A-Za-z0-9._-]/g, '') : null;
+  if (only) names = names.filter((n) => n === only);
   const results = [];
   for (const pkg of names) {
     const dest = path.resolve(SCORM_DIR, pkg);
