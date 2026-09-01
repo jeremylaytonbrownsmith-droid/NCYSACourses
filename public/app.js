@@ -107,6 +107,7 @@ function renderNav() {
     <span class="spacer"></span>
     <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
     <a class="navlink nav-referees" href="#/referees">Referees</a>
+    <a class="navlink nav-staff" href="#/staff-portal">Staff</a>
     <a class="navlink nav-help" href="#/help">Help</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
@@ -185,6 +186,12 @@ async function viewHome() {
           <p>NCSRA certification and recertification for match officials.</p>
           <span class="btn btn-accent btn-lg">Enter Referees Portal →</span>
         </a>
+        <a class="portal-card portal-staff" href="#/staff-portal">
+          <div class="portal-badge portal-badge-coach">${logoImg('portal-logo')}</div>
+          <h2>Staff Portal</h2>
+          <p>Onboarding and required trainings for NCYSA staff, board, and office volunteers.</p>
+          <span class="btn btn-accent btn-lg">Enter Staff Portal →</span>
+        </a>
       </div>
     </section>
     <footer class="footer">© ${new Date().getFullYear()} North Carolina Youth Soccer Association · NCYSA Learn</footer>`;
@@ -260,6 +267,31 @@ async function viewCoaches() {
         ? `<div class="course-grid">${coach.map(courseCard).join('')}</div>`
         : `<div class="card notice-card"><h3>Coach courses are coming soon</h3>
              <p>Coaching education is on the way. <a href="#/register">Create a free account</a> and we'll have your profile ready.</p></div>`}
+    </section>`;
+  bindCourseCards();
+}
+
+// The Staff Portal — NCYSA-branded, staff trainings only. A public front door
+// (like Coaches/Referees) that leads staff to their onboarding and trainings.
+async function viewStaffPortal() {
+  let staffCourses = [];
+  try { staffCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'staff'); } catch { /* ignore */ }
+  app.innerHTML = `
+    <section class="section">
+      <a class="back-link" href="#/">← All portals</a>
+      <div class="role-hero">
+        ${logoImg('portal-hero-logo')}
+        <h2>NCYSA Staff Portal</h2>
+        <p class="lead">Onboarding, policies, and required trainings for NCYSA staff, board members, and office volunteers.</p>
+      </div>
+      ${staffCourses.length
+        ? `<div class="course-grid">${staffCourses.map(courseCard).join('')}</div>`
+        : `<div class="card notice-card"><h3>Staff trainings are coming soon</h3>
+             <p>Required staff trainings will appear here. <a href="#/register">Create a free account</a> to get started.</p></div>`}
+      <div class="card notice-card" style="margin-top:26px">
+        <p style="margin:0">NCYSA staff with a dashboard login can manage courses and view completion records from the
+          <a href="#/staff">staff sign-in</a>.</p>
+      </div>
     </section>`;
   bindCourseCards();
 }
@@ -2078,6 +2110,7 @@ const routes = [
   { re: /^#\/coaches$/, fn: viewCoaches },
   { re: /^#\/courses$/, fn: viewCoaches }, // legacy alias → Coaches Portal
   { re: /^#\/referees$/, fn: viewReferees },
+  { re: /^#\/staff-portal$/, fn: viewStaffPortal },
   { re: /^#\/login$/, fn: viewLogin },
   { re: /^#\/staff$/, fn: viewStaffLogin },
   { re: /^#\/register$/, fn: viewRegister },
