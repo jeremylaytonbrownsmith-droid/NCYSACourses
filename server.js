@@ -939,7 +939,8 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   const b = req.body || {};
-  for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions']) if (b[f] != null) course[f] = String(b[f]);
+  for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions',
+    'coBrandName', 'coLogoUrl', 'certOrg', 'certTitle', 'certPrefix']) if (b[f] != null) course[f] = String(b[f]);
   if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
   if (b.publicVideoGate != null) course.publicVideoGate = !!b.publicVideoGate;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);

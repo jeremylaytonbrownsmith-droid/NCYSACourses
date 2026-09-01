@@ -324,8 +324,8 @@ function viewLogin() {
         const dest = afterAuthHash; afterAuthHash = null;
         location.hash = dest || roleHome(r.user.role);
       } catch (err) {
-        // Production: a staff email needs a password — send them to staff sign-in.
-        if (err.data && err.data.needsPassword) { location.hash = '#/staff'; return; }
+        // A staff/admin email needs a password — send them to staff sign-in with a note.
+        if (err.data && err.data.needsPassword) { toast('That’s a staff account — signing in there. To take a course as a learner, use a different email.', true); location.hash = '#/staff'; return; }
         throw err;
       }
     },
@@ -1487,6 +1487,19 @@ async function viewCourseAdmin(flash) {
         <input name="completionRedirectUrl" type="url" value="${c ? esc(c.completionRedirectUrl || '') : ''}" placeholder="https://www.ncsra.org/referees" />
       </label>
       ${richTextField('instructions', 'Start Here — how this works (optional; shows as a banner at the top of the course)', c ? (c.instructions || '') : '', 110)}
+      <fieldset class="co-brand-fields">
+        <legend>Branding &amp; certificate (optional — e.g. NCSRA for referee courses)</legend>
+        <div class="form-row">
+          <label>Brand name<input name="coBrandName" value="${c ? esc(c.coBrandName || '') : ''}" placeholder="NCSRA Referee Education" /></label>
+          <label>Brand logo URL<input name="coLogoUrl" type="url" value="${c ? esc(c.coLogoUrl || '') : ''}" placeholder="https://…/logo.png" /></label>
+        </div>
+        <label>Certificate organization<input name="certOrg" value="${c ? esc(c.certOrg || '') : ''}" placeholder="North Carolina Soccer Referee Association" /></label>
+        <div class="form-row">
+          <label>Certificate title<input name="certTitle" value="${c ? esc(c.certTitle || '') : ''}" placeholder="Certificate of Recertification Training" /></label>
+          <label>Certificate ID prefix<input name="certPrefix" value="${c ? esc(c.certPrefix || '') : ''}" placeholder="NCSRA" /></label>
+        </div>
+        <p class="form-hint">Set these to co-brand a course (its card, the “Congratulations” screen, and the certificate) for a partner like NCSRA. Leave blank for the default NCYSA branding.</p>
+      </fieldset>
       <label class="opt-row" style="flex-direction:row;align-items:center;gap:8px;font-weight:400">
         <input type="checkbox" name="publicVideoGate" ${c && c.publicVideoGate ? 'checked' : ''} style="flex:none" />
         No-login video page: viewers just watch the video, then get sent to the address above (for a test hosted elsewhere, e.g. Brainshark).
