@@ -486,7 +486,7 @@ function upsertProgress(db, userId, courseId, lessonId) {
 const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
-const DEFAULT_SCORM_MIN_SECONDS = 120; // default minimum time in a module before completion counts
+const DEFAULT_SCORM_MIN_SECONDS = 300; // default minimum time in a module before completion counts (5 min)
 
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This
@@ -620,6 +620,14 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
   rec.scorm = rec.scorm || { status: 'not attempted', location: '', suspendData: '', activeSeconds: 0 };
   if (typeof rec.scorm.activeSeconds !== 'number') rec.scorm.activeSeconds = 0;
+
+  // Reset an in-progress module (e.g. the learner was away from the tab too
+  // long). Never un-completes a module already finished.
+  if (b.reset && !rec.completed) {
+    rec.scorm = { status: 'incomplete', location: '', suspendData: '', activeSeconds: 0 };
+    save();
+    return res.json({ ok: true, reset: true, status: 'incomplete', activeSeconds: 0, required: lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS, remaining: null, reachedEnd: false, completed: false, courseCompleted: false, certId: null });
+  }
   // Accrue time spent in the module. The client sends small deltas on a heartbeat;
   // each is capped so accrued time can't be jumped ahead in a single forged call —
   // real time must actually pass (same anti-skip principle as the video gate).

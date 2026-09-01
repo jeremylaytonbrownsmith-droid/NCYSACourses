@@ -246,6 +246,7 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 /* ---------- completion / certificate ---------- */
 .complete-hero { text-align: center; padding: 46px 20px; }
 .complete-hero .big { font-size: 4rem; }
+.complete-logo { max-width: 150px; max-height: 92px; margin: 0 auto 14px; display: block; object-fit: contain; }
 .complete-hero h1 { font-size: 2rem; margin: 12px 0 8px; }
 .complete-hero p { color: var(--ink-soft); max-width: 560px; margin: 0 auto 8px; }
 .notice-sent {

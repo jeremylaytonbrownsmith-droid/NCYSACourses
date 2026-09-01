@@ -664,7 +664,8 @@ function renderScormLesson(pane, course, lesson, lp) {
   // Anti-skip time gate: a module only completes after the learner has spent a
   // minimum amount of real time in it (so clicking to the last slide doesn't
   // finish it instantly). Server enforces this; here we track time and show it.
-  const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 120));
+  const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 300));
+  const AWAY_LIMIT = 180; // seconds hidden (tab away) before this module resets
   let active = Math.max(0, Number(saved.activeSeconds) || 0);
   let done = false;
   let reachedEnd = saved.status === 'completed' || saved.status === 'passed';
@@ -716,6 +717,30 @@ function renderScormLesson(pane, course, lesson, lp) {
   function startBeat() { if (!beat) beat = setInterval(() => { if (!done && document.visibilityState === 'visible') sync(5); }, 5000); }
   function stopBeat() { if (beat) { clearInterval(beat); beat = null; } }
 
+  // Away-too-long reset: leaving the tab pauses the timer (above); leaving it for
+  // longer than AWAY_LIMIT wipes this module's progress so it must be redone.
+  let hiddenSince = 0;
+  function onVisibility() {
+    if (document.visibilityState === 'hidden') { hiddenSince = Date.now(); return; }
+    if (hiddenSince && !done && required > 0) {
+      const away = (Date.now() - hiddenSince) / 1000;
+      if (away >= AWAY_LIMIT) resetModule();
+    }
+    hiddenSince = 0;
+  }
+  function resetModule() {
+    active = 0; reachedEnd = false;
+    cmi['cmi.core.lesson_status'] = 'incomplete';
+    cmi['cmi.core.lesson_location'] = '';
+    cmi['cmi.suspend_data'] = '';
+    api(`/api/courses/${course.id}/lessons/${lesson.id}/scorm`, { method: 'POST', body: { reset: true } }).catch(() => {});
+    paintGate({ activeSeconds: 0, required });
+    const frame = document.getElementById('scormFrame');
+    if (frame) frame.src = frame.src; // reload → the module restarts from the beginning
+    toast('You were away too long — this module was reset. Please go through it again.', true);
+  }
+  document.addEventListener('visibilitychange', onVisibility);
+
   window.API = {
     LMSInitialize: function () { return 'true'; },
     LMSFinish: function () { sync(0); return 'true'; },
@@ -737,9 +762,11 @@ function renderScormLesson(pane, course, lesson, lp) {
   paintGate({ activeSeconds: active, required });
   startBeat();
 
-  // Remove the global and stop the heartbeat when the learner leaves the lesson.
+  // Remove the global, stop the heartbeat, and drop the visibility listener when
+  // the learner leaves the lesson.
   window.addEventListener('hashchange', function cleanup() {
     stopBeat();
+    document.removeEventListener('visibilitychange', onVisibility);
     try { delete window.API; } catch (e) { window.API = undefined; }
     window.removeEventListener('hashchange', cleanup);
   });
@@ -955,6 +982,7 @@ async function showCourseComplete(course, certId, score) {
   const redirect = /^https?:\/\//i.test(course.completionRedirectUrl || '') ? course.completionRedirectUrl : null;
   app.innerHTML = `
     <div class="complete-hero">
+      ${course.coLogoUrl ? `<img class="complete-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || course.title)}" />` : ''}
       <div class="big award">${ICON_CERT}</div>
       <h1>Congratulations!</h1>
       <p>You have completed <strong>${esc(course.title)}</strong>${score != null ? ` with a final exam score of <strong>${score}%</strong>` : ''}.</p>
@@ -1644,7 +1672,7 @@ async function viewCourseAdmin(flash) {
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
         <label>Minimum time on this module (minutes)
-          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 2}" />
+          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 5}" />
         </label>
         <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the minimum time above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. Add one lesson per module, in order.</p>`;
     }
