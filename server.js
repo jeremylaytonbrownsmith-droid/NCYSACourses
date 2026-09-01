@@ -987,6 +987,27 @@ app.delete('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   res.json({ ok: true });
 });
 
+// Change a course's URL slug (its id) in place — without deleting or
+// re-uploading anything. The uploaded packages live on disk by their own
+// packageId and are referenced inside the course's lessons, so they travel with
+// the course object untouched. Enrollments and lesson progress that key off the
+// old course id are remapped to the new one.
+app.post('/api/admin/courses/:courseId/slug', requireEditor, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  const newId = slugify(req.body && req.body.slug);
+  if (!newId) return res.status(400).json({ error: 'Enter a web address (letters, numbers, dashes).' });
+  const oldId = course.id;
+  if (newId === oldId) return res.json({ id: oldId, unchanged: true });
+  if (db.courses.some((c) => c.id === newId)) return res.status(409).json({ error: 'Another course already uses that web address — pick a different one.' });
+  course.id = newId;
+  for (const e of db.enrollments) if (e.courseId === oldId) e.courseId = newId;
+  for (const p of db.lessonProgress) if (p.courseId === oldId) p.courseId = newId;
+  save();
+  res.json({ id: newId, oldId });
+});
+
 app.post('/api/admin/courses/:courseId/lessons', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);

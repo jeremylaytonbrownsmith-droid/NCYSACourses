@@ -1445,6 +1445,7 @@ async function viewCourseAdmin(flash) {
               <div class="course-admin-actions">
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
+                <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                 ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
@@ -1486,6 +1487,19 @@ async function viewCourseAdmin(flash) {
     const c = list.find((x) => x.id === b.dataset.course);
     document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = courseForm(c);
     bindCourseForm(c);
+  }));
+  document.querySelectorAll('.change-url').forEach((b) => b.addEventListener('click', async () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const ans = prompt(
+      `Change the web address (URL) for "${c.title}".\n\n` +
+      `Type the new address using letters, numbers and dashes (no spaces). ` +
+      `The videos are NOT affected — nothing gets re-uploaded.\n\nCurrent: ${c.id}`,
+      c.id.replace(/-[a-z0-9]{4,8}$/, '')); // suggest the slug without the random suffix
+    if (ans == null) return;
+    try {
+      const r = await api(`/api/admin/courses/${c.id}/slug`, { method: 'POST', body: { slug: ans } });
+      viewCourseAdmin(`URL changed to /course/${r.id}`);
+    } catch (e) { msg(e.message, true); }
   }));
   document.querySelectorAll('.mod-minutes').forEach((b) => b.addEventListener('click', async () => {
     const c = list.find((x) => x.id === b.dataset.course);
