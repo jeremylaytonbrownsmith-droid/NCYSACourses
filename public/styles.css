@@ -39,22 +39,39 @@ a:hover { text-decoration: underline; }
 .topnav {
   position: sticky; top: 0; z-index: 20;
   background: #fff; border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: nowrap;
   padding: 0 24px; height: 64px;
 }
 .topnav .logo {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; min-width: 0;
   font-weight: 800; font-size: 1.15rem; color: var(--brand-dark);
   letter-spacing: -0.01em;
 }
+.topnav .logo > span { min-width: 0; }
 .topnav .logo .ball { font-size: 1.4rem; }
 .topnav .logo .sub {
   font-size: 0.68rem; font-weight: 600; color: var(--ink-soft);
-  display: block; letter-spacing: 0.06em; text-transform: uppercase;
+  display: block; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
 }
 .topnav .spacer { flex: 1; }
+/* Nav items never wrap their own text — when space is tight they hide (see the
+   responsive rules below) rather than breaking onto two lines. */
+.topnav .navlink, .topnav .btn, .topnav .greeting { white-space: nowrap; flex: none; }
 .topnav .navlink { font-weight: 600; color: var(--ink-soft); padding: 8px 10px; border-radius: 8px; }
 .topnav .navlink:hover { background: var(--bg); text-decoration: none; color: var(--ink); }
+
+/* Tablet / zoomed-in: drop the non-essential chrome so the bar stays on one
+   clean line instead of collapsing into stacked, wrapped text. */
+@media (max-width: 1080px) {
+  .topnav { gap: 10px; padding: 0 16px; }
+  .topnav .logo .sub { display: none; }
+  .topnav .greeting { display: none; }
+  .topnav .navlink { padding: 8px 7px; }
+}
+@media (max-width: 900px) {
+  .topnav .nav-help { display: none; }        /* Help is reachable in-app */
+  .topnav .nav-training { display: none; }     /* Staff Training reachable from the dashboard */
+}
 
 .bell { position: relative; cursor: pointer; font-size: 1.25rem; padding: 6px 10px; border-radius: 8px; background: none; border: none; }
 .bell:hover { background: var(--bg); }
@@ -218,9 +235,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 /* ---------- video player ---------- */
 .video-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .video-shell video { width: 100%; display: block; }
-.scorm-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.scorm-frame { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
-@media (max-width: 640px) { .scorm-frame { aspect-ratio: 4 / 3; } }
+.scorm-shell { background: #0b1020; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+/* Give the module a large stage: full pane width and a tall, viewport-sized
+   height so the slide is big and readable (the module keeps its own aspect
+   ratio inside). */
+.scorm-frame { width: 100%; height: clamp(440px, 72vh, 780px); border: 0; display: block; }
+/* Module lessons use a wider pane than reading lessons. */
+.lesson-pane.scorm-lesson { max-width: 1200px; }
+@media (max-width: 640px) {
+  .scorm-frame { height: min(64vh, 460px); }
+}
 .v-controls { display: flex; align-items: center; gap: 12px; background: #0d0a24; padding: 10px 14px; color: #e7eef5; }
 .v-controls button { background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .v-controls button:hover { background: rgba(255,255,255,0.12); }
@@ -442,7 +466,7 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
   .topnav .navlink, .topnav .btn { white-space: nowrap; }
   .topnav .navlink { padding: 6px 5px; font-size: 0.9rem; }
   .topnav .greeting { display: none; }            /* greeting is non-essential */
-  .topnav .nav-courses { display: none; }         /* Courses lives on the home page */
+  /* Coaches + Referees are the core navigation — keep them; drop the rest. */
   .topnav .nav-help { display: none; }            /* Help reachable in-app; saves room */
   .topnav .btn { padding: 8px 13px; font-size: 0.88rem; border-radius: 9px; }
   .topnav .bell { padding: 4px 6px; }

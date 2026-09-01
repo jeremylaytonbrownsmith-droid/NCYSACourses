@@ -573,6 +573,9 @@ async function viewCourse(courseId, lessonId) {
   );
 
   const pane = document.getElementById('lessonPane');
+  // Modules get a wider, taller stage; reading lessons stay a comfortable
+  // reading width.
+  pane.className = 'lesson-pane' + (lesson.type === 'scorm' ? ' scorm-lesson' : '');
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
   else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
