@@ -666,3 +666,7 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .portal-coaches { border-top: 4px solid var(--accent); }
 .portal-staff { border-top: 4px solid var(--gold); }
 .portal-hero-logo { max-height: 60px; width: auto; margin: 0 auto 4px; display: block; }
+
+/* Tip above a module: point learners to the module's collapse (☰) control */
+.scorm-tip { font-size: .9rem; color: var(--ink-soft); background: #fff7e0; border: 1px solid #f0e2b8;
+  border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }

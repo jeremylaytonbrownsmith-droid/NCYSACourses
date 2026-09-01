@@ -673,7 +673,8 @@ function renderScormLesson(pane, course, lesson, lp) {
     ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}
     ${missing
       ? `<div class="card notice-card"><h3>Module not uploaded yet</h3><p>This module has no course package attached. An administrator can upload it in the Course Designer.</p></div>`
-      : `<div class="scorm-shell"><iframe id="scormFrame" class="scorm-frame" title="${esc(lesson.title)}" src="${esc(launch)}" allow="fullscreen; autoplay" allowfullscreen></iframe></div>`}
+      : `<p class="scorm-tip">💡 Tip: click the <strong>☰ menu</strong> at the top-left of the module to hide its sidebar and give the slides &amp; videos the full width.</p>
+         <div class="scorm-shell"><iframe id="scormFrame" class="scorm-frame" title="${esc(lesson.title)}" src="${esc(launch)}" allow="fullscreen; autoplay" allowfullscreen></iframe></div>`}
     <div class="lesson-actions" id="scormActions">
       ${lp.completed
         ? `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`
