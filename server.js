@@ -1139,12 +1139,24 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
       if (refs.length >= 3) break;
     }
   }
+  // Does ANY player file (not the manifest inventory) show the player knows about
+  // video at all? Scan the non-manifest text files for video tokens.
+  const playerText = files
+    .filter((f) => /\.(html?|js|css|txt)$/i.test(f.path) && f.bytes < 3_000_000)
+    .map((f) => { try { return { path: f.path, txt: fs.readFileSync(path.join(base, f.path), 'utf8') }; } catch { return null; } })
+    .filter(Boolean);
+  const tokenHits = {};
+  for (const tok of ['.mp4', 'video', '<video', 'item-014']) {
+    tokenHits[tok] = playerText.filter((f) => f.txt.toLowerCase().includes(tok.toLowerCase())).map((f) => f.path);
+  }
   res.json({
     packageId: pkg,
     fileCount: files.length,
     totalBytes: files.reduce((n, f) => n + f.bytes, 0),
     videos,
     refs,
+    playerKnowsVideo: Object.values(tokenHits).some((arr) => arr.length > 0),
+    tokenHits,
     nonMedia: files.filter((f) => !/^media\//i.test(f.path)).map((f) => f.path).slice(0, 40),
     files: files.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
   });

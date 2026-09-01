@@ -1617,8 +1617,14 @@ async function viewCourseAdmin(flash) {
         ? d.refs.map((r) => `<em>${esc(r.file)}</em>:<br><code style="white-space:pre-wrap;word-break:break-all">${esc(r.snippet)}</code>`).join('<br>')
         : 'Not referenced by name in any text file.';
       const nonMedia = (d.nonMedia || []).join('<br>');
+      const verdict = d.playerKnowsVideo
+        ? '✅ The player DOES reference video — should be fixable on our side.'
+        : '⚠️ The player has NO reference to video anywhere — the module is an image slideshow and the video was never wired into a slide (export problem).';
+      const hits = d.tokenHits ? Object.entries(d.tokenHits).map(([k, v]) => `“${esc(k)}”: ${v.length ? esc(v.join(', ')) : 'not found'}`).join('<br>') : '';
       document.getElementById('storageMsg').innerHTML =
         `<div style="text-align:left"><strong>${esc(pkg)}</strong> — ${d.fileCount} files, ${fmtBytes(d.totalBytes)}<br><br>` +
+        `<u>Verdict:</u> ${verdict}<br><br>` +
+        `<u>Video tokens found in player files:</u><br>${hits}<br><br>` +
         `<u>Videos:</u><br>${vids}<br><br>` +
         `<u>How the video is referenced:</u><br>${refs}<br><br>` +
         `<u>Player files (non-media):</u><br>${nonMedia}</div>`;
