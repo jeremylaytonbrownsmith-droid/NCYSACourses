@@ -236,14 +236,14 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .video-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .video-shell video { width: 100%; display: block; }
 .scorm-shell { background: #0b1020; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-/* Give the module a large stage: full pane width and a tall, viewport-sized
-   height so the slide is big and readable (the module keeps its own aspect
-   ratio inside). */
-.scorm-frame { width: 100%; height: clamp(440px, 72vh, 780px); border: 0; display: block; }
+/* These modules are self-contained apps (their own header, sidebar and internal
+   scroll), so give them a big fixed stage that fills most of the window and let
+   the module manage its own scrolling inside. */
+.scorm-frame { width: 100%; height: 85vh; min-height: 600px; border: 0; display: block; }
 /* Module lessons use a wider pane than reading lessons. */
 .lesson-pane.scorm-lesson { max-width: 1200px; }
 @media (max-width: 640px) {
-  .scorm-frame { height: min(64vh, 460px); }
+  .scorm-frame { height: 80vh; min-height: 480px; }
 }
 .v-controls { display: flex; align-items: center; gap: 12px; background: #0d0a24; padding: 10px 14px; color: #e7eef5; }
 .v-controls button { background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
