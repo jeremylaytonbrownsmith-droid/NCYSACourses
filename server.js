@@ -50,6 +50,46 @@ function removeRetiredCourses() {
   if (db.courses.length !== before) save();
 }
 
+// One-time launch finalization for the NCSRA referee recertification course, so
+// the site is roll-out ready without manual clicks: (1) clean the URL slug (drop
+// "regional"), (2) remove the per-module time gate, (3) apply NCSRA certificate
+// branding. Guarded by a stored flag so it runs exactly once and never overrides
+// a later manual edit. If the course isn't in the store yet, it retries next boot.
+const REFEREE_FINALIZE_FLAG = 'referee-launch-finalize-v1';
+function finalizeRefereeCourse() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[REFEREE_FINALIZE_FLAG]) return;
+  const course = db.courses.find((c) => c.audience === 'referees' && /regional/i.test(c.id))
+    || db.courses.find((c) => c.audience === 'referees' && (c.lessons || []).some((l) => l.type === 'scorm'));
+  if (!course) return; // not uploaded yet — try again on the next boot (flag stays unset)
+
+  // 1) URL slug → ncsra-referee-recertification (packages are untouched; remap
+  //    enrollments/progress that key off the old id).
+  const desiredId = 'ncsra-referee-recertification';
+  if (course.id !== desiredId && !db.courses.some((c) => c.id === desiredId)) {
+    const oldId = course.id;
+    course.id = desiredId;
+    for (const e of db.enrollments) if (e.courseId === oldId) e.courseId = desiredId;
+    for (const p of db.lessonProgress) if (p.courseId === oldId) p.courseId = desiredId;
+  }
+  // 2) No time gate on any module.
+  for (const l of (course.lessons || [])) if (l.type === 'scorm') l.minSeconds = 0;
+  // 3) NCSRA certificate/branding — only fill blanks, never overwrite a manual value.
+  const brand = {
+    coBrandName: 'NCSRA Referee Education',
+    coLogoUrl: '/media/ncsra-logo.png',
+    certOrg: 'North Carolina Soccer Referee Association',
+    certTitle: 'Certificate of Recertification Training',
+    certPrefix: 'NCSRA',
+  };
+  for (const [k, v] of Object.entries(brand)) if (!course[k]) course[k] = v;
+
+  db.migrations[REFEREE_FINALIZE_FLAG] = new Date().toISOString();
+  save();
+  console.log('[finalize] referee course finalized as', course.id);
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -1245,7 +1285,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
