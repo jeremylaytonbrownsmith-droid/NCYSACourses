@@ -1613,12 +1613,15 @@ async function viewCourseAdmin(flash) {
       const vids = d.videos.length
         ? d.videos.map((v) => `${v.path} (${fmtBytes(v.bytes)})`).join('<br>')
         : '<strong>No video files (.mp4/.webm/.mov) inside this package.</strong>';
-      const top = d.files.slice(0, 12).map((f) => `${f.path} — ${fmtBytes(f.bytes)}`).join('<br>');
+      const refs = (d.refs && d.refs.length)
+        ? d.refs.map((r) => `<em>${esc(r.file)}</em>:<br><code style="white-space:pre-wrap;word-break:break-all">${esc(r.snippet)}</code>`).join('<br>')
+        : 'Not referenced by name in any text file.';
+      const nonMedia = (d.nonMedia || []).join('<br>');
       document.getElementById('storageMsg').innerHTML =
-        `<div style="text-align:left"><strong>${esc(pkg)}</strong> — ${d.fileCount} files, ${fmtBytes(d.totalBytes)}<br>` +
-        `<u>Videos:</u><br>${vids}<br>` +
-        `<u>Launch HTML references the video:</u> ${d.htmlRefsVideo === null ? 'n/a' : d.htmlRefsVideo ? 'yes' : 'NO — the player loads it another way'}<br>` +
-        `<u>Largest files:</u><br>${top}</div>`;
+        `<div style="text-align:left"><strong>${esc(pkg)}</strong> — ${d.fileCount} files, ${fmtBytes(d.totalBytes)}<br><br>` +
+        `<u>Videos:</u><br>${vids}<br><br>` +
+        `<u>How the video is referenced:</u><br>${refs}<br><br>` +
+        `<u>Player files (non-media):</u><br>${nonMedia}</div>`;
       document.getElementById('storageMsg').className = 'editor-msg ok';
     }));
   }

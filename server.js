@@ -1124,19 +1124,28 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
     }
   })(base, '');
   const videos = files.filter((f) => /\.(mp4|m4v|webm|mov|ogg)$/i.test(f.path));
-  // Sample the referencing of the first video inside any HTML file.
-  let htmlRefsVideo = null;
-  const htmls = files.filter((f) => /\.html?$/i.test(f.path));
-  if (videos.length && htmls.length) {
+  // Find which text file(s) reference the first video by its basename, and grab a
+  // snippet around the reference — this reveals HOW the player loads the video.
+  const refs = [];
+  if (videos.length) {
     const vname = videos[0].path.split('/').pop();
-    htmlRefsVideo = htmls.some((h) => { try { return fs.readFileSync(path.join(base, h.path), 'utf8').includes(vname); } catch { return false; } });
+    const textFiles = files.filter((f) => /\.(html?|js|json|xml|css|txt)$/i.test(f.path) && f.bytes < 3_000_000);
+    for (const t of textFiles) {
+      try {
+        const txt = fs.readFileSync(path.join(base, t.path), 'utf8');
+        const i = txt.indexOf(vname);
+        if (i >= 0) refs.push({ file: t.path, snippet: txt.slice(Math.max(0, i - 80), i + vname.length + 80) });
+      } catch { /* ignore */ }
+      if (refs.length >= 3) break;
+    }
   }
   res.json({
     packageId: pkg,
     fileCount: files.length,
     totalBytes: files.reduce((n, f) => n + f.bytes, 0),
     videos,
-    htmlRefsVideo,
+    refs,
+    nonMedia: files.filter((f) => !/^media\//i.test(f.path)).map((f) => f.path).slice(0, 40),
     files: files.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
   });
 });
