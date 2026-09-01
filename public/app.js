@@ -16,6 +16,9 @@ window.logoNext = (img) => {
 function logoImg(cls) {
   return `<img class="${cls}" src="${LOGO_SOURCES[0]}" data-idx="0" onerror="logoNext(this)" alt="NC Youth Soccer logo" />`;
 }
+// Default NCSRA (referee) brand mark — the bundled badge. A referee course's own
+// coLogoUrl overrides it. Referee areas never fall back to the NCYSA logo.
+const NCSRA_LOGO = '/media/ncsra-logo.svg';
 
 // Professional inline SVG role icons (crisp, theme-agnostic on their navy badge).
 const ICON_COACH = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
@@ -146,8 +149,9 @@ async function viewHome() {
   let courses = [];
   try { courses = (await api('/api/courses')).courses; } catch { /* logged-out is fine */ }
   const resume = me?.user ? courses.find((c) => c.enrolled && !c.completedAt) : null;
-  const refBrand = (await brandMap());
-  const refLogo = Object.values(refBrand).find((b) => b.audience === 'referees')?.logo || '';
+  // Referee areas are NCSRA-branded — use a referee course's own logo if set,
+  // otherwise the bundled NCSRA badge. Never the NCYSA logo.
+  const refLogo = courses.find((c) => c.audience === 'referees' && c.coLogoUrl)?.coLogoUrl || NCSRA_LOGO;
   app.innerHTML = `
     ${resume ? `
     <section class="resume-strip">
@@ -170,15 +174,13 @@ async function viewHome() {
     <section class="section">
       <div class="portal-split">
         <a class="portal-card portal-coaches" href="#/coaches">
-          <div class="portal-badge">${logoImg('portal-logo')}</div>
-          <div class="role-icon big">${ICON_COACH}</div>
+          <div class="portal-badge portal-badge-coach">${logoImg('portal-logo')}</div>
           <h2>Coaches Portal</h2>
           <p>Grassroots licenses and coaching development from NCYSA.</p>
           <span class="btn btn-accent btn-lg">Enter Coaches Portal →</span>
         </a>
         <a class="portal-card portal-referees" href="#/referees">
-          <div class="portal-badge">${refLogo ? `<img src="${esc(refLogo)}" alt="NCSRA" />` : logoImg('portal-logo')}</div>
-          <div class="role-icon big">${ICON_REFEREE}</div>
+          <div class="portal-badge portal-badge-ref"><img src="${esc(refLogo)}" alt="NCSRA" /></div>
           <h2>Referees Portal</h2>
           <p>NCSRA certification and recertification for match officials.</p>
           <span class="btn btn-accent btn-lg">Enter Referees Portal →</span>
@@ -213,7 +215,10 @@ function courseCard(c) {
        </div>`;
   return `
     <div class="course-card${comingSoon ? ' is-coming-soon' : ''}">
-      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${c.coLogoUrl ? `<img class="thumb-logo" src="${esc(c.coLogoUrl)}" alt="${esc(c.coBrandName || '')}" />` : logoImg('thumb-logo')}</div>
+      <div class="thumb"><span class="badge">${esc(c.badge)}</span>${
+        c.coLogoUrl ? `<img class="thumb-logo" src="${esc(c.coLogoUrl)}" alt="${esc(c.coBrandName || '')}" />`
+        : c.audience === 'referees' ? `<img class="thumb-logo" src="${NCSRA_LOGO}" alt="NCSRA" />`
+        : logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
         <div class="meta">${comingSoon ? 'Coming soon' : `${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included`}</div>
@@ -375,9 +380,10 @@ async function viewReferees() {
   let refCourses = [];
   try { refCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'referees'); } catch { /* ignore */ }
   const brand = activeBrand; // set by the router for #/referees
-  const hero = brand && brand.logo
-    ? `<img class="referee-portal-logo" src="${esc(brand.logo)}" alt="${esc(brand.name)}" />`
-    : `<div class="role-icon big">${ICON_REFEREE}</div>`;
+  // NCSRA branding: a referee course's own logo if set, otherwise the bundled
+  // NCSRA badge — never the NCYSA logo.
+  const heroLogo = (brand && brand.logo) || refCourses.find((c) => c.coLogoUrl)?.coLogoUrl || NCSRA_LOGO;
+  const hero = `<img class="referee-portal-logo" src="${esc(heroLogo)}" alt="NCSRA" />`;
   app.innerHTML = `
     <section class="section">
       <a class="back-link" href="#/">← Back to home</a>
@@ -2117,11 +2123,18 @@ async function brandMap() {
 }
 // The brand for a given route: a co-branded course being viewed, or the referee
 // portal page (which adopts the referee course's brand), or null (plain NCYSA).
+const NCSRA_BRAND = { name: 'NCSRA', logo: NCSRA_LOGO, audience: 'referees' };
 async function brandForHash(hash) {
   const map = await brandMap();
   let m = hash.match(/^#\/course\/([\w-]+)/);
-  if (m && map[m[1]]) return map[m[1]];
-  if (/^#\/referees$/.test(hash)) return Object.values(map).find((b) => b.audience === 'referees') || null;
+  if (m) {
+    if (map[m[1]]) return map[m[1]];
+    // A referee course with no explicit co-brand still shows NCSRA, not NCYSA.
+    const c = (await publicCourses()).find((x) => x.id === m[1]);
+    if (c && c.audience === 'referees') return { ...NCSRA_BRAND, logo: c.coLogoUrl || NCSRA_LOGO };
+    return null;
+  }
+  if (/^#\/referees$/.test(hash)) return Object.values(map).find((b) => b.audience === 'referees') || NCSRA_BRAND;
   return null;
 }
 async function applyBrandForHash(hash) {

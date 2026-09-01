@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="NCSRA">
+  <defs>
+    <linearGradient id="ncsra-navy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a0b6e"/>
+      <stop offset="1" stop-color="#0a0340"/>
+    </linearGradient>
+  </defs>
+  <!-- crest -->
+  <path d="M60 6 L106 20 V60 C106 88 86 106 60 116 C34 106 14 88 14 60 V20 Z"
+        fill="url(#ncsra-navy)" stroke="#edc32c" stroke-width="3"/>
+  <!-- referee cards motif -->
+  <g transform="translate(60 44) rotate(-8)">
+    <rect x="-16" y="-16" width="20" height="28" rx="3" fill="#edc32c"/>
+    <rect x="-4" y="-13" width="20" height="28" rx="3" fill="#b82f2f" transform="rotate(12)"/>
+  </g>
+  <text x="60" y="86" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-size="22" font-weight="800" fill="#ffffff" letter-spacing="1">NCSRA</text>
+  <text x="60" y="100" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-size="7.5" font-weight="700" fill="#c9c3e8" letter-spacing="0.5">REFEREE EDUCATION</text>
+</svg>
