@@ -1399,6 +1399,7 @@ async function viewCourseAdmin(flash) {
               <div class="course-admin-actions">
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
+                ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
               </div>
@@ -1439,6 +1440,24 @@ async function viewCourseAdmin(flash) {
     const c = list.find((x) => x.id === b.dataset.course);
     document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = courseForm(c);
     bindCourseForm(c);
+  }));
+  document.querySelectorAll('.mod-minutes').forEach((b) => b.addEventListener('click', async () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const scorm = c.lessons.filter((l) => l.type === 'scorm');
+    const cur = scorm[0] && scorm[0].minSeconds != null ? (scorm[0].minSeconds / 60) : 2;
+    const ans = prompt(`Minimum minutes a learner must spend in EACH of the ${scorm.length} module(s) before it can complete.\n\n(0 = no time limit. This applies to every module in "${c.title}".)`, String(cur));
+    if (ans == null) return;
+    const mins = Math.max(0, Number(ans));
+    if (Number.isNaN(mins)) { msg('Enter a number of minutes.', true); return; }
+    b.disabled = true; b.textContent = 'Saving…';
+    let ok = 0;
+    for (const l of scorm) {
+      try {
+        await api(`/api/admin/courses/${c.id}/lessons/${l.id}`, { method: 'PUT', body: { type: 'scorm', title: l.title, html: l.html || '', packageId: l.packageId, launchFile: l.launchFile || 'index.html', minMinutes: mins } });
+        ok++;
+      } catch { /* keep going */ }
+    }
+    viewCourseAdmin(`Set ${mins} minute(s) minimum on ${ok} of ${scorm.length} module(s).`);
   }));
   document.querySelectorAll('.add-lesson').forEach((b) => b.addEventListener('click', () => {
     document.querySelector(`.panel-slot[data-course="${b.dataset.course}"]`).innerHTML = lessonForm(b.dataset.course, null);
@@ -1557,7 +1576,8 @@ async function viewCourseAdmin(flash) {
     catch (e) { body.innerHTML = `<p class="editor-msg err">Couldn't read storage: ${esc(e.message)}</p>`; return; }
     const rows = d.packages.map((p) => `
       <li class="${p.referenced ? '' : 'orphan'}">
-        <span>${p.referenced ? '✅ in use' : '🗑️ unused'} — <code>${esc(p.packageId)}</code></span>
+        <span>${p.referenced ? '✅ in use' : '🗑️ unused'} — <code>${esc(p.packageId)}</code>
+          <a class="peek-pkg" href="#" data-pkg="${esc(p.packageId)}" style="margin-left:8px;font-size:.8rem">peek inside</a></span>
         <span class="meta">${fmtBytes(p.bytes)}</span>
       </li>`).join('') || '<li class="empty">No module packages on disk.</li>';
     body.innerHTML = `
@@ -1584,6 +1604,23 @@ async function viewCourseAdmin(flash) {
       sMsg(`Wiped ${r.removed} folder(s), freed ${fmtBytes(r.freedBytes)}. You can now re-upload.`);
       loadStorage();
     });
+    document.querySelectorAll('.peek-pkg').forEach((a) => a.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const pkg = a.dataset.pkg;
+      let d;
+      try { d = await api(`/api/admin/scorm/${pkg}/files`); }
+      catch (err) { sMsg('Could not read package: ' + err.message, true); return; }
+      const vids = d.videos.length
+        ? d.videos.map((v) => `${v.path} (${fmtBytes(v.bytes)})`).join('<br>')
+        : '<strong>No video files (.mp4/.webm/.mov) inside this package.</strong>';
+      const top = d.files.slice(0, 12).map((f) => `${f.path} — ${fmtBytes(f.bytes)}`).join('<br>');
+      document.getElementById('storageMsg').innerHTML =
+        `<div style="text-align:left"><strong>${esc(pkg)}</strong> — ${d.fileCount} files, ${fmtBytes(d.totalBytes)}<br>` +
+        `<u>Videos:</u><br>${vids}<br>` +
+        `<u>Launch HTML references the video:</u> ${d.htmlRefsVideo === null ? 'n/a' : d.htmlRefsVideo ? 'yes' : 'NO — the player loads it another way'}<br>` +
+        `<u>Largest files:</u><br>${top}</div>`;
+      document.getElementById('storageMsg').className = 'editor-msg ok';
+    }));
   }
   function bulkScormPanel() {
     return `<form class="editor-form" id="bulkForm">
@@ -1739,7 +1776,7 @@ async function viewCourseAdmin(flash) {
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
         <label>Minimum time on this module (minutes)
-          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 5}" />
+          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 2}" />
         </label>
         <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the minimum time above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. Add one lesson per module, in order.</p>`;
     }

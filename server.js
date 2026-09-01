@@ -547,7 +547,7 @@ function upsertProgress(db, userId, courseId, lessonId) {
 const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
-const DEFAULT_SCORM_MIN_SECONDS = 300; // default minimum time in a module before completion counts (5 min)
+const DEFAULT_SCORM_MIN_SECONDS = 120; // default minimum time in a module before completion counts (2 min)
 
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This
@@ -1105,6 +1105,39 @@ app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
     orphanCount: packages.filter((p) => !p.referenced).length,
     freeBytes, totalBytes,
     packages,
+  });
+});
+// Peek inside one uploaded package: the file tree with sizes, plus which files
+// look like video and whether the launch HTML references them. Diagnostic for
+// "the slides show but the video won't play".
+app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
+  const files = [];
+  (function walk(dir, rel) {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name), r = rel ? rel + '/' + name : name;
+      const st = fs.statSync(full);
+      if (st.isDirectory()) walk(full, r);
+      else files.push({ path: r, bytes: st.size });
+    }
+  })(base, '');
+  const videos = files.filter((f) => /\.(mp4|m4v|webm|mov|ogg)$/i.test(f.path));
+  // Sample the referencing of the first video inside any HTML file.
+  let htmlRefsVideo = null;
+  const htmls = files.filter((f) => /\.html?$/i.test(f.path));
+  if (videos.length && htmls.length) {
+    const vname = videos[0].path.split('/').pop();
+    htmlRefsVideo = htmls.some((h) => { try { return fs.readFileSync(path.join(base, h.path), 'utf8').includes(vname); } catch { return false; } });
+  }
+  res.json({
+    packageId: pkg,
+    fileCount: files.length,
+    totalBytes: files.reduce((n, f) => n + f.bytes, 0),
+    videos,
+    htmlRefsVideo,
+    files: files.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
   });
 });
 app.post('/api/admin/scorm/cleanup', requireEditor, (req, res) => {
