@@ -1636,22 +1636,42 @@ async function viewCourseAdmin(flash) {
     catch (e) { body.innerHTML = `<p class="editor-msg err">Couldn't read storage: ${esc(e.message)}</p>`; return; }
     const rows = d.packages.map((p) => `
       <li class="${p.referenced ? '' : 'orphan'}">
-        <span>${p.referenced ? '✅ in use' : '🗑️ unused'} — <code>${esc(p.packageId)}</code>
+        <span>${p.referenced ? '✅ in use' : '🗑️ unused'}${p.cdn ? ' · ☁️ CDN' : ''} — <code>${esc(p.packageId)}</code>
           <a class="peek-pkg" href="#" data-pkg="${esc(p.packageId)}" style="margin-left:8px;font-size:.8rem">peek inside</a></span>
         <span class="meta">${fmtBytes(p.bytes)}</span>
       </li>`).join('') || '<li class="empty">No module packages on disk.</li>';
+    const cdnBlock = d.bunny
+      ? `<div class="cdn-box ok">
+           <strong>☁️ Bunny CDN is connected.</strong>
+           ${d.cdnPending ? `<p>${d.cdnPending} module(s) still stream their video from this server. Move them to the CDN so big launches don't overload it — no re-upload needed.</p>
+             <button class="btn btn-accent" id="migrateCdn">Move videos to CDN (${d.cdnPending})</button>`
+             : `<p>All modules with video are already served from the CDN. ✅</p>`}
+         </div>`
+      : `<div class="cdn-box">
+           <strong>☁️ Bunny CDN — not connected yet.</strong>
+           <p>For a large launch, set the four <code>BUNNY_*</code> variables in Render (Claude will walk you through it), then this button appears to move your existing videos to the CDN — no re-upload.</p>
+         </div>`;
     body.innerHTML = `
       <div class="storage-stats">
         <div><span class="meta">Used by modules</span><strong>${fmtBytes(d.usedByPackages)}</strong></div>
         <div><span class="meta">Free on disk</span><strong>${fmtBytes(d.freeBytes)}${d.totalBytes ? ' / ' + fmtBytes(d.totalBytes) : ''}</strong></div>
         <div><span class="meta">Unused (reclaimable)</span><strong>${fmtBytes(d.orphanBytes)} · ${d.orphanCount} folder${d.orphanCount === 1 ? '' : 's'}</strong></div>
       </div>
+      ${cdnBlock}
       <ol class="bulk-list storage-list">${rows}</ol>
       <div class="form-actions">
         <button class="btn btn-accent" id="cleanOrphans" ${d.orphanCount ? '' : 'disabled'}>Remove unused files (${fmtBytes(d.orphanBytes)})</button>
         <button class="btn btn-ghost danger" id="cleanAll">Wipe ALL module files</button>
       </div>
       <div id="storageMsg" class="editor-msg"></div>`;
+    document.getElementById('migrateCdn')?.addEventListener('click', async (ev) => {
+      ev.target.disabled = true; ev.target.textContent = 'Moving videos to CDN… (may take a minute)';
+      try {
+        const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST' });
+        sMsg(`Moved ${r.migrated} module(s) · ${r.videos} video(s) to the CDN${r.errors ? ` · ${r.errors} error(s)` : ''}.`);
+      } catch (e) { sMsg('Migration failed: ' + e.message, true); }
+      loadStorage();
+    });
     const sMsg = (t, err) => { const e = document.getElementById('storageMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
     document.getElementById('cleanOrphans').addEventListener('click', async () => {
       const r = await api('/api/admin/scorm/cleanup', { method: 'POST', body: { mode: 'orphans' } });

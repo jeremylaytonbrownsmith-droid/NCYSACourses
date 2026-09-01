@@ -1183,6 +1183,7 @@ function listScormPackages() {
     packageId: name,
     bytes: dirSizeBytes(path.join(SCORM_DIR, name)),
     referenced: referenced.has(name),
+    cdn: fs.existsSync(path.join(SCORM_DIR, name, '.cdn')), // videos already offloaded to Bunny
   })).sort((a, b) => b.bytes - a.bytes);
 }
 app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
@@ -1195,7 +1196,32 @@ app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
     orphanBytes: packages.filter((p) => !p.referenced).reduce((n, p) => n + p.bytes, 0),
     orphanCount: packages.filter((p) => !p.referenced).length,
     freeBytes, totalBytes,
+    bunny: bunnyEnabled(), // are all four BUNNY_* env vars set?
+    cdnPending: packages.filter((p) => !p.cdn).length,
     packages,
+  });
+});
+// Move the videos in already-uploaded packages to the Bunny CDN — so existing
+// modules get CDN offload without re-uploading. Only runs when Bunny is fully
+// configured; skips packages already on the CDN.
+app.post('/api/admin/scorm/migrate-cdn', requireEditor, async (req, res) => {
+  if (!bunnyEnabled()) return res.status(400).json({ error: 'Bunny CDN is not configured yet — set the four BUNNY_* variables in Render, then try again.' });
+  let names = [];
+  try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); } catch { /* none */ }
+  const results = [];
+  for (const pkg of names) {
+    const dest = path.resolve(SCORM_DIR, pkg);
+    if (fs.existsSync(path.join(dest, '.cdn'))) { results.push({ pkg, status: 'already-cdn' }); continue; }
+    try {
+      const r = await offloadVideosToBunny(pkg, dest);
+      results.push({ pkg, status: r.cdn ? 'migrated' : (r.error ? 'error' : 'no-video'), videos: r.count || 0, error: r.error });
+    } catch (e) { results.push({ pkg, status: 'error', error: e.message }); }
+  }
+  res.json({
+    migrated: results.filter((r) => r.status === 'migrated').length,
+    videos: results.reduce((n, r) => n + (r.videos || 0), 0),
+    errors: results.filter((r) => r.status === 'error').length,
+    results,
   });
 });
 // Peek inside one uploaded package: the file tree with sizes, plus which files
