@@ -172,6 +172,8 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 
 /* ---------- course player ---------- */
 .player-layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 64px); }
+/* Module lessons: slim our course-nav sidebar so the module app gets more width. */
+.player-layout.player-wide { grid-template-columns: 232px 1fr; }
 /* When the player stacks (tablet portrait + phone), show the lesson content
    first and the curriculum below it — never make the learner scroll past the
    whole lesson list to reach the lesson. */
