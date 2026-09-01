@@ -102,7 +102,8 @@ function renderNav() {
       <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
     </a>
     <span class="spacer"></span>
-    <a class="navlink nav-courses" href="#/courses">Courses</a>
+    <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
+    <a class="navlink nav-referees" href="#/referees">Referees</a>
     <a class="navlink nav-help" href="#/help">Help</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
@@ -134,11 +135,19 @@ const isCoachCourse = (c) => !c.audience || c.audience === 'everyone' || c.audie
 const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone';
 
 // Where each role lands after signing in.
-const roleHome = (role) => role === 'admin' ? '#/admin' : role === 'editor' ? '#/admin/courses' : '#/courses';
+const roleHome = (role) => role === 'admin' ? '#/admin' : role === 'editor' ? '#/admin/courses' : '#/';
+// Which portal a course belongs to — so "back" links land in the right place.
+const coursePortalHash = (c) => (c && c.audience === 'referees') ? '#/referees' : '#/coaches';
 
+// The landing page is a clean chooser: two separate portals under one app —
+// Coaches (NCYSA) and Referees (NCSRA). Each is its own front door; neither
+// shows the other's courses.
 async function viewHome() {
-  const { courses } = await api('/api/courses');
+  let courses = [];
+  try { courses = (await api('/api/courses')).courses; } catch { /* logged-out is fine */ }
   const resume = me?.user ? courses.find((c) => c.enrolled && !c.completedAt) : null;
+  const refBrand = (await brandMap());
+  const refLogo = Object.values(refBrand).find((b) => b.audience === 'referees')?.logo || '';
   app.innerHTML = `
     ${resume ? `
     <section class="resume-strip">
@@ -152,55 +161,31 @@ async function viewHome() {
         <a class="btn btn-accent btn-lg resume-btn" href="#/course/${resume.id}">Resume where you left off →</a>
       </div>
     </section>` : ''}
-    <section class="hero">
+    <section class="hero home-hero">
       ${logoImg('hero-logo')}
-      <h1>Coaching education, built by NCYSA for North Carolina soccer.</h1>
-      <p>Take your required licenses and professional development courses online —
-         self-paced, with your progress tracked automatically by NCYSA.</p>
-      <div class="cta-row">
-        ${me?.user
-          ? `<a class="btn btn-accent btn-lg" href="#/courses">Browse courses</a>`
-          : `<a class="btn btn-accent btn-lg" href="#/register">Create free account</a>
-             <a class="btn btn-ghost btn-lg" href="#/login">Sign in</a>`}
-      </div>
+      <h1>NCYSA Learn</h1>
+      <p>Online education and training for North Carolina soccer — self-paced, with
+         your progress and certificates tracked automatically. Choose your path to get started.</p>
     </section>
-    <div class="feature-strip">
-      <div class="feature"><div class="fi">${ICON_LESSONS}</div><h3>Self-paced lessons</h3><p>Reading, video, and exams that unlock in order — no skipping ahead.</p></div>
-      <div class="feature"><div class="fi">${ICON_VIDEO}</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so completed licenses reflect genuine training.</p></div>
-      <div class="feature"><div class="fi">${ICON_CERT}</div><h3>Instant certificates</h3><p>Finish a course and your certificate is issued on the spot.</p></div>
-      <div class="feature"><div class="fi">${ICON_NOTIFY}</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
-    </div>
     <section class="section">
-      <h2>Which brings you here?</h2>
-      <p class="lead">NCYSA education for every role in the game — choose your path.</p>
-      <div class="role-split">
-        <a class="role-card" href="#/courses">
-          <div class="role-icon">${ICON_COACH}</div>
-          <h3>Coaches go here</h3>
-          <p>Grassroots licenses and coaching development — including the course below.</p>
-          <span class="role-go">View coach courses →</span>
+      <div class="portal-split">
+        <a class="portal-card portal-coaches" href="#/coaches">
+          <div class="portal-badge">${logoImg('portal-logo')}</div>
+          <div class="role-icon big">${ICON_COACH}</div>
+          <h2>Coaches Portal</h2>
+          <p>Grassroots licenses and coaching development from NCYSA.</p>
+          <span class="btn btn-accent btn-lg">Enter Coaches Portal →</span>
         </a>
-        <a class="role-card" href="#/referees">
-          <div class="role-icon">${ICON_REFEREE}</div>
-          <h3>Referees go here</h3>
-          <p>Certification and Laws of the Game training for match officials.</p>
-          <span class="role-go">View referee courses →</span>
+        <a class="portal-card portal-referees" href="#/referees">
+          <div class="portal-badge">${refLogo ? `<img src="${esc(refLogo)}" alt="NCSRA" />` : logoImg('portal-logo')}</div>
+          <div class="role-icon big">${ICON_REFEREE}</div>
+          <h2>Referees Portal</h2>
+          <p>NCSRA certification and recertification for match officials.</p>
+          <span class="btn btn-accent btn-lg">Enter Referees Portal →</span>
         </a>
       </div>
     </section>
-    <section class="section" id="coach-courses">
-      <h2>Coach courses</h2>
-      <p class="lead">Official NCYSA coaching education courses.</p>
-      <div class="course-grid">${courses.filter(isCoachCourse).map(courseCard).join('')}</div>
-    </section>
-    ${courses.some((c) => c.audience === 'referees') ? `
-    <section class="section" id="referee-courses">
-      <h2>Referee courses</h2>
-      <p class="lead">Certification and recertification for North Carolina soccer referees.</p>
-      <div class="course-grid">${courses.filter((c) => c.audience === 'referees').map(courseCard).join('')}</div>
-    </section>` : ''}
     <footer class="footer">© ${new Date().getFullYear()} North Carolina Youth Soccer Association · NCYSA Learn</footer>`;
-  bindCourseCards();
 }
 
 function courseCard(c) {
@@ -248,18 +233,28 @@ function bindCourseCards() {
   );
 }
 
-async function viewCatalog() {
+// The Coaches Portal — NCYSA-branded, coach courses only (no referee content).
+async function viewCoaches() {
   const { courses } = await api('/api/courses');
   const coach = courses.filter(isCoachCourse);
-  const referee = courses.filter((c) => c.audience === 'referees');
   app.innerHTML = `
     <section class="section">
-      <h2>Course catalog</h2>
-      <p class="lead">Official NCYSA courses. Enroll free with your NCYSA Learn account.</p>
-      ${coach.length ? `<h3 class="catalog-group">Coach courses</h3>
-        <div class="course-grid">${coach.map(courseCard).join('')}</div>` : ''}
-      ${referee.length ? `<h3 class="catalog-group">Referee courses</h3>
-        <div class="course-grid">${referee.map(courseCard).join('')}</div>` : ''}
+      <a class="back-link" href="#/">← All portals</a>
+      <div class="role-hero">
+        ${logoImg('portal-hero-logo')}
+        <h2>NCYSA Coaches Portal</h2>
+        <p class="lead">Grassroots licenses and coaching education for North Carolina soccer coaches.</p>
+      </div>
+      <div class="feature-strip">
+        <div class="feature"><div class="fi">${ICON_LESSONS}</div><h3>Self-paced lessons</h3><p>Reading, video, and exams that unlock in order — no skipping ahead.</p></div>
+        <div class="feature"><div class="fi">${ICON_VIDEO}</div><h3>Verified video watching</h3><p>Video lessons track real watch time, so completed licenses reflect genuine training.</p></div>
+        <div class="feature"><div class="fi">${ICON_CERT}</div><h3>Instant certificates</h3><p>Finish a course and your certificate is issued on the spot.</p></div>
+        <div class="feature"><div class="fi">${ICON_NOTIFY}</div><h3>NCYSA notified automatically</h3><p>Completions are reported to NCYSA and emailed to you instantly.</p></div>
+      </div>
+      ${coach.length
+        ? `<div class="course-grid">${coach.map(courseCard).join('')}</div>`
+        : `<div class="card notice-card"><h3>Coach courses are coming soon</h3>
+             <p>Coaching education is on the way. <a href="#/register">Create a free account</a> and we'll have your profile ready.</p></div>`}
     </section>`;
   bindCourseCards();
 }
@@ -371,7 +366,7 @@ function viewRegister() {
       await api('/api/register', { method: 'POST', body: v });
       await refreshMe();
       const dest = afterAuthHash; afterAuthHash = null;
-      location.hash = dest || '#/courses';
+      location.hash = dest || '#/';
     },
   });
 }
@@ -994,9 +989,9 @@ async function showCourseComplete(course, certId, score) {
         <a class="btn btn-primary btn-lg" href="#/cert/${certId}">View your certificate</a>
         ${redirect
           ? `<a class="btn btn-accent btn-lg" href="${esc(redirect)}" style="margin-left:10px">Continue →</a>`
-          : `<a class="btn btn-ghost btn-lg" href="#/courses" style="margin-left:10px">Back to courses</a>`}
+          : `<a class="btn btn-ghost btn-lg" href="${coursePortalHash(course)}" style="margin-left:10px">Back to courses</a>`}
       </p>
-      ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back to NCSRA in <span id="rdCount">10</span> seconds… <a href="#/courses" id="rdStay">stay here</a></p>` : ''}
+      ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back to NCSRA in <span id="rdCount">10</span> seconds… <a href="${coursePortalHash(course)}" id="rdStay">stay here</a></p>` : ''}
     </div>`;
   if (redirect) {
     let n = 10, cancelled = false;
@@ -1033,7 +1028,7 @@ async function viewCertificate(certId) {
     <p style="text-align:center; margin-bottom:48px">
       <button class="btn btn-primary" id="dlPdfBtn">⬇ Download PDF</button>
       <button class="btn btn-ghost" id="printBtn" style="margin-left:10px">Print</button>
-      <a class="btn btn-ghost" href="#/courses" style="margin-left:10px">Back to courses</a>
+      <a class="btn btn-ghost" href="#/" style="margin-left:10px">Back to portals</a>
     </p>`;
   document.getElementById('printBtn').addEventListener('click', () => window.print());
   document.getElementById('dlPdfBtn').addEventListener('click', () => downloadCertificatePdf(c, date));
@@ -2071,7 +2066,8 @@ function viewHelp() {
 
 const routes = [
   { re: /^#?\/?$/, fn: viewHome },
-  { re: /^#\/courses$/, fn: viewCatalog },
+  { re: /^#\/coaches$/, fn: viewCoaches },
+  { re: /^#\/courses$/, fn: viewCoaches }, // legacy alias → Coaches Portal
   { re: /^#\/referees$/, fn: viewReferees },
   { re: /^#\/login$/, fn: viewLogin },
   { re: /^#\/staff$/, fn: viewStaffLogin },

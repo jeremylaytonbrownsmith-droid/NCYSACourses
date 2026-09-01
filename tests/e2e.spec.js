@@ -10,18 +10,17 @@ const COURSE = 'grassroots-coaching-license';
 test.describe.configure({ mode: 'serial' });
 
 test('full learner journey through the coaching license course', async ({ page }) => {
-  // --- 1. Landing page ------------------------------------------------------
+  // --- 1. Landing page: the portal chooser ----------------------------------
   await page.goto('/');
-  await expect(page.locator('.hero h1')).toContainText('Coaching education');
-  await expect(page.locator('.course-card h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
+  await expect(page.locator('.portal-card', { hasText: 'Coaches Portal' })).toBeVisible();
+  await expect(page.locator('.portal-card', { hasText: 'Referees Portal' })).toBeVisible();
   await page.screenshot({ path: `${SNAP}/01-landing.png`, fullPage: true });
 
   // --- 1b. Coach/Referee split: referee path leads to the NCSRA portal ------
-  await expect(page.locator('.role-card', { hasText: 'Coaches go here' })).toBeVisible();
-  await page.locator('.role-card', { hasText: 'Referees go here' }).click();
+  await page.locator('.portal-card', { hasText: 'Referees Portal' }).click();
   await expect(page.locator('.role-hero h2')).toContainText('NCSRA Referee Education');
   await page.click('.back-link');
-  await expect(page.locator('.hero h1')).toBeVisible();
+  await expect(page.locator('.portal-card', { hasText: 'Coaches Portal' })).toBeVisible();
 
   // --- 2. Register (passwordless: name + email only) ------------------------
   await page.click('.topnav a:has-text("Get started")');
@@ -33,7 +32,9 @@ test('full learner journey through the coaching license course', async ({ page }
   await page.click('button:has-text("Create account")');
   await expect(page.locator('.topnav')).toContainText('Hi, Jordan');
 
-  // --- 3. Enroll ------------------------------------------------------------
+  // --- 3. Enroll (via the Coaches Portal) -----------------------------------
+  await page.goto('/#/coaches');
+  await expect(page.locator('.course-card h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
   await page.click('.enroll-btn');
   await expect(page.locator('.curriculum')).toContainText('NCYSA Grassroots Soccer Coaching License');
   await expect(page.locator('.lesson-pane h1')).toContainText('Welcome');
