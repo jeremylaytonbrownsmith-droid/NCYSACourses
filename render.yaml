@@ -63,6 +63,8 @@ services:
         value: DA@ncsoccer.org
       - key: EDITOR_PASSWORD
         sync: false # Colin's course-designer password — a value you choose
+      - key: STAFF_ACCESS_CODE
+        sync: false # shared code that unlocks the Staff Portal (choose any phrase)
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----

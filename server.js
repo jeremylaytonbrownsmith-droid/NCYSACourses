@@ -257,6 +257,23 @@ function seedPassword(envVar, devDefault) {
   return devDefault; // local/demo/test only
 }
 
+// ---------- staff-area access code ----------
+// The Staff Portal (onboarding + policy trainings) is gated by a shared access
+// code so only staff/board/volunteers can see or take those courses — even
+// though the page URL isn't advertised. Set STAFF_ACCESS_CODE in the environment;
+// without it, only signed-in staff/admins can reach the area. A correct code
+// sets a signed, unforgeable cookie (HMAC of the code) that grants access.
+const STAFF_ACCESS_CODE = seedPassword('STAFF_ACCESS_CODE', 'ncysa-staff-2026');
+function staffCookieValue() {
+  return crypto.createHmac('sha256', String(STAFF_ACCESS_CODE)).update('staff-portal-v1').digest('hex');
+}
+function staffAuthorized(req) {
+  const user = currentUser(req);
+  if (user && STAFF_ROLES.includes(user.role)) return true; // admins/designers always in
+  const m = (req.headers.cookie || '').match(/(?:^|;\s*)staff_access=([a-f0-9]+)/);
+  return !!(m && m[1] === staffCookieValue());
+}
+
 function setSession(res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
@@ -479,12 +496,21 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', (req, res) => {
   const user = currentUser(req);
-  if (!user) return res.json({ user: null });
+  const staffAccess = staffAuthorized(req);
+  if (!user) return res.json({ user: null, staffAccess });
   const db = load();
   const unread = db.notifications.filter(
     (n) => n.audience === 'user' && n.userId === user.id && !n.read
   ).length;
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role }, unread });
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role }, unread, staffAccess });
+});
+
+// Unlock the staff area with the shared access code (sets a signed cookie).
+app.post('/api/staff-access', (req, res) => {
+  const code = String((req.body && req.body.code) || '');
+  if (!code || code !== String(STAFF_ACCESS_CODE)) return res.status(403).json({ error: 'That staff access code isn’t right.' });
+  res.setHeader('Set-Cookie', `staff_access=${staffCookieValue()}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000`);
+  res.json({ ok: true });
 });
 
 // ---------- catalog & enrollment ----------
@@ -492,9 +518,12 @@ app.get('/api/me', (req, res) => {
 app.get('/api/courses', (req, res) => {
   const user = currentUser(req);
   const isStaff = !!user && STAFF_ROLES.includes(user.role);
+  const staffOK = staffAuthorized(req);
   const db = load();
   res.json({
-    courses: allCourses().filter((c) => isStaff || isPublished(c)).map((c) => {
+    // Staff-audience trainings are hidden from everyone who hasn't unlocked the
+    // staff area with the access code (admins are always authorized).
+    courses: allCourses().filter((c) => isStaff || isPublished(c)).filter((c) => c.audience !== 'staff' || staffOK).map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
@@ -517,6 +546,7 @@ app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role)) return res.status(404).json({ error: 'Course not found' });
+  if (course.audience === 'staff' && !staffAuthorized(req)) return res.status(403).json({ error: 'This is a staff training — unlock the staff area with the access code first.', needsStaffCode: true });
   const db = load();
   if (!db.enrollments.some((e) => e.userId === req.user.id && e.courseId === course.id)) {
     db.enrollments.push({
@@ -532,6 +562,7 @@ app.get('/api/courses/:courseId', requireAuth, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role)) return res.status(404).json({ error: 'Course not found' });
+  if (course.audience === 'staff' && !staffAuthorized(req)) return res.status(403).json({ error: 'This is a staff training — unlock the staff area with the access code first.', needsStaffCode: true });
   const db = load();
   const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
   if (!enr) return res.status(403).json({ error: 'Enroll in this course first' });

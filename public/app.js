@@ -107,7 +107,6 @@ function renderNav() {
     <span class="spacer"></span>
     <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
     <a class="navlink nav-referees" href="#/referees">Referees</a>
-    <a class="navlink nav-staff" href="#/staff-portal">Staff</a>
     <a class="navlink nav-help" href="#/help">Help</a>
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
@@ -185,12 +184,6 @@ async function viewHome() {
           <h2>Referees Portal</h2>
           <p>NCSRA certification and recertification for match officials.</p>
           <span class="btn btn-accent btn-lg">Enter Referees Portal →</span>
-        </a>
-        <a class="portal-card portal-staff" href="#/staff-portal">
-          <div class="portal-badge portal-badge-coach">${logoImg('portal-logo')}</div>
-          <h2>Staff Portal</h2>
-          <p>Onboarding and required trainings for NCYSA staff, board, and office volunteers.</p>
-          <span class="btn btn-accent btn-lg">Enter Staff Portal →</span>
         </a>
       </div>
     </section>
@@ -274,24 +267,52 @@ async function viewCoaches() {
 // The Staff Portal — NCYSA-branded, staff trainings only. A public front door
 // (like Coaches/Referees) that leads staff to their onboarding and trainings.
 async function viewStaffPortal() {
+  const authorized = !!me?.staffAccess;
+  const hero = `<div class="role-hero">
+      ${logoImg('portal-hero-logo')}
+      <h2>NCYSA Staff Portal</h2>
+      <p class="lead">Onboarding, policies, and required trainings for NCYSA staff, board members, and office volunteers.</p>
+    </div>`;
+  // Locked: require the shared staff access code before anything staff-only shows.
+  if (!authorized) {
+    app.innerHTML = `
+      <section class="section">
+        <a class="back-link" href="#/">← All portals</a>
+        ${hero}
+        <div class="card auth-wrap" style="margin-top:10px">
+          <h3>🔒 Staff access</h3>
+          <p class="sub">This area is for NCYSA staff. Enter the staff access code to continue.</p>
+          <form id="staffCodeForm">
+            <div class="field"><label for="staffCode">Staff access code</label>
+              <input id="staffCode" name="code" type="password" autocomplete="off" required /></div>
+            <div class="form-error" id="staffCodeErr"></div>
+            <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Unlock staff area</button>
+          </form>
+          <p class="auth-note">NCYSA staff with a dashboard login can also manage courses and completion records from the <a href="#/staff">staff sign-in</a>.</p>
+        </div>
+      </section>`;
+    document.getElementById('staffCodeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('staffCode').value;
+      try {
+        await api('/api/staff-access', { method: 'POST', body: { code } });
+        await refreshMe();
+        viewStaffPortal(); // re-render, now unlocked
+      } catch (err) { document.getElementById('staffCodeErr').textContent = err.message; }
+    });
+    return;
+  }
   let staffCourses = [];
   try { staffCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'staff'); } catch { /* ignore */ }
   app.innerHTML = `
     <section class="section">
       <a class="back-link" href="#/">← All portals</a>
-      <div class="role-hero">
-        ${logoImg('portal-hero-logo')}
-        <h2>NCYSA Staff Portal</h2>
-        <p class="lead">Onboarding, policies, and required trainings for NCYSA staff, board members, and office volunteers.</p>
-      </div>
+      ${hero}
+      <p class="meta" style="text-align:center;margin:-10px 0 18px">🔓 Staff area unlocked</p>
       ${staffCourses.length
         ? `<div class="course-grid">${staffCourses.map(courseCard).join('')}</div>`
         : `<div class="card notice-card"><h3>Staff trainings are coming soon</h3>
              <p>Required staff trainings will appear here. <a href="#/register">Create a free account</a> to get started.</p></div>`}
-      <div class="card notice-card" style="margin-top:26px">
-        <p style="margin:0">NCYSA staff with a dashboard login can manage courses and view completion records from the
-          <a href="#/staff">staff sign-in</a>.</p>
-      </div>
     </section>`;
   bindCourseCards();
 }
@@ -555,7 +576,12 @@ async function viewCourse(courseId, lessonId) {
   let data;
   try { data = await api(`/api/courses/${courseId}`); }
   catch (e) {
-    if (e.status === 403) { await api(`/api/courses/${courseId}/enroll`, { method: 'POST' }); data = await api(`/api/courses/${courseId}`); }
+    if (e.data && e.data.needsStaffCode) { toast('That’s a staff training — enter the staff access code to continue.', true); location.hash = '#/staff-portal'; return; }
+    if (e.status === 403) {
+      try { await api(`/api/courses/${courseId}/enroll`, { method: 'POST' }); }
+      catch (er) { if (er.data && er.data.needsStaffCode) { toast('That’s a staff training — enter the staff access code to continue.', true); location.hash = '#/staff-portal'; return; } throw er; }
+      data = await api(`/api/courses/${courseId}`);
+    }
     else throw e;
   }
   const { course, progress } = data;
