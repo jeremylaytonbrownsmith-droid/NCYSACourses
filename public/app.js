@@ -687,6 +687,27 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   function bindNext() { document.getElementById('nextBtn')?.addEventListener('click', goNext); }
   bindNext();
+
+  // Auto-size the frame to the module's own content height so the module never
+  // scrolls inside a small window — the whole module (video included) is visible
+  // and the page scrolls naturally. Same-origin serving makes this possible. The
+  // interval keeps it right as the learner navigates between the module's pages,
+  // and self-clears once the frame leaves the DOM (e.g. on leaving the lesson).
+  if (!missing) {
+    const frameEl = document.getElementById('scormFrame');
+    let fitTimer = null;
+    const fitFrame = () => {
+      if (!frameEl || !document.body.contains(frameEl)) { if (fitTimer) clearInterval(fitTimer); return; }
+      try {
+        const d = frameEl.contentDocument;
+        if (!d || !d.body) return;
+        const h = Math.max(d.body.scrollHeight, d.documentElement.scrollHeight, d.body.offsetHeight);
+        if (h > 320) frameEl.style.height = Math.min(h + 4, 6000) + 'px';
+      } catch { /* not ready yet */ }
+    };
+    if (frameEl) { frameEl.addEventListener('load', fitFrame); fitTimer = setInterval(fitFrame, 1000); }
+  }
+
   if (missing || lp.completed) return;
 
   // The SCORM 1.2 runtime (window.API) the embedded package talks to.
