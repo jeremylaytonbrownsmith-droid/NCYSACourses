@@ -1291,16 +1291,25 @@ async function viewAdmin() {
     const list = filtered();
     els.table.innerHTML = list.length ? `
       <div class="table-scroll"><table class="admin-table">
-        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Completed</th><th>Certificate</th></tr>
+        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
           <td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
           <td>${progOf(c)}</td>
           <td>${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
           <td>${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
-          <td>${esc(c.certId || '—')}</td></tr>`).join('')}
+          <td>${esc(c.certId || '—')}</td>
+          <td>${c.userId && c.courseId ? `<button class="linkbtn danger del-record" data-user="${esc(c.userId)}" data-course="${esc(c.courseId)}" data-name="${esc(c.learner || c.email || 'this record')}">Delete</button>` : ''}</td></tr>`).join('')}
       </table></div>
       <p class="filter-count">${list.length} of ${rows.length} record${rows.length === 1 ? '' : 's'}</p>`
       : '<p class="empty">No records match these filters.</p>';
+    els.table.querySelectorAll('.del-record').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(`Delete the record for ${b.dataset.name}? This removes their progress for this course (use it to clear test data). Staff/admin logins are never deleted.`)) return;
+      b.disabled = true;
+      try {
+        await api('/api/admin/enrollments', { method: 'DELETE', body: { userId: b.dataset.user, courseId: b.dataset.course } });
+        viewAdmin();
+      } catch (e) { alert('Could not delete: ' + e.message); b.disabled = false; }
+    }));
   }
   if (els.table) {
     ['input', 'change'].forEach((ev) => {

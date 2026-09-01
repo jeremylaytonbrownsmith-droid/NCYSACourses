@@ -811,6 +811,7 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
       const prog = course ? getProgress(db, e.userId, e.courseId) : [];
       const doneCount = course ? course.lessons.filter((l) => prog.some((p) => p.lessonId === l.id && p.completed)).length : 0;
       return {
+        userId: e.userId,
         learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
         email: u?.email, course: course?.title, courseId: e.courseId,
         modulesComplete: doneCount, totalModules: total,
@@ -824,6 +825,35 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
+});
+
+// Delete a learner's record for a course — for clearing out test data before
+// launch. Removes the enrollment, its lesson progress, and any completion
+// notifications for it. If the learner is a plain (passwordless) learner with no
+// other enrollments left, the account is removed too. Staff/admin accounts are
+// NEVER deleted (only their enrollment is), so the owner and staff logins survive.
+app.delete('/api/admin/enrollments', requireAdmin, (req, res) => {
+  const userId = String(req.body?.userId || '');
+  const courseId = String(req.body?.courseId || '');
+  if (!userId || !courseId) return res.status(400).json({ error: 'userId and courseId are required.' });
+  const db = load();
+  const gone = db.enrollments.filter((e) => e.userId === userId && e.courseId === courseId);
+  if (!gone.length) return res.status(404).json({ error: 'No matching record.' });
+  const certIds = gone.map((e) => e.certId).filter(Boolean);
+  db.enrollments = db.enrollments.filter((e) => !(e.userId === userId && e.courseId === courseId));
+  db.lessonProgress = db.lessonProgress.filter((p) => !(p.userId === userId && p.courseId === courseId));
+  // Drop the completion notifications for this record (they carry the cert id).
+  db.notifications = db.notifications.filter((n) => !(certIds.some((cid) => String(n.body || '').includes(cid))));
+  // If it was a throwaway learner with nothing else, remove the account entirely.
+  const user = db.users.find((u) => u.id === userId);
+  let removedAccount = false;
+  if (user && user.role === 'learner' && !db.enrollments.some((e) => e.userId === userId)) {
+    db.users = db.users.filter((u) => u.id !== userId);
+    for (const tok of Object.keys(db.sessions)) if (db.sessions[tok] === userId) delete db.sessions[tok];
+    removedAccount = true;
+  }
+  save();
+  res.json({ ok: true, removedEnrollments: gone.length, removedAccount });
 });
 
 // Send a test email so staff can verify mail delivery is configured correctly.
