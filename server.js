@@ -547,7 +547,7 @@ function upsertProgress(db, userId, courseId, lessonId) {
 const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
-const DEFAULT_SCORM_MIN_SECONDS = 120; // default minimum time in a module before completion counts (2 min)
+const DEFAULT_SCORM_MIN_SECONDS = 0; // no time gate by default — the module's own "complete every element" requirement is the anti-skip
 
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This

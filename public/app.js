@@ -1490,7 +1490,7 @@ async function viewCourseAdmin(flash) {
   document.querySelectorAll('.mod-minutes').forEach((b) => b.addEventListener('click', async () => {
     const c = list.find((x) => x.id === b.dataset.course);
     const scorm = c.lessons.filter((l) => l.type === 'scorm');
-    const cur = scorm[0] && scorm[0].minSeconds != null ? (scorm[0].minSeconds / 60) : 2;
+    const cur = scorm[0] && scorm[0].minSeconds != null ? (scorm[0].minSeconds / 60) : 0;
     const ans = prompt(`Minimum minutes a learner must spend in EACH of the ${scorm.length} module(s) before it can complete.\n\n(0 = no time limit. This applies to every module in "${c.title}".)`, String(cur));
     if (ans == null) return;
     const mins = Math.max(0, Number(ans));
@@ -1831,7 +1831,7 @@ async function viewCourseAdmin(flash) {
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
         <label>Minimum time on this module (minutes)
-          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 2}" />
+          <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 0}" />
         </label>
         <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the minimum time above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. Add one lesson per module, in order.</p>`;
     }
