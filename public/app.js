@@ -18,7 +18,7 @@ function logoImg(cls) {
 }
 // Default NCSRA (referee) brand mark — the bundled badge. A referee course's own
 // coLogoUrl overrides it. Referee areas never fall back to the NCYSA logo.
-const NCSRA_LOGO = '/media/ncsra-logo.svg';
+const NCSRA_LOGO = '/media/ncsra-logo.png';
 
 // Professional inline SVG role icons (crisp, theme-agnostic on their navy badge).
 const ICON_COACH = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
