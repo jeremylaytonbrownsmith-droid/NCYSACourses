@@ -90,6 +90,22 @@ function finalizeRefereeCourse() {
   console.log('[finalize] referee course finalized as', course.id);
 }
 
+// One-time: make sure the referee course TITLE has no "Regional" in it (the
+// completion screen and certificate show the title). Runs once; only touches a
+// title that still contains "regional", so a deliberate title is left alone.
+const REFEREE_TITLE_FLAG = 'referee-title-fix-v1';
+function fixRefereeTitle() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[REFEREE_TITLE_FLAG]) return;
+  const course = db.courses.find((c) => c.audience === 'referees' && (c.lessons || []).some((l) => l.type === 'scorm'));
+  if (!course) return; // try again next boot
+  if (/regional/i.test(course.title || '')) course.title = 'NCSRA Referee Recertification';
+  db.migrations[REFEREE_TITLE_FLAG] = new Date().toISOString();
+  save();
+  console.log('[finalize] referee title is now:', course.title);
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -1356,7 +1372,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
