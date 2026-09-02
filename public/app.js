@@ -746,6 +746,8 @@ function renderScormLesson(pane, course, lesson, lp) {
     if (fill && req > 0) fill.style.width = Math.min(100, (active / req) * 100) + '%';
     const hint = document.getElementById('scormHint');
     if (!hint || done) return;
+    // No time gate: show a plain instruction — never any "minimum time" wording.
+    if (req <= 0) { hint.textContent = 'Work through the whole module — it completes when you reach the end. Your place is saved if you leave.'; return; }
     const remaining = Math.max(0, req - active);
     if (reachedEnd && remaining > 0) hint.innerHTML = `You’ve reached the end — keep this module open <strong>${fmt(remaining)}</strong> more and it will complete automatically.`;
     else if (remaining > 0) hint.textContent = `Work through the whole module — it completes at the end (minimum ${fmt(req)} on this module).`;
