@@ -106,6 +106,25 @@ function fixRefereeTitle() {
   console.log('[finalize] referee title is now:', course.title);
 }
 
+// One-time: stamp the year on the referee certificate title so referees submit
+// the correct course/year. Only sets it while the current value is blank or the
+// prior default — a deliberate later edit is left alone.
+const REFEREE_CERT_YEAR_FLAG = 'referee-cert-year-2027-v1';
+function setRefereeCertYear() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[REFEREE_CERT_YEAR_FLAG]) return;
+  const course = db.courses.find((c) => c.audience === 'referees' && (c.lessons || []).some((l) => l.type === 'scorm'));
+  if (!course) return; // try again next boot
+  const cur = (course.certTitle || '').trim();
+  if (!cur || cur === 'Certificate of Recertification Training') {
+    course.certTitle = '2027 Certificate of Recertification Training';
+  }
+  db.migrations[REFEREE_CERT_YEAR_FLAG] = new Date().toISOString();
+  save();
+  console.log('[finalize] referee certTitle is now:', course.certTitle);
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -1378,7 +1397,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
