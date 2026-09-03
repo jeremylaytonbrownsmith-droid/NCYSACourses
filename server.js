@@ -471,7 +471,13 @@ app.post('/api/register', (req, res) => {
   const db = load();
   const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   if (existing) {
-    // Friendly: an existing email just signs back in rather than erroring.
+    // A password-protected (staff/admin) account must NEVER be signed in just by
+    // typing its email here — that would bypass the password. Send them to the
+    // staff sign-in. Passwordless learners keep the friendly "email signs you
+    // back in" behavior.
+    if (existing.passHash || STAFF_ROLES.includes(existing.role)) {
+      return res.status(403).json({ error: 'That email has a staff account — please use the staff sign-in with your password.', needsPassword: true });
+    }
     setSession(res, existing.id);
     return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
   }
