@@ -1602,7 +1602,7 @@ async function viewCourseAdmin(flash) {
         <legend>Branding &amp; certificate (optional — e.g. NCSRA for referee courses)</legend>
         <div class="form-row">
           <label>Brand name<input name="coBrandName" value="${c ? esc(c.coBrandName || '') : ''}" placeholder="NCSRA Referee Education" /></label>
-          <label>Brand logo URL<input name="coLogoUrl" type="url" value="${c ? esc(c.coLogoUrl || '') : ''}" placeholder="https://…/logo.png" /></label>
+          <label>Brand logo URL<input name="coLogoUrl" type="text" value="${c ? esc(c.coLogoUrl || '') : ''}" placeholder="https://…/logo.png or /media/…" /></label>
         </div>
         <label>Certificate organization<input name="certOrg" value="${c ? esc(c.certOrg || '') : ''}" placeholder="North Carolina Soccer Referee Association" /></label>
         <div class="form-row">
