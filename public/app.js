@@ -104,19 +104,24 @@ function renderNav() {
     ? `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`
     : logoImg('brandmark');
   const brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
+  // In a non-NCYSA organization (e.g. OMG), the top bar shows only that org — no
+  // links into NCYSA's portals — and the logo returns to the org's own portal.
+  const orgCtx = (activeBrand && activeBrand.orgId && activeBrand.orgId !== DEFAULT_ORG) ? activeBrand.orgId : null;
+  const logoHref = orgCtx ? `#/org/${orgCtx}/referees` : '#/';
   if (navMinimal) {
     topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span>${brandName}<span class="sub">Education &amp; Training Platform</span></span></span>`;
     return;
   }
   topnav.innerHTML = `
-    <a class="logo" href="#/">
+    <a class="logo" href="${logoHref}">
       ${brandLogo}
       <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
     </a>
     <span class="spacer"></span>
+    ${orgCtx ? '' : `
     <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
     <a class="navlink nav-referees" href="#/referees">Referees</a>
-    <a class="navlink nav-help" href="#/help">Help</a>
+    <a class="navlink nav-help" href="#/help">Help</a>`}
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
@@ -130,7 +135,7 @@ function renderNav() {
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await api('/api/logout', { method: 'POST' });
     await refreshMe();
-    location.hash = '#/';
+    location.hash = logoHref; // org users stay in their own portal, not NCYSA's home
   });
   document.getElementById('bellBtn')?.addEventListener('click', () => (location.hash = '#/notifications'));
 }
