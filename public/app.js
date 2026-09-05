@@ -86,6 +86,15 @@ function fmtTime(s) {
 // When a learner is inside a co-branded "portal" (e.g. the NCSRA referee course
 // or its sign-up), the top bar switches to that brand. Everyone else sees NCYSA.
 let activeBrand = null;
+// The active organization for portal pages. NCYSA ('ncysa') is the default; an
+// URL like #/org/omg/referees switches it. Portals fetch only their org's
+// courses, keeping each organization's catalog and learner records separate.
+const DEFAULT_ORG = 'ncysa';
+let activeOrg = DEFAULT_ORG;
+const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
+// Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
+// another org uses its /org/<slug>/ prefix.
+const orgPortal = (orgId, page) => (orgId && orgId !== DEFAULT_ORG) ? `#/org/${orgId}/${page}` : `#/${page}`;
 // Minimal chrome for the no-login "watch & redirect" page: brand only, no links.
 let navMinimal = false;
 
@@ -139,15 +148,18 @@ const isStaffCourse = (c) => c.audience === 'staff' || c.audience === 'everyone'
 
 // Where each role lands after signing in.
 const roleHome = (role) => role === 'admin' ? '#/admin' : role === 'editor' ? '#/admin/courses' : '#/';
-// Which portal a course belongs to — so "back" links land in the right place.
-const coursePortalHash = (c) => (c && c.audience === 'referees') ? '#/referees' : '#/coaches';
+// Which portal a course belongs to — so "back" links land in the right place,
+// respecting the course's organization (NCYSA keeps its plain paths).
+const coursePortalHash = (c) => orgPortal(c && c.orgId, (c && c.audience === 'referees') ? 'referees' : 'coaches');
 
 // The landing page is a clean chooser: two separate portals under one app —
 // Coaches (NCYSA) and Referees (NCSRA). Each is its own front door; neither
 // shows the other's courses.
 async function viewHome() {
   let courses = [];
-  try { courses = (await api('/api/courses')).courses; } catch { /* logged-out is fine */ }
+  // The NCYSA home chooser only reflects NCYSA courses — other orgs live under
+  // their own /org/<slug>/ portal and never surface here.
+  try { courses = (await api(`/api/courses?org=${DEFAULT_ORG}`)).courses; } catch { /* logged-out is fine */ }
   const resume = me?.user ? courses.find((c) => c.enrolled && !c.completedAt) : null;
   // Referee areas are NCSRA-branded — use a referee course's own logo if set,
   // otherwise the bundled NCSRA badge. Never the NCYSA logo.
@@ -240,7 +252,7 @@ function bindCourseCards() {
 
 // The Coaches Portal — NCYSA-branded, coach courses only (no referee content).
 async function viewCoaches() {
-  const { courses } = await api('/api/courses');
+  const { courses } = await api(`/api/courses?org=${encodeURIComponent(activeOrg)}`);
   const coach = courses.filter(isCoachCourse);
   app.innerHTML = `
     <section class="section">
@@ -303,7 +315,7 @@ async function viewStaffPortal() {
     return;
   }
   let staffCourses = [];
-  try { staffCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'staff'); } catch { /* ignore */ }
+  try { staffCourses = (await api(`/api/courses?org=${encodeURIComponent(activeOrg)}`)).courses.filter((c) => c.audience === 'staff'); } catch { /* ignore */ }
   app.innerHTML = `
     <section class="section">
       <a class="back-link" href="#/">← All portals</a>
@@ -431,19 +443,24 @@ function viewRegister() {
 
 async function viewReferees() {
   let refCourses = [];
-  try { refCourses = (await api('/api/courses')).courses.filter((c) => c.audience === 'referees'); } catch { /* ignore */ }
-  const brand = activeBrand; // set by the router for #/referees
-  // NCSRA branding: a referee course's own logo if set, otherwise the bundled
-  // NCSRA badge — never the NCYSA logo.
-  const heroLogo = (brand && brand.logo) || refCourses.find((c) => c.coLogoUrl)?.coLogoUrl || NCSRA_LOGO;
-  const hero = `<img class="referee-portal-logo" src="${esc(heroLogo)}" alt="NCSRA" />`;
+  try { refCourses = (await api(`/api/courses?org=${encodeURIComponent(activeOrg)}`)).courses.filter((c) => c.audience === 'referees'); } catch { /* ignore */ }
+  const brand = activeBrand; // set by the router (org referee brand)
+  const isNC = activeOrg === DEFAULT_ORG;
+  // Each org's referee logo: its brand logo, else a referee course's logo, else
+  // (for NC only) the bundled NCSRA badge.
+  const heroLogo = (brand && brand.logo) || refCourses.find((c) => c.coLogoUrl)?.coLogoUrl || (isNC ? NCSRA_LOGO : '');
+  const heading = isNC ? 'NCSRA Referee Education' : ((brand && brand.name) || 'Referee Education');
+  const lead = isNC
+    ? 'Certification and Laws of the Game training for North Carolina soccer referees.'
+    : 'Certification and Laws of the Game training for referees.';
+  const hero = heroLogo ? `<img class="referee-portal-logo" src="${esc(heroLogo)}" alt="${esc(heading)}" />` : `<div class="role-icon big">${ICON_REFEREE}</div>`;
   app.innerHTML = `
     <section class="section">
-      <a class="back-link" href="#/">← Back to home</a>
+      ${isNC ? '<a class="back-link" href="#/">← Back to home</a>' : ''}
       <div class="role-hero">
         ${hero}
-        <h2>NCSRA Referee Education</h2>
-        <p class="lead">Certification and Laws of the Game training for North Carolina soccer referees.</p>
+        <h2>${esc(heading)}</h2>
+        <p class="lead">${esc(lead)}</p>
       </div>
       ${refCourses.length
         ? `<div class="course-grid">${refCourses.map(courseCard).join('')}</div>`
@@ -2185,6 +2202,11 @@ const routes = [
   { re: /^#\/courses$/, fn: viewCoaches }, // legacy alias → Coaches Portal
   { re: /^#\/referees$/, fn: viewReferees },
   { re: /^#\/staff-portal$/, fn: viewStaffPortal },
+  // Organization portals (e.g. OMG). activeOrg is set from the hash in route().
+  { re: /^#\/org\/[\w-]+\/referees$/, fn: viewReferees },
+  { re: /^#\/org\/[\w-]+\/coaches$/, fn: viewCoaches },
+  { re: /^#\/org\/[\w-]+\/staff-portal$/, fn: viewStaffPortal },
+  { re: /^#\/org\/[\w-]+\/?$/, fn: viewReferees }, // an org's front door → its referee portal
   { re: /^#\/login$/, fn: viewLogin },
   { re: /^#\/staff$/, fn: viewStaffLogin },
   { re: /^#\/register$/, fn: viewRegister },
@@ -2224,15 +2246,26 @@ async function brandMap() {
   if (_brandMap) return _brandMap;
   _brandMap = {};
   for (const c of await publicCourses()) {
-    if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience };
+    if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience, orgId: c.orgId || DEFAULT_ORG };
   }
   return _brandMap;
 }
+// The referee brand for a given organization (its referee course's co-brand),
+// defaulting to NCSRA for NCYSA.
+async function refereeBrandForOrg(org) {
+  const map = await brandMap();
+  const b = Object.values(map).find((x) => x.audience === 'referees' && (x.orgId || DEFAULT_ORG) === org);
+  if (b) return b;
+  return (org === DEFAULT_ORG) ? NCSRA_BRAND : null;
+}
 // The brand for a given route: a co-branded course being viewed, or the referee
 // portal page (which adopts the referee course's brand), or null (plain NCYSA).
-const NCSRA_BRAND = { name: 'NCSRA', logo: NCSRA_LOGO, audience: 'referees' };
+const NCSRA_BRAND = { name: 'NCSRA', logo: NCSRA_LOGO, audience: 'referees', orgId: DEFAULT_ORG };
 async function brandForHash(hash) {
   const map = await brandMap();
+  // An organization's portal adopts that org's referee brand.
+  let o = hash.match(/^#\/org\/([\w-]+)\/referees/) || hash.match(/^#\/org\/([\w-]+)\/?$/);
+  if (o) return await refereeBrandForOrg(o[1]);
   let m = hash.match(/^#\/course\/([\w-]+)/);
   if (m) {
     if (map[m[1]]) return map[m[1]];
@@ -2257,6 +2290,7 @@ async function route() {
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
   navMinimal = /^#\/watch\//.test(hash);
+  activeOrg = orgFromHash(hash); // which organization's portal we're in (default NCYSA)
   await applyBrandForHash(hash);
   renderNav(); // reflect navMinimal + brand for this route
   for (const r of routes) {

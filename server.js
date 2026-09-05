@@ -125,6 +125,57 @@ function setRefereeCertYear() {
   console.log('[finalize] referee certTitle is now:', course.certTitle);
 }
 
+// ---------- multi-organization support ----------
+// Each course belongs to an organization (orgId). NCYSA/NCSRA is the default org
+// ('ncysa'); a course with no orgId is treated as NCYSA, so existing NC courses,
+// links, and records behave exactly as before. Additional orgs (e.g. OMG) get
+// their own portal, branding, course, and separate learner records.
+const DEFAULT_ORG = 'ncysa';
+const ORGS = {
+  ncysa: { slug: 'ncysa', name: 'NCYSA' },
+  omg: { slug: 'omg', name: 'Officials Management Group' },
+};
+const orgOf = (c) => (c && c.orgId) || DEFAULT_ORG;
+
+// One-time: give the OMG organization its own referee recertification course by
+// cloning the NCSRA course's lessons (same uploaded module files — the lessons
+// keep their packageId, so nothing is re-uploaded), with OMG branding and its
+// own course id (so OMG's learner records are entirely separate from NC's).
+const OMG_COURSE_FLAG = 'omg-referee-course-v1';
+function setupOmgCourse() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[OMG_COURSE_FLAG]) return;
+  const src = db.courses.find((c) => orgOf(c) === 'ncysa' && c.audience === 'referees' && (c.lessons || []).some((l) => l.type === 'scorm'));
+  if (!src) return; // NC referee course not in the store yet — retry next boot
+  if (!db.courses.some((c) => c.id === 'omg-referee-recertification')) {
+    db.courses.push({
+      id: 'omg-referee-recertification',
+      orgId: 'omg',
+      title: 'OMG Referee Recertification',
+      tagline: src.tagline || 'US Soccer referee recertification for OMG officials.',
+      description: src.description || '',
+      badge: src.badge || 'Recertification',
+      estMinutes: src.estMinutes || 60,
+      heroEmoji: src.heroEmoji,
+      audience: 'referees',
+      published: true,
+      coBrandName: 'OMG Referee Education',
+      coLogoUrl: '/media/omg-logo.png',
+      certOrg: 'Officials Management Group',
+      certTitle: '2027 Certificate of Recertification Training',
+      certPrefix: 'OMG',
+      instructions: src.instructions || '',
+      completionRedirectUrl: '',
+      // Clone lessons with fresh ids but the SAME packageId → shared module files.
+      lessons: (src.lessons || []).map((l) => ({ ...l, id: slugify(l.title) + '-' + crypto.randomBytes(3).toString('hex') })),
+    });
+    console.log('[org] created OMG referee course cloning', (src.lessons || []).length, 'lessons');
+  }
+  db.migrations[OMG_COURSE_FLAG] = new Date().toISOString();
+  save();
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -560,17 +611,25 @@ app.get('/api/courses', (req, res) => {
   const user = currentUser(req);
   const isStaff = !!user && STAFF_ROLES.includes(user.role);
   const staffOK = staffAuthorized(req);
+  // Organization scope: a portal passes ?org=<slug> to see only that org's
+  // courses. With no org param, all orgs are returned (the admin course designer
+  // relies on this). A course with no orgId counts as the default org.
+  const org = req.query.org ? String(req.query.org) : null;
   const db = load();
   res.json({
     // Staff-audience trainings are hidden from everyone who hasn't unlocked the
     // staff area with the access code (admins are always authorized).
-    courses: allCourses().filter((c) => isStaff || isPublished(c)).filter((c) => c.audience !== 'staff' || staffOK).map((c) => {
+    courses: allCourses().filter((c) => isStaff || isPublished(c))
+      .filter((c) => c.audience !== 'staff' || staffOK)
+      .filter((c) => !org || orgOf(c) === org)
+      .map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
         badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji,
         audience: c.audience || 'everyone',
+        orgId: orgOf(c),
         coBrandName: c.coBrandName || null,
         coLogoUrl: c.coLogoUrl || null,
         publicVideoGate: !!c.publicVideoGate,
@@ -1397,7 +1456,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); setupOmgCourse(); })
     .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
 }
 module.exports = app;
