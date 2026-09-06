@@ -30,10 +30,12 @@ services:
     startCommand: node server.js
     healthCheckPath: /api/courses
     # Durable storage for uploaded SCORM packages (needs a paid plan, above).
+    # Sized for several full courses of video modules; enlarge here as more
+    # courses are added (Render only allows growing a disk, never shrinking).
     disk:
       name: scorm-packages
       mountPath: /var/scorm
-      sizeGB: 5
+      sizeGB: 20
     envVars:
       - key: NODE_ENV
         value: production
