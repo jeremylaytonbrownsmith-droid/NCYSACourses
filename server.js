@@ -256,8 +256,23 @@ async function bunnyPut(remotePath, filePath) {
   });
   if (!res.ok) throw new Error(`Bunny PUT ${res.status} for ${remotePath}`);
 }
+// Video file extensions we offload — MUST match what the CDN shim rewrites
+// (below), or a package with e.g. .mov videos would be rewritten to a CDN URL
+// that was never uploaded. Kept in one place so the two never drift apart.
+const VIDEO_EXT_RE = /\.(mp4|m4v|webm|mov)$/i;
+// Does a package folder contain any video file on disk (i.e. something to move)?
+function dirHasVideo(dir) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return false; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) { if (dirHasVideo(full)) return true; }
+    else if (VIDEO_EXT_RE.test(e.name)) return true;
+  }
+  return false;
+}
 // Push a freshly-extracted package's videos to Bunny. All-or-nothing: only marks
-// the package CDN-backed (and drops the local .mp4s) if EVERY video uploads;
+// the package CDN-backed (and drops the local videos) if EVERY video uploads;
 // otherwise everything stays served from disk, unchanged.
 async function offloadVideosToBunny(pkg, dest) {
   if (!bunnyEnabled()) return { cdn: false };
@@ -266,7 +281,7 @@ async function offloadVideosToBunny(pkg, dest) {
     for (const name of fs.readdirSync(dir)) {
       const full = path.join(dir, name), r = rel ? rel + '/' + name : name;
       if (fs.statSync(full).isDirectory()) walk(full, r);
-      else if (/\.mp4$/i.test(name)) vids.push({ full, rel: r });
+      else if (VIDEO_EXT_RE.test(name)) vids.push({ full, rel: r });
     }
   })(dest, '');
   if (!vids.length) return { cdn: false };
@@ -1341,6 +1356,7 @@ function listScormPackages() {
     bytes: dirSizeBytes(path.join(SCORM_DIR, name)),
     referenced: referenced.has(name),
     cdn: fs.existsSync(path.join(SCORM_DIR, name, '.cdn')), // videos already offloaded to Bunny
+    hasVideo: dirHasVideo(path.join(SCORM_DIR, name)), // any local video left to move?
   })).sort((a, b) => b.bytes - a.bytes);
 }
 app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
@@ -1354,7 +1370,9 @@ app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
     orphanCount: packages.filter((p) => !p.referenced).length,
     freeBytes, totalBytes,
     bunny: bunnyEnabled(), // are all four BUNNY_* env vars set?
-    cdnPending: packages.filter((p) => !p.cdn).length,
+    // Only packages that still have a local video to move count as "pending" —
+    // a package with no video (or already on the CDN) is nothing to do.
+    cdnPending: packages.filter((p) => !p.cdn && p.hasVideo).length,
     packages,
   });
 });

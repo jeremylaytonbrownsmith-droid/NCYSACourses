@@ -1753,7 +1753,7 @@ async function viewCourseAdmin(flash) {
           <a class="peek-pkg" href="#" data-pkg="${esc(p.packageId)}" style="margin-left:8px;font-size:.8rem">peek inside</a></span>
         <span class="meta">${fmtBytes(p.bytes)}</span>
       </li>`).join('') || '<li class="empty">No module packages on disk.</li>';
-    const firstPending = (d.packages.find((p) => !p.cdn) || {}).packageId || '';
+    const firstPending = (d.packages.find((p) => !p.cdn && p.hasVideo) || {}).packageId || '';
     const cdnBlock = d.bunny
       ? `<div class="cdn-box ok">
            <strong>☁️ Bunny CDN is connected.</strong>
@@ -1790,11 +1790,24 @@ async function viewCourseAdmin(flash) {
     });
     document.getElementById('migrateAll')?.addEventListener('click', async (ev) => {
       if (!confirm('Move every module\'s video to the CDN? Test one module first (the button to the left) and confirm its video plays before doing all of them.')) return;
-      ev.target.disabled = true; ev.target.textContent = 'Moving all… (may take a minute)';
-      try {
-        const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST' });
-        sMsg(`Moved ${r.migrated} module(s) · ${r.videos} video(s) to the CDN${r.errors ? ` · ${r.errors} error(s)` : ''}.`);
-      } catch (e) { sMsg('Migration failed: ' + e.message, true); }
+      const btn = ev.target; btn.disabled = true;
+      // Move ONE module per request. A single request for the whole batch can run
+      // long enough to be cut off (stalling the migration); one-at-a-time can't
+      // time out, resumes across clicks, and reports exactly which module failed.
+      const pending = d.packages.filter((p) => !p.cdn && p.hasVideo).map((p) => p.packageId);
+      let moved = 0; const errs = [];
+      for (let i = 0; i < pending.length; i++) {
+        btn.textContent = `Moving ${i + 1} of ${pending.length}…`;
+        try {
+          const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST', body: { packageId: pending[i] } });
+          const st = (r.results && r.results[0]) || {};
+          if (st.status === 'migrated') moved++;
+          else if (st.status === 'error') errs.push(`${pending[i]} — ${st.error || 'upload failed'}`);
+        } catch (e) { errs.push(`${pending[i]} — ${e.message}`); }
+      }
+      let summary = `Moved ${moved} of ${pending.length} module(s) to the CDN.`;
+      if (errs.length) summary += ` These could not move: ${errs.join('; ')}`;
+      sMsg(summary, errs.length > 0);
       loadStorage();
     });
     const sMsg = (t, err) => { const e = document.getElementById('storageMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
