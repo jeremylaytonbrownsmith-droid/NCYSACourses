@@ -1109,6 +1109,9 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     description: String(b.description || ''),
     badge: String(b.badge || 'Course'),
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
+    // Organization the course belongs to (which portal shows it). Unknown/blank
+    // → the default org, so it behaves exactly as NC courses always have.
+    orgId: ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG,
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: String(b.completionRedirectUrl || ''),
@@ -1154,6 +1157,9 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions',
     'coBrandName', 'coLogoUrl', 'certOrg', 'certTitle', 'certPrefix']) if (b[f] != null) course[f] = String(b[f]);
   if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
+  // Move a course between organizations (e.g. NC → OMG). Only a known org is
+  // accepted; an unknown value leaves the course where it is.
+  if (b.orgId != null) { const o = String(b.orgId).toLowerCase(); if (ORGS[o]) course.orgId = o; }
   if (b.publicVideoGate != null) course.publicVideoGate = !!b.publicVideoGate;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
   save();

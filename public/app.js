@@ -90,6 +90,24 @@ let activeBrand = null;
 // URL like #/org/omg/referees switches it. Portals fetch only their org's
 // courses, keeping each organization's catalog and learner records separate.
 const DEFAULT_ORG = 'ncysa';
+// Organizations a course can belong to (admin course-designer dropdown). The
+// default org keeps NC's plain portal and existing behavior; other orgs get
+// their own isolated portal, invisible to North Carolina.
+const ORG_OPTIONS = [
+  ['ncysa', 'NCYSA / NCSRA (North Carolina)'],
+  ['omg', 'OMG — Officials Management Group'],
+];
+// Selecting a non-default org in the designer auto-fills that org's branding so
+// the card, completion screen, and certificate carry the right identity.
+const ORG_BRANDS = {
+  omg: {
+    coBrandName: 'OMG Referee Education',
+    coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group',
+    certTitle: '2027 Certificate of Recertification Training',
+    certPrefix: 'OMG',
+  },
+};
 let activeOrg = DEFAULT_ORG;
 const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
 // Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
@@ -1645,6 +1663,12 @@ async function viewCourseAdmin(flash) {
             .map(([v, t]) => `<option value="${v}" ${(c ? (c.audience || 'everyone') : 'everyone') === v ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
       </label>
+      <label>Organization (which portal shows this course)
+        <select name="orgId">
+          ${ORG_OPTIONS.map(([v, t]) => `<option value="${v}" ${(c ? (c.orgId || DEFAULT_ORG) : DEFAULT_ORG) === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
+      <p class="form-hint">Courses for a partner org (e.g. OMG) are shown <strong>only</strong> in that org's portal and are invisible in the North Carolina portal. Picking a partner org fills in its branding below.</p>
       <label>When finished, send learners to (optional web address)
         <input name="completionRedirectUrl" type="url" value="${c ? esc(c.completionRedirectUrl || '') : ''}" placeholder="https://www.ncsra.org/referees" />
       </label>
@@ -1673,6 +1697,17 @@ async function viewCourseAdmin(flash) {
   function bindCourseForm(c) {
     const form = document.getElementById('courseForm');
     initRichText(form); // activate the visual editor for the "Start Here" field
+    // Picking a partner org fills its branding into the fields below (overwrites,
+    // so the identity matches the org). The default org leaves branding alone.
+    form.querySelector('[name=orgId]')?.addEventListener('change', (ev) => {
+      const brand = ORG_BRANDS[ev.target.value];
+      if (!brand) return;
+      for (const [k, v] of Object.entries(brand)) {
+        const field = form.querySelector(`[name=${k}]`);
+        if (field) field.value = v;
+      }
+      msg(`Filled in ${brand.coBrandName} branding — adjust if needed, then Save.`);
+    });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       // Capture the visual editor's HTML into its hidden field before reading the form.
