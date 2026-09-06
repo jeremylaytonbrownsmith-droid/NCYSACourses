@@ -165,6 +165,8 @@ function setupOmgCourse() {
       certOrg: 'Officials Management Group',
       certTitle: '2027 Certificate of Recertification Training',
       certPrefix: 'OMG',
+      certAccent: '#2f5a9e',  // OMG navy (shield border) — cert border + title
+      certAccent2: '#ce2b37', // OMG red (shield stripes) — cert seal
       instructions: src.instructions || '',
       completionRedirectUrl: '',
       // Clone lessons with fresh ids but the SAME packageId → shared module files.
@@ -984,6 +986,10 @@ app.get('/api/certificate/:certId', (req, res) => {
     org: course?.certOrg || null,
     certTitle: course?.certTitle || null,
     logoUrl: course?.coLogoUrl || null,
+    // Optional per-course accent colors (border/title + seal) so the certificate
+    // carries the org's color scheme, not just its logo.
+    certAccent: course?.certAccent || null,
+    certAccent2: course?.certAccent2 || null,
   });
 });
 
@@ -1181,6 +1187,14 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions',
     'coBrandName', 'coLogoUrl', 'certOrg', 'certTitle', 'certPrefix']) if (b[f] != null) course[f] = String(b[f]);
   if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
+  // Certificate accent colors (border/title + seal). Accept only a valid hex, or
+  // an empty string to clear back to the default gold/navy scheme.
+  for (const f of ['certAccent', 'certAccent2']) {
+    if (b[f] == null) continue;
+    const v = String(b[f]).trim();
+    if (v === '') delete course[f];
+    else if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) course[f] = v;
+  }
   // Move a course between organizations (e.g. NC → OMG). Only a known org is
   // accepted; an unknown value leaves the course where it is.
   if (b.orgId != null) { const o = String(b.orgId).toLowerCase(); if (ORGS[o]) course.orgId = o; }

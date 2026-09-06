@@ -106,6 +106,8 @@ const ORG_BRANDS = {
     certOrg: 'Officials Management Group',
     certTitle: '2027 Certificate of Recertification Training',
     certPrefix: 'OMG',
+    certAccent: '#2f5a9e',  // OMG navy (shield border)
+    certAccent2: '#ce2b37', // OMG red (shield stripes)
   },
 };
 // Custom domains that belong to a partner org. When the app is served from one
@@ -1160,8 +1162,14 @@ async function showCourseComplete(course, certId, score) {
 async function viewCertificate(certId) {
   const c = await api(`/api/certificate/${certId}`);
   const date = new Date(c.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Org accent colors (border/title + seal). Fall back to the default gold/navy
+  // via the CSS var defaults when a course sets no colors.
+  const certVars = [
+    c.certAccent ? `--cert-border:${c.certAccent};--cert-title:${c.certAccent}` : '',
+    c.certAccent2 ? `--cert-seal:${c.certAccent2}` : '',
+  ].filter(Boolean).join(';');
   app.innerHTML = `
-    <div class="certificate">
+    <div class="certificate"${certVars ? ` style="${certVars}"` : ''}>
       ${c.logoUrl ? `<img class="cert-logo" src="${esc(c.logoUrl)}" alt="${esc(c.org || '')}" />` : logoImg('cert-logo')}
       <div class="org">${esc(c.org || 'North Carolina Youth Soccer Association')}</div>
       <h1>${esc(c.certTitle || 'Certificate of Completion')}</h1>
@@ -1190,9 +1198,14 @@ async function downloadCertificatePdf(c, dateStr) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Background + gold double border
+  // Accent colors: an org can override the default gold border/navy title and
+  // gold seal (e.g. OMG = navy + red). Defaults reproduce the original exactly.
+  const borderColor = c.certAccent || '#edc32c';
+  const titleColor = c.certAccent || '#10045a';
+
+  // Background + double border (accent color)
   ctx.fillStyle = '#fffdf6'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = '#edc32c'; ctx.lineWidth = 6; ctx.strokeRect(28, 28, W - 56, H - 56);
+  ctx.strokeStyle = borderColor; ctx.lineWidth = 6; ctx.strokeRect(28, 28, W - 56, H - 56);
   ctx.lineWidth = 2; ctx.strokeRect(40, 40, W - 80, H - 80);
 
   const center = (t, y, font, color, spacing) => {
@@ -1221,7 +1234,7 @@ async function downloadCertificatePdf(c, dateStr) {
   } catch { /* no logo, text-only certificate */ }
 
   center((c.org || 'North Carolina Youth Soccer Association').toUpperCase(), 265, '600 15px Arial', '#6b645e', 3);
-  center(c.certTitle || 'Certificate of Completion', 320, '800 40px Georgia, serif', '#10045a');
+  center(c.certTitle || 'Certificate of Completion', 320, '800 40px Georgia, serif', titleColor);
   center('This certifies that', 385, '400 20px Arial', '#3d3833');
   center(c.learner, 445, 'italic 700 46px Georgia, serif', '#1d1a18');
   center('has successfully completed', 500, '400 20px Arial', '#3d3833');
@@ -1229,22 +1242,35 @@ async function downloadCertificatePdf(c, dateStr) {
   // Course name (shrink to fit)
   let cf = 30; ctx.font = `700 ${cf}px Arial`;
   while (ctx.measureText(c.course).width > W - 200 && cf > 16) { cf -= 1; ctx.font = `700 ${cf}px Arial`; }
-  center(c.course, 555, `700 ${cf}px Arial`, '#10045a');
+  center(c.course, 555, `700 ${cf}px Arial`, titleColor);
 
   center(`Completed ${dateStr}  ·  Certificate ID ${c.certId}`, 620, '400 17px Arial', '#6b645e');
 
-  // A drawn gold seal (star + ribbon) — professional, not an emoji.
+  // Seal palette: derive shades from the org accent color (e.g. OMG red), or use
+  // the original gold tones when no accent is set.
+  const shade = (hex, pct) => {
+    let n = String(hex).replace('#', '');
+    if (n.length === 3) n = n.split('').map((x) => x + x).join('');
+    const adj = (v) => Math.max(0, Math.min(255, Math.round(v + (pct / 100) * 255)));
+    const r = adj(parseInt(n.slice(0, 2), 16)), g = adj(parseInt(n.slice(2, 4), 16)), b = adj(parseInt(n.slice(4, 6), 16));
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+  };
+  const sealDark = c.certAccent2 ? shade(c.certAccent2, -25) : '#b7911f';
+  const sealMain = c.certAccent2 || '#c9a227';
+  const sealLight = c.certAccent2 ? shade(c.certAccent2, 22) : '#e7c65a';
+
+  // A drawn seal (star + ribbon) — professional, not an emoji.
   (function drawSeal(cx, cy) {
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.fillStyle = '#b7911f';
+    ctx.fillStyle = sealDark;
     ctx.beginPath(); ctx.moveTo(-12, 26); ctx.lineTo(-22, 52); ctx.lineTo(-9, 45); ctx.lineTo(-2, 30); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(12, 26); ctx.lineTo(22, 52); ctx.lineTo(9, 45); ctx.lineTo(2, 30); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#c9a227';
+    ctx.fillStyle = sealMain;
     ctx.beginPath(); ctx.arc(0, 0, 33, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#e7c65a';
+    ctx.fillStyle = sealLight;
     ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#b7911f'; ctx.lineWidth = 2;
+    ctx.strokeStyle = sealDark; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = '#fffdf5';
     ctx.beginPath();
@@ -1693,7 +1719,11 @@ async function viewCourseAdmin(flash) {
           <label>Certificate title<input name="certTitle" value="${c ? esc(c.certTitle || '') : ''}" placeholder="Certificate of Recertification Training" /></label>
           <label>Certificate ID prefix<input name="certPrefix" value="${c ? esc(c.certPrefix || '') : ''}" placeholder="NCSRA" /></label>
         </div>
-        <p class="form-hint">Set these to co-brand a course (its card, the “Congratulations” screen, and the certificate) for a partner like NCSRA. Leave blank for the default NCYSA branding.</p>
+        <div class="form-row">
+          <label>Certificate color (border &amp; title)<input name="certAccent" type="text" value="${c ? esc(c.certAccent || '') : ''}" placeholder="#2f5a9e — leave blank for default gold" /></label>
+          <label>Certificate seal color<input name="certAccent2" type="text" value="${c ? esc(c.certAccent2 || '') : ''}" placeholder="#ce2b37 — leave blank for default gold" /></label>
+        </div>
+        <p class="form-hint">Set these to co-brand a course (its card, the “Congratulations” screen, and the certificate) for a partner like NCSRA. Colors take a hex like <code>#2f5a9e</code>; leave blank for the default NCYSA gold/navy. Picking a partner organization above fills these in automatically.</p>
       </fieldset>
       <label class="opt-row" style="flex-direction:row;align-items:center;gap:8px;font-weight:400">
         <input type="checkbox" name="publicVideoGate" ${c && c.publicVideoGate ? 'checked' : ''} style="flex:none" />
