@@ -108,6 +108,15 @@ const ORG_BRANDS = {
     certPrefix: 'OMG',
   },
 };
+// Custom domains that belong to a partner org. When the app is served from one
+// of these hostnames, the landing page opens that org's portal instead of the
+// NCYSA chooser — so the partner's URL shows only their branding, no NCYSA.
+// NCYSA's own hosts (ncysa-learn.onrender.com, localhost) are NOT listed here,
+// so they behave exactly as before. Add www + the bare domain for each partner.
+const DOMAIN_ORG = {
+  'getmatchready.app': 'omg',
+  'www.getmatchready.app': 'omg',
+};
 let activeOrg = DEFAULT_ORG;
 const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
 // Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
@@ -2371,6 +2380,11 @@ function inPortal() { return !!activeBrand; }
 async function route() {
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
+  // On a partner's custom domain, the bare URL opens that org's portal (never
+  // the NCYSA chooser). Only the root hash is redirected, so deep links still
+  // work; NCYSA's own hosts aren't in the map and are unaffected.
+  const domainOrg = DOMAIN_ORG[location.hostname];
+  if (domainOrg && (hash === '#/' || hash === '')) { location.hash = orgPortal(domainOrg, 'referees'); return; }
   navMinimal = /^#\/watch\//.test(hash);
   activeOrg = orgFromHash(hash); // which organization's portal we're in (default NCYSA)
   await applyBrandForHash(hash);
