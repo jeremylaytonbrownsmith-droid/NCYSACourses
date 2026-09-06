@@ -242,9 +242,18 @@ const BUNNY = {
   cdn: process.env.BUNNY_CDN_HOST || '',
 };
 function bunnyEnabled() { return !!(BUNNY.zone && BUNNY.host && BUNNY.key && BUNNY.cdn); }
-async function bunnyPut(remotePath, buf) {
+// Upload a file to Bunny by STREAMING it from disk — never load the whole video
+// into memory (a 300 MB readFileSync is what pushed the instance past its RAM
+// limit). Content-Length comes from the file size so Bunny gets a normal PUT.
+async function bunnyPut(remotePath, filePath) {
   const url = `https://${BUNNY.host.replace(/\/+$/, '')}/${BUNNY.zone}/${remotePath}`;
-  const res = await fetch(url, { method: 'PUT', headers: { AccessKey: BUNNY.key, 'Content-Type': 'application/octet-stream' }, body: buf });
+  const size = fs.statSync(filePath).size;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { AccessKey: BUNNY.key, 'Content-Type': 'application/octet-stream', 'Content-Length': String(size) },
+    body: fs.createReadStream(filePath),
+    duplex: 'half', // required by undici when the body is a stream
+  });
   if (!res.ok) throw new Error(`Bunny PUT ${res.status} for ${remotePath}`);
 }
 // Push a freshly-extracted package's videos to Bunny. All-or-nothing: only marks
@@ -262,7 +271,7 @@ async function offloadVideosToBunny(pkg, dest) {
   })(dest, '');
   if (!vids.length) return { cdn: false };
   try {
-    for (const v of vids) await bunnyPut(`${pkg}/${v.rel}`, fs.readFileSync(v.full));
+    for (const v of vids) await bunnyPut(`${pkg}/${v.rel}`, v.full);
   } catch (e) {
     return { cdn: false, error: e.message }; // keep everything local on any failure
   }
