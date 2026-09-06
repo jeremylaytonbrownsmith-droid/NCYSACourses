@@ -42,6 +42,20 @@ test('scorm module completion through the browser', async ({ page, playwright })
   await expect(page.locator('.complete-hero h1')).toContainText('Congratulations', { timeout: 15000 });
   await page.click('text=View your certificate');
   await expect(page.locator('.certificate .learner-name')).toContainText('Bro Wser');
+
+  // --- Reviewing a COMPLETED module must still connect to the LMS -----------
+  // Regression: a completed module used to return before defining window.API,
+  // so re-opening it threw the package's "could not connect to the LMS" dialog.
+  // Now a read-only API is exposed, so the package loads cleanly on review.
+  await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
+  await expect(page.locator('.pill-done')).toContainText('complete'); // shown as done
+  // The package loads and restores its saved position via the LMS (no "could
+  // not connect" error). It resumes wherever the learner left off, of 3 slides.
+  await expect(page.frameLocator('#scormFrame').locator('#count')).toContainText('of 3');
+  const apiType = await page.evaluate(() => typeof window.API);
+  expect(apiType).toBe('object'); // the LMS API is present for review
+  const status = await page.evaluate(() => window.API.LMSGetValue('cmi.core.lesson_status'));
+  expect(['completed', 'passed']).toContain(status);
 });
 
 test('scorm time gate holds completion until the minimum time is met', async ({ playwright }) => {

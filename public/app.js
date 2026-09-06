@@ -735,7 +735,36 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   function bindNext() { document.getElementById('nextBtn')?.addEventListener('click', goNext); }
   bindNext();
-  if (missing || lp.completed) return;
+  if (missing) return;
+
+  // Already completed → the learner is just reviewing. The embedded package still
+  // loads and searches for the LMS API; without one it throws "could not connect
+  // to the LMS". So expose a live but read-only SCORM 1.2 API (no gate, no
+  // heartbeat, nothing re-recorded) so review is clean and error-free.
+  if (lp.completed) {
+    const rcmi = {
+      'cmi.core.lesson_status': saved.status || 'completed',
+      'cmi.core.lesson_location': saved.location || '',
+      'cmi.suspend_data': saved.suspendData || '',
+      'cmi.core.student_id': (me && me.user && me.user.id) || '',
+      'cmi.core.student_name': (me && me.user && me.user.name) || '',
+    };
+    window.API = {
+      LMSInitialize: function () { return 'true'; },
+      LMSFinish: function () { return 'true'; },
+      LMSGetValue: function (k) { return rcmi[k] != null ? String(rcmi[k]) : ''; },
+      LMSSetValue: function (k, v) { rcmi[k] = v; return 'true'; },
+      LMSCommit: function () { return 'true'; },
+      LMSGetLastError: function () { return '0'; },
+      LMSGetErrorString: function () { return ''; },
+      LMSGetDiagnostic: function () { return ''; },
+    };
+    window.addEventListener('hashchange', function cleanup() {
+      try { delete window.API; } catch (e) { window.API = undefined; }
+      window.removeEventListener('hashchange', cleanup);
+    });
+    return;
+  }
 
   // The SCORM 1.2 runtime (window.API) the embedded package talks to.
   const cmi = {
