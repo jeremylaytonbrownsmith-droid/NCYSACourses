@@ -60,6 +60,8 @@ a:hover { text-decoration: underline; }
 /* Nav items never wrap their own text — when space is tight they hide (see the
    responsive rules below) rather than breaking onto two lines. */
 .topnav .navlink, .topnav .btn, .topnav .greeting { white-space: nowrap; flex: none; }
+/* Nav button (e.g. Get started): center the label on both axes, always. */
+.topnav .btn { display: inline-flex; align-items: center; justify-content: center; }
 .topnav .navlink { font-weight: 600; color: var(--ink-soft); padding: 8px 10px; border-radius: 8px; }
 .topnav .navlink:hover { background: var(--bg); text-decoration: none; color: var(--ink); }
 
@@ -87,6 +89,9 @@ a:hover { text-decoration: underline; }
 .btn {
   display: inline-block; border: none; cursor: pointer; font: inherit; font-weight: 700;
   border-radius: 10px; padding: 10px 20px; transition: all 0.15s ease;
+  /* Tight line-height + centered text — the inherited 1.6 made buttons puffy and
+     pushed the label off-center. */
+  line-height: 1.2; text-align: center;
 }
 .btn-primary { background: var(--brand); color: #fff; }
 .btn-primary:hover { background: var(--brand-dark); text-decoration: none; }
