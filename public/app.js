@@ -2071,21 +2071,33 @@ async function viewCourseAdmin(flash) {
         const status = document.getElementById('scormStatus');
         const f = fileEl && fileEl.files && fileEl.files[0];
         if (!f) { status.textContent = 'Choose a .zip first.'; return; }
+        const MB = Math.round(f.size / 1e6);
         const nameHint = (form.querySelector('[name=title]')?.value || f.name).replace(/\.zip$/i, '');
+        if (MB > 500) { status.textContent = `✗ This file is ${MB} MB — over the 500 MB upload limit. Tell Claude and the limit can be raised.`; return; }
         up.disabled = true;
-        status.textContent = 'Uploading… large modules can take a minute.';
+        status.textContent = `Uploading ${MB} MB… large modules can take a few minutes on a slow connection — keep this tab open and don't switch networks.`;
         try {
           const r = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f,
           });
           const data = await r.json().catch(() => ({}));
-          if (!r.ok) throw new Error(data.error || 'Upload failed');
+          if (!r.ok) {
+            if (r.status === 413) throw new Error(`File too large for the server (${MB} MB) — tell Claude to raise the limit.`);
+            throw new Error(data.error || `Upload failed (HTTP ${r.status}).`);
+          }
           form.querySelector('[name=packageId]').value = data.packageId;
           form.querySelector('[name=launchFile]').value = data.launchFile || 'index.html';
           const titleEl = form.querySelector('[name=title]');
           if (titleEl && !titleEl.value && data.title) titleEl.value = data.title;
           status.innerHTML = `✓ Uploaded: <strong>${esc(data.title || data.packageId)}</strong>` + (data.warning ? ` — ⚠ ${esc(data.warning)}` : ' — now click “Save lesson”.');
-        } catch (err) { status.textContent = '✗ ' + err.message; }
+        } catch (err) {
+          // A dropped connection (shaky Wi-Fi) surfaces as a fetch TypeError, not
+          // an HTTP error — say so plainly instead of a cryptic "Upload failed".
+          const dropped = /Failed to fetch|NetworkError|Load failed|network/i.test(err.message);
+          status.textContent = '✗ ' + (dropped
+            ? `Upload interrupted (${MB} MB) — the connection dropped. This is almost always Wi-Fi. Try again on a stronger or wired connection, one module at a time.`
+            : err.message);
+        }
         finally { up.disabled = false; }
       });
     };

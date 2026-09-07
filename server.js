@@ -1504,6 +1504,15 @@ if (require.main === module) {
   initFromCloud()
     .catch(() => {})
     .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); setupOmgCourse(); })
-    .then(() => app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`)));
+    .then(() => {
+      const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
+      // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
+      // The default 5-minute request cap cuts them off ("Upload failed"), so give
+      // uploads plenty of room to finish.
+      server.requestTimeout = 30 * 60 * 1000; // 30 min for a full request/body
+      server.headersTimeout = 60 * 1000;      // headers still bounded (default)
+      server.timeout = 0;                     // no fixed socket inactivity cap
+      server.keepAliveTimeout = 75 * 1000;
+    });
 }
 module.exports = app;
