@@ -48,6 +48,9 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.01em;
 }
 .topnav .logo > span { min-width: 0; }
+/* The brand is a link; never underline it (a tap on mobile otherwise leaves the
+   :hover underline stuck under the name). */
+.topnav .logo, .topnav .logo:hover { text-decoration: none; }
 .topnav .logo .ball { font-size: 1.4rem; }
 .topnav .logo .sub {
   font-size: 0.68rem; font-weight: 600; color: var(--ink-soft);
@@ -463,12 +466,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 @media (max-width: 600px) {
   :root { font-size: 15px; }
 
-  /* Nav: one row, inside the viewport. The brand may shrink/ellipsize so the
-     action buttons are never clipped, even with a long co-brand name. */
-  .topnav { padding: 0 10px; gap: 6px; height: 56px; flex-wrap: nowrap; }
+  /* Nav: one row, inside the viewport. The brand name wraps to at most two lines
+     (so a long co-brand like "OMG Referee Education" shows in full instead of
+     being cut off), and the bar grows to fit rather than clipping it. */
+  .topnav { padding: 0 10px; gap: 8px; min-height: 56px; flex-wrap: nowrap; }
   .topnav .logo { flex: 0 1 auto; min-width: 0; }
   .topnav .logo .sub { display: none; }          /* drop subtitle on phones */
-  .topnav .logo > span { font-size: 0.9rem; line-height: 1.05; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topnav .logo > span {
+    font-size: 0.82rem; line-height: 1.12; min-width: 0; white-space: normal;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
   .topnav .spacer { flex: 1 1 8px; }
   .topnav .navlink, .topnav .btn { flex: none; }
   .topnav .brandmark { height: 34px; max-width: 100px; padding: 2px 3px; flex: none; }
