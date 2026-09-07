@@ -12,7 +12,7 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-const AdmZip = require('adm-zip');
+const unzipper = require('unzipper'); // streaming unzip — never loads the whole .zip into memory
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
@@ -1276,66 +1276,100 @@ function decodeEntities(s) {
 // into SCORM_DIR/<packageId>, read imsmanifest.xml for the launch file and
 // title, and return metadata for the designer to attach as a `scorm` lesson.
 // The package is served same-origin at /scorm/<packageId>/.
-app.post('/api/admin/scorm', requireEditor,
-  express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '500mb' }),
-  async (req, res) => {
-    let dest = null; // hoisted so a failed extraction can clean up its partial folder
-    try {
-      const buf = req.body;
-      if (!buf || !buf.length) return res.status(400).json({ error: 'No file received.' });
-      let zip;
-      try { zip = new AdmZip(buf); } catch { return res.status(400).json({ error: 'That file is not a valid .zip.' }); }
-      const entries = zip.getEntries();
-      const manEntry = entries.find((e) => /(^|\/)imsmanifest\.xml$/i.test(e.entryName));
-      if (!manEntry) return res.status(400).json({ error: 'Not a SCORM package — no imsmanifest.xml inside the .zip.' });
+// Uploads stream straight to disk and unzip with a streaming reader, so a very
+// large module (hundreds of MB, or more) never has to fit in memory — which is
+// what previously forced a 500 MB cap and risked an out-of-memory restart.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB sanity cap
+app.post('/api/admin/scorm', requireEditor, async (req, res) => {
+  let dest = null;   // package folder — cleaned up if extraction fails
+  let tmpZip = null; // temp upload file — always removed
+  try {
+    const declared = Number(req.headers['content-length'] || 0);
+    if (declared && declared > MAX_UPLOAD_BYTES) {
+      return res.status(413).json({ error: `That file is ${(declared / 1e9).toFixed(2)} GB — over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.` });
+    }
+    // 1) Stream the request body to a temp file on disk (bounded), never to RAM.
+    fs.mkdirSync(SCORM_DIR, { recursive: true });
+    tmpZip = path.resolve(SCORM_DIR, `.upload-${crypto.randomBytes(6).toString('hex')}.zip`);
+    await new Promise((resolve, reject) => {
+      const ws = fs.createWriteStream(tmpZip);
+      let received = 0, tooBig = false;
+      req.on('data', (c) => {
+        received += c.length;
+        if (received > MAX_UPLOAD_BYTES && !tooBig) { tooBig = true; req.destroy(); ws.destroy(); reject(new Error('UPLOAD_TOO_LARGE')); }
+      });
+      req.on('error', reject);
+      ws.on('error', reject);
+      ws.on('finish', resolve);
+      req.pipe(ws);
+    });
+    if (!fs.statSync(tmpZip).size) { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'No file received.' }); }
 
-      // The manifest may sit inside a wrapping folder; everything is relative to it.
-      const rootPrefix = manEntry.entryName.slice(0, manEntry.entryName.toLowerCase().lastIndexOf('imsmanifest.xml'));
-      const manifest = zip.readAsText(manEntry);
-      const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
-      const launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
-      const title = decodeEntities(
-        ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
-          || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
-      );
+    // 2) Read the zip's directory via random-access (does NOT load the whole file).
+    let directory;
+    try { directory = await unzipper.Open.file(tmpZip); }
+    catch { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'That file is not a valid .zip.' }); }
+    const files = directory.files.filter((f) => f.type === 'File');
+    const manEntry = files.find((f) => /(^|\/)imsmanifest\.xml$/i.test(f.path));
+    if (!manEntry) { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'Not a SCORM package — no imsmanifest.xml inside the .zip.' }); }
 
-      const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
-      dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
-      fs.mkdirSync(dest, { recursive: true });
-      let wrote = 0;
-      for (const e of entries) {
-        if (e.isDirectory) continue;
-        if (rootPrefix && !e.entryName.startsWith(rootPrefix)) continue;
-        const relName = (rootPrefix ? e.entryName.slice(rootPrefix.length) : e.entryName).replace(/\\/g, '/');
-        if (!relName || relName.includes('..')) continue;
-        const outPath = path.resolve(dest, relName);
-        if (outPath !== dest && !outPath.startsWith(dest + path.sep)) continue; // containment
-        fs.mkdirSync(path.dirname(outPath), { recursive: true });
-        fs.writeFileSync(outPath, e.getData());
-        wrote++;
-      }
-      if (!wrote) { fs.rmSync(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'The .zip was empty.' }); }
-      // Offload videos to the Bunny CDN if configured (no-op otherwise).
-      let cdn = { cdn: false };
-      try { cdn = await offloadVideosToBunny(packageId, dest); }
-      catch (e) { cdn = { cdn: false, error: e.message }; }
-      if (!fs.existsSync(path.join(dest, launchFile))) {
-        // Launch file named in the manifest isn't where expected — flag it rather
-        // than silently shipping a broken module.
-        return res.json({ packageId, launchFile, title, cdn: cdn.cdn, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
-      }
-      res.json({ packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0 });
-    } catch (e) {
-      // A failed upload (e.g. ENOSPC mid-extract) must not leave a half-written
-      // package folder behind — that would silently eat disk on every retry.
-      if (dest) { try { fs.rmSync(dest, { recursive: true, force: true }); } catch { /* ignore */ } }
-      const msg = /ENOSPC/.test(e.message || '')
+    // The manifest may sit inside a wrapping folder; everything is relative to it.
+    const rootPrefix = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
+    const manifest = (await manEntry.buffer()).toString('utf8');
+    const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
+    const launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
+    const title = decodeEntities(
+      ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
+        || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
+    );
+
+    const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
+    dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
+    fs.mkdirSync(dest, { recursive: true });
+
+    // 3) Stream each entry to disk (containment-checked), stripping the wrapper folder.
+    let wrote = 0;
+    for (const entry of files) {
+      if (rootPrefix && !entry.path.startsWith(rootPrefix)) continue;
+      const relName = (rootPrefix ? entry.path.slice(rootPrefix.length) : entry.path).replace(/\\/g, '/');
+      if (!relName || relName.includes('..')) continue;
+      const outPath = path.resolve(dest, relName);
+      if (outPath !== dest && !outPath.startsWith(dest + path.sep)) continue; // containment
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      await new Promise((resolve, reject) => {
+        const rs = entry.stream();
+        const ws = fs.createWriteStream(outPath);
+        rs.on('error', reject); ws.on('error', reject); ws.on('finish', resolve);
+        rs.pipe(ws);
+      });
+      wrote++;
+    }
+    fs.rmSync(tmpZip, { force: true }); tmpZip = null; // extraction done — drop the temp zip
+
+    if (!wrote) { fs.rmSync(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'The .zip was empty.' }); }
+    // Offload videos to the Bunny CDN if configured (streams; no-op otherwise).
+    let cdn = { cdn: false };
+    try { cdn = await offloadVideosToBunny(packageId, dest); }
+    catch (e) { cdn = { cdn: false, error: e.message }; }
+    if (!fs.existsSync(path.join(dest, launchFile))) {
+      // Launch file named in the manifest isn't where expected — flag it rather
+      // than silently shipping a broken module.
+      return res.json({ packageId, launchFile, title, cdn: cdn.cdn, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
+    }
+    res.json({ packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0 });
+  } catch (e) {
+    // A failed upload must not leave a half-written package folder or temp zip
+    // behind — that would silently eat disk on every retry.
+    if (dest) { try { fs.rmSync(dest, { recursive: true, force: true }); } catch { /* ignore */ } }
+    if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
+    const msg = e.message === 'UPLOAD_TOO_LARGE'
+      ? `That file is over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.`
+      : /ENOSPC/.test(e.message || '')
         ? 'Out of disk space. Free up module storage (Manage courses → Module storage → clean up) or enlarge the disk, then re-upload.'
         : 'Could not read package: ' + e.message;
-      res.status(400).json({ error: msg });
-    }
+    res.status(e.message === 'UPLOAD_TOO_LARGE' ? 413 : 400).json({ error: msg });
   }
-);
+});
 
 // ---- Module storage housekeeping -------------------------------------------
 // Every package folder in SCORM_DIR that no lesson points at is dead weight

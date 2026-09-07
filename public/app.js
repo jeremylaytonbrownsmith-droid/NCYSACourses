@@ -2073,9 +2073,9 @@ async function viewCourseAdmin(flash) {
         if (!f) { status.textContent = 'Choose a .zip first.'; return; }
         const MB = Math.round(f.size / 1e6);
         const nameHint = (form.querySelector('[name=title]')?.value || f.name).replace(/\.zip$/i, '');
-        if (MB > 500) { status.textContent = `✗ This file is ${MB} MB — over the 500 MB upload limit. Tell Claude and the limit can be raised.`; return; }
+        if (MB > 2000) { status.textContent = `✗ This file is ${MB} MB — over the 2 GB upload limit.`; return; }
         up.disabled = true;
-        status.textContent = `Uploading ${MB} MB… large modules can take a few minutes on a slow connection — keep this tab open and don't switch networks.`;
+        status.textContent = `Uploading ${MB} MB… large modules can take several minutes on a slow connection — keep this tab open and don't switch networks.`;
         try {
           const r = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f,
