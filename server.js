@@ -125,6 +125,24 @@ function setRefereeCertYear() {
   console.log('[finalize] referee certTitle is now:', course.certTitle);
 }
 
+// One-time: correct the "NCSYA" misspelling (transposed letters) of NCYSA in any
+// course's visible text. Safe and unambiguous — NCSYA is never intentional.
+const FIX_NCSYA_FLAG = 'fix-ncsya-typo-v1';
+function fixNcsyaTypo() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[FIX_NCSYA_FLAG]) return;
+  let fixed = 0;
+  for (const c of db.courses) {
+    for (const f of ['title', 'tagline', 'description', 'certOrg', 'certTitle', 'coBrandName']) {
+      if (typeof c[f] === 'string' && c[f].includes('NCSYA')) { c[f] = c[f].replace(/NCSYA/g, 'NCYSA'); fixed++; }
+    }
+  }
+  db.migrations[FIX_NCSYA_FLAG] = new Date().toISOString();
+  save();
+  if (fixed) console.log('[fix] corrected NCSYA→NCYSA in', fixed, 'field(s)');
+}
+
 // ---------- multi-organization support ----------
 // Each course belongs to an organization (orgId). NCYSA/NCSRA is the default org
 // ('ncysa'); a course with no orgId is treated as NCYSA, so existing NC courses,
@@ -1537,7 +1555,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); setupOmgCourse(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); setupOmgCourse(); })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
