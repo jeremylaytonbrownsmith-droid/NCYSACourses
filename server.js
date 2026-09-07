@@ -143,6 +143,24 @@ function fixNcsyaTypo() {
   if (fixed) console.log('[fix] corrected NCSYA→NCYSA in', fixed, 'field(s)');
 }
 
+// One-time: put NCYSA's example courses in the right portal. The Grassroots
+// coaching license is coach content (off the staff page); New Registrar Training
+// is staff/registrar content (off the public coaches portal). Only touches
+// NCYSA's own catalog and only when the audience is still the broad default.
+const FIX_AUDIENCE_FLAG = 'fix-course-audiences-v1';
+function fixCourseAudiences() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[FIX_AUDIENCE_FLAG]) return;
+  for (const c of db.courses) {
+    if (orgOf(c) !== DEFAULT_ORG) continue; // never touch a partner org's courses
+    if (c.id === 'grassroots-coaching-license' && (!c.audience || c.audience === 'everyone')) c.audience = 'coaches';
+    if (/registrar/i.test(c.title || '') && c.audience !== 'staff') c.audience = 'staff';
+  }
+  db.migrations[FIX_AUDIENCE_FLAG] = new Date().toISOString();
+  save();
+}
+
 // ---------- multi-organization support ----------
 // Each course belongs to an organization (orgId). NCYSA/NCSRA is the default org
 // ('ncysa'); a course with no orgId is treated as NCYSA, so existing NC courses,
@@ -1555,7 +1573,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); setupOmgCourse(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.

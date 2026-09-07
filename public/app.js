@@ -120,6 +120,21 @@ const DOMAIN_ORG = {
   'www.getmatchready.app': 'omg',
 };
 let activeOrg = DEFAULT_ORG;
+// Make the browser-tab icon and title match the org/domain in view — so OMG's
+// domain shows the OMG shield and name, not NCYSA's. Domain wins; otherwise the
+// hash decides; NCYSA is the default.
+function applyOrgChrome() {
+  const org = DOMAIN_ORG[location.hostname] || orgFromHash(location.hash || '#/');
+  const brand = ORG_BRANDS[org];
+  const iconEl = document.querySelector('link[rel="icon"]');
+  if (brand) {
+    if (iconEl) iconEl.href = brand.coLogoUrl;
+    document.title = `${brand.coBrandName} — Education & Training`;
+  } else {
+    if (iconEl) iconEl.href = '/media/ncysa-logo.png';
+    document.title = 'NCYSA Learn — Education & Training Platform';
+  }
+}
 const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
 // Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
 // another org uses its /org/<slug>/ prefix.
@@ -2408,6 +2423,10 @@ async function brandForHash(hash) {
     return null;
   }
   if (/^#\/referees$/.test(hash)) return Object.values(map).find((b) => b.audience === 'referees') || NCSRA_BRAND;
+  // On a partner's own domain (e.g. getmatchready.app), every remaining page —
+  // register, sign in, home — still wears that org's brand, never NCYSA.
+  const domainOrg = DOMAIN_ORG[location.hostname];
+  if (domainOrg) return await refereeBrandForOrg(domainOrg);
   return null;
 }
 async function applyBrandForHash(hash) {
@@ -2428,7 +2447,10 @@ async function route() {
   const domainOrg = DOMAIN_ORG[location.hostname];
   if (domainOrg && (hash === '#/' || hash === '')) { location.hash = orgPortal(domainOrg, 'referees'); return; }
   navMinimal = /^#\/watch\//.test(hash);
-  activeOrg = orgFromHash(hash); // which organization's portal we're in (default NCYSA)
+  // On a partner domain the whole site is that org (so register/sign-in/etc. stay
+  // in-org); otherwise the hash decides. Default is NCYSA.
+  activeOrg = domainOrg || orgFromHash(hash);
+  applyOrgChrome(); // tab icon + title match the org/domain
   await applyBrandForHash(hash);
   renderNav(); // reflect navMinimal + brand for this route
   for (const r of routes) {

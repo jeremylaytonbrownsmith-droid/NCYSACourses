@@ -382,6 +382,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .role-card .role-go { margin-top: 10px; font-weight: 700; color: var(--accent); }
 
 .role-hero { text-align: center; margin-bottom: 24px; }
+/* The feature strip's negative top margin is meant to overlap the homepage's
+   colored hero band. On a portal page it follows plain centered text, so cancel
+   the overlap or the tiles ride up over the lead paragraph. */
+.role-hero + .feature-strip { margin-top: 8px; }
 .referee-portal-logo { height: 116px; width: auto; max-width: 240px; object-fit: contain; display: block; margin: 0 auto 6px; }
 .role-hero h2 { margin-top: 12px; }
 .notice-card { max-width: 640px; margin: 0 auto; }
