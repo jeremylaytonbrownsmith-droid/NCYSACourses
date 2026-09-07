@@ -253,6 +253,16 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Clean per-org shortcut: /omg (and any partner-org slug) forwards to that org's
+// portal. Lets a partner hand out a tidy URL (e.g. getmatchready.app/omg) that
+// resolves to the hash-routed portal. Only single-segment, known non-default org
+// slugs match; everything else falls through untouched.
+app.get('/:slug', (req, res, next) => {
+  const slug = String(req.params.slug || '').toLowerCase();
+  if (ORGS[slug] && slug !== DEFAULT_ORG) return res.redirect(302, `/#/org/${slug}/referees`);
+  next();
+});
+
 // Where uploaded SCORM course packages live on disk. They must be served
 // SAME-ORIGIN as the app (SCORM 1.2 discovers window.API by walking up the
 // parent window, which the browser blocks cross-origin), so they're served

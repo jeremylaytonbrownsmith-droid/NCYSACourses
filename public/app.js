@@ -466,13 +466,19 @@ function viewStaffLogin() {
 }
 
 function viewRegister() {
-  const referee = inPortal(); // NCSRA referee portal
+  const referee = inPortal(); // a referee portal (NCSRA or a partner org)
+  // NCSRA referees match on their Arbiter email; other orgs (e.g. OMG) don't use
+  // Arbiter, so ask for their U.S. Soccer email instead.
+  const orgReferee = referee && activeOrg !== DEFAULT_ORG;
+  const emailField = !referee
+    ? { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' }
+    : orgReferee
+      ? { name: 'email', label: 'Email — please use your U.S. Soccer email', type: 'email', auto: 'email', placeholder: 'your U.S. Soccer email' }
+      : { name: 'email', label: 'Email — please use your Arbiter (ArbiterSports) email', type: 'email', auto: 'email', placeholder: 'your ArbiterSports email' };
   const fields = [
     { name: 'firstName', label: 'First name', type: 'text', auto: 'given-name' },
     { name: 'lastName', label: 'Last name', type: 'text', auto: 'family-name' },
-    referee
-      ? { name: 'email', label: 'Email — please use your Arbiter (ArbiterSports) email', type: 'email', auto: 'email', placeholder: 'your ArbiterSports email' }
-      : { name: 'email', label: 'Email', type: 'email', auto: 'email', placeholder: 'you@example.com' },
+    emailField,
   ];
   authForm({
     title: referee ? 'Create your referee account' : 'Create your free account',
