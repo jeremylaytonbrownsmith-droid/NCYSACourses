@@ -1476,15 +1476,29 @@ async function viewAdmin() {
     });
   }
   const progOf = (c) => (c.totalModules ? `${c.modulesComplete}/${c.totalModules}` : (c.completedAt ? '✓' : '—'));
+  // How long the learner took, start of enrollment → completion. Wall-clock, so
+  // it includes any breaks between sittings. Only shown once a course is done.
+  const fmtDuration = (startIso, endIso) => {
+    if (!startIso || !endIso) return '—';
+    const ms = new Date(endIso) - new Date(startIso);
+    if (!(ms > 0)) return '—';
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60), m = mins % 60;
+    if (h < 24) return m ? `${h}h ${m}m` : `${h}h`;
+    const d = Math.floor(h / 24), rh = h % 24;
+    return rh ? `${d}d ${rh}h` : `${d}d`;
+  };
   function renderTable() {
     const list = filtered();
     els.table.innerHTML = list.length ? `
       <div class="table-scroll"><table class="admin-table">
-        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Completed</th><th>Certificate</th><th></th></tr>
+        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
           <td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
           <td>${progOf(c)}</td>
           <td>${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
+          <td>${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
           <td>${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
           <td>${esc(c.certId || '—')}</td>
           <td>${c.userId && c.courseId ? `<button class="linkbtn danger del-record" data-user="${esc(c.userId)}" data-course="${esc(c.courseId)}" data-name="${esc(c.learner || c.email || 'this record')}">Delete</button>` : ''}</td></tr>`).join('')}
@@ -1510,13 +1524,15 @@ async function viewAdmin() {
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const header = ['Last Name', 'First Name', 'Full Name', 'Email (Arbiter)', 'Course', 'Modules Complete', 'Total Modules', 'Status', 'Completed', 'Certificate ID'];
+      const header = ['Last Name', 'First Name', 'Full Name', 'Email (Arbiter)', 'Course', 'Modules Complete', 'Total Modules', 'Status', 'Started', 'Completed', 'Time to Complete', 'Certificate ID'];
       const csv = [header.join(',')]
         .concat(list.map((c) => [
           c.lastName || '', c.firstName || '', c.learner || '', c.email || '', c.course || '',
           c.modulesComplete ?? '', c.totalModules ?? '',
           c.completedAt ? 'Completed' : 'In progress',
+          c.startedAt ? new Date(c.startedAt).toISOString() : '',
           c.completedAt ? new Date(c.completedAt).toISOString() : '',
+          fmtDuration(c.startedAt, c.completedAt),
           c.certId || '',
         ].map(cell).join(',')))
         .join('\r\n');
