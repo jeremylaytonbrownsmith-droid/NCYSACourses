@@ -673,8 +673,11 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .portal-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(18,40,66,.14); text-decoration: none; border-color: var(--brand); }
 .portal-card h2 { color: var(--ink); margin: 0; }
 .portal-card p { color: var(--ink-soft); font-size: .98rem; max-width: 320px; }
-.portal-card .btn { margin-top: 8px; }
-.portal-badge { display: flex; align-items: center; justify-content: center; }
+/* Pin the button to the bottom of the card so both align even when the logos or
+   text differ in height. */
+.portal-card .btn { margin-top: auto; }
+/* Equal-height logo area so differently-sized crests don't shift the rows. */
+.portal-badge { display: flex; align-items: center; justify-content: center; min-height: 120px; }
 .portal-badge img { width: auto; }
 .portal-badge-ref img { height: 104px; }        /* NCSRA crest */
 .portal-badge-coach img { height: 84px; }        /* NCYSA mark */
