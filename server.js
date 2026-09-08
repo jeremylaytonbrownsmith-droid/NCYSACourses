@@ -1210,6 +1210,23 @@ app.post('/api/admin/courses/:courseId/publish', requireEditor, (req, res) => {
   res.json({ id: course.id, published: course.published });
 });
 
+// Reorder a course within its own organization — this controls the order that
+// org's portal lists its courses. Swaps with the nearest same-org neighbor so
+// up/down moves within that org's list even if orgs are interleaved.
+app.post('/api/admin/courses/:courseId/move', requireEditor, (req, res) => {
+  const db = load();
+  const idx = db.courses.findIndex((c) => c.id === req.params.courseId);
+  if (idx < 0) return res.status(404).json({ error: 'Course not found' });
+  const org = orgOf(db.courses[idx]);
+  const dir = (req.body && req.body.dir) === 'up' ? -1 : 1;
+  let j = idx + dir;
+  while (j >= 0 && j < db.courses.length && orgOf(db.courses[j]) !== org) j += dir;
+  if (j < 0 || j >= db.courses.length) return res.json({ ok: true }); // already first/last in its org
+  const t = db.courses[idx]; db.courses[idx] = db.courses[j]; db.courses[j] = t;
+  save();
+  res.json({ ok: true });
+});
+
 // Reorder a lesson within its course (move up or down one place).
 app.post('/api/admin/courses/:courseId/lessons/:lessonId/move', requireEditor, (req, res) => {
   const db = load();

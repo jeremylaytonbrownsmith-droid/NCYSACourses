@@ -1611,6 +1611,8 @@ async function viewCourseAdmin(flash) {
                 <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
               </div>
               <div class="course-admin-actions">
+                <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="up" title="Move up (within this portal)">↑</button>
+                <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="down" title="Move down (within this portal)">↓</button>
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
@@ -1651,6 +1653,11 @@ async function viewCourseAdmin(flash) {
     document.getElementById('newCoursePanel').innerHTML = storagePanel();
     loadStorage();
   });
+  document.querySelectorAll('.move-course').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    try { await api(`/api/admin/courses/${b.dataset.course}/move`, { method: 'POST', body: { dir: b.dataset.dir } }); viewCourseAdmin(); }
+    catch (e) { msg(e.message, true); b.disabled = false; }
+  }));
   document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
     const c = list.find((x) => x.id === b.dataset.course);
     document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = courseForm(c);
