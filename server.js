@@ -161,6 +161,25 @@ function fixCourseAudiences() {
   save();
 }
 
+// One-time: show the New Referee course first in the OMG portal. Moves the OMG
+// "New Referee" course to the front of OMG's list; the others keep their order.
+const OMG_NEW_FIRST_FLAG = 'omg-new-referee-first-v1';
+function omgNewRefereeFirst() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[OMG_NEW_FIRST_FLAG]) return;
+  const idx = db.courses.findIndex((c) => orgOf(c) === 'omg'
+    && (/new referee/i.test(c.badge || '') || /\bnew\b/i.test(c.title || '')));
+  if (idx >= 0) {
+    const [course] = db.courses.splice(idx, 1);
+    const insertAt = db.courses.findIndex((c) => orgOf(c) === 'omg');
+    db.courses.splice(insertAt < 0 ? db.courses.length : insertAt, 0, course);
+    console.log('[order] moved OMG New Referee course to the front of OMG');
+  }
+  db.migrations[OMG_NEW_FIRST_FLAG] = new Date().toISOString();
+  save();
+}
+
 // ---------- multi-organization support ----------
 // Each course belongs to an organization (orgId). NCYSA/NCSRA is the default org
 // ('ncysa'); a course with no orgId is treated as NCYSA, so existing NC courses,
@@ -1600,7 +1619,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); omgNewRefereeFirst(); })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
