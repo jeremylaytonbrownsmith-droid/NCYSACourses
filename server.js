@@ -180,6 +180,27 @@ function omgNewRefereeFirst() {
   save();
 }
 
+// One-time: set the full OMG portal order — New Referee, then Regional Referee
+// Recertification, then Referee Recertification. Recomputes from scratch, so it
+// supersedes the earlier "new first" pass regardless of the current order.
+const OMG_ORDER_V2_FLAG = 'omg-course-order-v2';
+function omgCourseOrder() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[OMG_ORDER_V2_FLAG]) return;
+  const rank = (c) => {
+    if (/new referee/i.test(c.badge || '') || /\bnew\b/i.test(c.title || '')) return 0; // New Referee
+    if (/regional/i.test(c.title || '')) return 1;                                       // Regional Recertification
+    return 2;                                                                            // Referee Recertification / other
+  };
+  const slots = [], omg = [];
+  db.courses.forEach((c, i) => { if (orgOf(c) === 'omg') { slots.push(i); omg.push(c); } });
+  omg.sort((a, b) => rank(a) - rank(b)); // stable
+  slots.forEach((slot, k) => { db.courses[slot] = omg[k]; });
+  db.migrations[OMG_ORDER_V2_FLAG] = new Date().toISOString();
+  save();
+}
+
 // ---------- multi-organization support ----------
 // Each course belongs to an organization (orgId). NCYSA/NCSRA is the default org
 // ('ncysa'); a course with no orgId is treated as NCYSA, so existing NC courses,
@@ -1619,7 +1640,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); omgNewRefereeFirst(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); omgNewRefereeFirst(); omgCourseOrder(); })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
