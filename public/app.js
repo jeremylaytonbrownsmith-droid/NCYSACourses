@@ -213,11 +213,12 @@ const coursePortalHash = (c) => orgPortal(c && c.orgId, (c && c.audience === 're
 function renderLanding() {
   document.title = 'GetMatchReady · SCORM delivery for training platforms';
   try { topnav.innerHTML = ''; } catch (e) { /* ignore */ }
-  // The product page is its own entity — not NCYSA. Give it a neutral mark
-  // (a checkmark in the brand gradient) instead of inheriting an org logo.
+  // The product page is its own entity — not NCYSA. Point at the neutral
+  // GetMatchReady mark (a real file URL, which Safari honors far more reliably
+  // than a data: URI) instead of inheriting an org logo.
   try {
     const icon = document.querySelector('link[rel="icon"]');
-    if (icon) icon.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236366f1'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M18 33l9 9 19-21' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+    if (icon) icon.href = '/media/getmatchready-mark.svg';
   } catch (e) { /* ignore */ }
   const SPEC = '/downloads/getmatchready-integration.docx';
   const PORTAL = '#/org/omg/referees'; // a live, branded portal running the real USSF modules
