@@ -299,7 +299,7 @@ function renderLanding() {
           <a class="lp-btn primary" href="${PORTAL}">Open a live portal →</a>
         </div>
         <footer class="lp-foot">
-          Built by Jeremy Layton-Brown-Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
+          Built by Jeremy Layton Brown Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
         </footer>
       </section>
     </div>`;
