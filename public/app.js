@@ -1617,6 +1617,7 @@ async function viewCourseAdmin(flash) {
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                 ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
+                <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
               </div>
@@ -1657,6 +1658,31 @@ async function viewCourseAdmin(flash) {
     b.disabled = true;
     try { await api(`/api/admin/courses/${b.dataset.course}/move`, { method: 'POST', body: { dir: b.dataset.dir } }); viewCourseAdmin(); }
     catch (e) { msg(e.message, true); b.disabled = false; }
+  }));
+  document.querySelectorAll('.demo-launch').forEach((b) => b.addEventListener('click', async () => {
+    const cid = b.dataset.course;
+    const slot = document.querySelector(`.panel-slot[data-course="${cid}"]`);
+    slot.innerHTML = '<p class="meta">Generating a signed launch link…</p>';
+    try {
+      const r = await api('/api/admin/integration/test-link', { method: 'POST', body: { courseId: cid } });
+      slot.innerHTML = `
+        <div class="editor-form">
+          <h3>Demo launch link</h3>
+          <p class="form-hint">A working, <strong>signed</strong> launch link — the same kind a partner (e.g. OMS) mints on their side. It opens this course as a demo referee (no password) and expires in ${r.expiresInMinutes} minutes. Use it to show the integration live: open it, finish the module, and the completion webhook fires.</p>
+          <textarea id="lk-${cid}" rows="3" readonly style="width:100%;font-family:monospace;font-size:.78rem">${esc(r.url)}</textarea>
+          <div class="form-actions">
+            <button class="btn btn-accent btn-sm" id="lkcopy-${cid}">Copy link</button>
+            <a class="btn btn-ghost btn-sm" href="${esc(r.url)}" target="_blank" rel="noopener">Open in new tab →</a>
+          </div>
+        </div>`;
+      document.getElementById(`lkcopy-${cid}`).addEventListener('click', () => {
+        const ta = document.getElementById(`lk-${cid}`);
+        ta.select();
+        (navigator.clipboard?.writeText(ta.value) || Promise.reject()).then(() => toast('Launch link copied.')).catch(() => { try { document.execCommand('copy'); toast('Launch link copied.'); } catch { toast('Select the text and copy it.', true); } });
+      });
+    } catch (e) {
+      slot.innerHTML = `<p class="editor-msg err">${esc(e.message)}</p>`;
+    }
   }));
   document.querySelectorAll('.edit-course').forEach((b) => b.addEventListener('click', () => {
     const c = list.find((x) => x.id === b.dataset.course);
