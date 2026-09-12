@@ -65,3 +65,25 @@ test('an invalid launch token is refused', async ({ request }) => {
   const res = await request.get('/launch?token=not-a-real-token', { maxRedirects: 0 });
   expect(res.status()).toBe(400);
 });
+
+test('the reconciliation API returns a referee\'s enrollments (bearer-authenticated)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Recon Target', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+  const token = signToken({ refId: 'OMS-RC-1', name: 'Recon Ref', email: 'recon@example.com', moduleId: courseId, org: 'NC' }, SECRET, 300);
+  const ctx = await playwright.request.newContext({ baseURL: BASE });
+  await ctx.get(`/launch?token=${token}`, { maxRedirects: 0 });
+
+  // Missing/incorrect bearer is refused.
+  expect((await ctx.get('/api/v1/completions?refId=OMS-RC-1')).status()).toBe(401);
+  expect((await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: 'Bearer wrong' } })).status()).toBe(401);
+
+  // Correct bearer returns the referee's enrollment (in-progress until completed).
+  const ok = await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: `Bearer ${SECRET}` } });
+  expect(ok.status()).toBe(200);
+  const rows = await ok.json();
+  const row = rows.find((r) => r.moduleId === courseId);
+  expect(row).toBeTruthy();
+  expect(row.status).toBe('in-progress');
+});

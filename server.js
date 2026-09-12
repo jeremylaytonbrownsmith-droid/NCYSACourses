@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret } = require('./lib/integration');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -335,6 +335,34 @@ app.get('/launch', (req, res) => {
   save();
   setSession(res, user.id);
   res.redirect(302, `/#/course/${course.id}`);
+});
+
+// Reconciliation pull API: a partner (e.g. OMS) can fetch a referee's completion
+// status on demand to reconcile its own records. Read-only, scoped to one
+// referee id, and authenticated with the shared integration secret as a bearer
+// token (constant-time compared). Only active when the integration is configured.
+app.get('/api/v1/completions', (req, res) => {
+  if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
+  const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  const secret = integrationSecret();
+  let ok = false;
+  if (m && secret) {
+    const a = Buffer.from(m[1]); const b = Buffer.from(secret);
+    ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+  if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
+  const refId = String(req.query.refId || '').trim();
+  if (!refId) return res.status(400).json({ error: 'refId is required.' });
+  const db = load();
+  const rows = db.enrollments
+    .filter((e) => e.externalRef === refId)
+    .map((e) => ({
+      moduleId: e.courseId,
+      status: e.completedAt ? 'completed' : 'in-progress',
+      completedAt: e.completedAt || null,
+      certificateId: e.certId || null,
+    }));
+  res.json(rows);
 });
 
 // Clean per-org shortcut: /omg (and any partner-org slug) forwards to that org's
