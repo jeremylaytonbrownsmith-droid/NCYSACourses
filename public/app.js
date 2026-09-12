@@ -211,8 +211,14 @@ const coursePortalHash = (c) => orgPortal(c && c.orgId, (c && c.audience === 're
 // the tool itself, distinct from any org's learner portal. Self-contained: it
 // hides the app nav and renders its own header/footer.
 function renderLanding() {
-  document.title = 'GetMatchReady — SCORM delivery for training platforms';
+  document.title = 'GetMatchReady · SCORM delivery for training platforms';
   try { topnav.innerHTML = ''; } catch (e) { /* ignore */ }
+  // The product page is its own entity — not NCYSA. Give it a neutral mark
+  // (a checkmark in the brand gradient) instead of inheriting an org logo.
+  try {
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon) icon.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236366f1'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M18 33l9 9 19-21' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+  } catch (e) { /* ignore */ }
   const SPEC = '/downloads/getmatchready-integration.docx';
   const PORTAL = '#/org/omg/referees'; // a live, branded portal running the real USSF modules
   // The animated "connection" — the integration itself, in motion: a signed
@@ -253,7 +259,7 @@ function renderLanding() {
         <div class="lp-hero-inner">
           <div class="lp-badge reveal"><span class="dot"></span> Live in production</div>
           <h1 class="reveal">The <span class="grad">course-delivery layer</span> for referee &amp; official training platforms</h1>
-          <p class="sub reveal">Build and deliver <strong>your own</strong> SCORM modules — or run the official U.S. Soccer ones — with genuine completion tracking and results sent straight back to your system. No JavaScript for your team to build or maintain.</p>
+          <p class="sub reveal">Build and deliver <strong>your own</strong> SCORM modules, or run the official U.S. Soccer ones, with genuine completion tracking and results sent straight back to your system. No JavaScript for your team to build or maintain.</p>
           <div class="lp-cta reveal">
             <a class="lp-btn primary" href="${PORTAL}">See a live portal →</a>
             <a class="lp-btn ghost" href="${SPEC}">Read the integration spec</a>
@@ -266,9 +272,9 @@ function renderLanding() {
         <h2 class="reveal">How it plugs in</h2>
         <p class="lead reveal">Three clean HTTPS touchpoints. Your platform owns registration, identity, and reporting; GetMatchReady runs the player.</p>
         <div class="lp-steps">
-          <div class="lp-step reveal"><div class="n">1</div><h3>Launch</h3><p>Your system opens a signed link carrying the learner’s ID and the module. They land straight in it — no separate login.</p></div>
+          <div class="lp-step reveal"><div class="n">1</div><h3>Launch</h3><p>Your system opens a signed link carrying the learner’s ID and the module. They land straight in it, with no separate login.</p></div>
           <div class="lp-step reveal"><div class="n">2</div><h3>Deliver &amp; resume</h3><p>GetMatchReady plays the module, streams the video from a global CDN, and resumes each learner exactly where they left off.</p></div>
-          <div class="lp-step reveal"><div class="n">3</div><h3>Report back</h3><p>The moment they finish, a signed webhook posts the completion — learner, module, date, certificate ID — to your system.</p></div>
+          <div class="lp-step reveal"><div class="n">3</div><h3>Report back</h3><p>The moment they finish, a signed webhook posts the completion back to your system with the learner, module, date, and certificate ID.</p></div>
         </div>
       </section>
 
@@ -276,26 +282,26 @@ function renderLanding() {
         <h2 class="reveal">Why platforms choose it</h2>
         <p class="lead reveal">The hard parts of course delivery, already built and running in production.</p>
         <div class="lp-feats">
-          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Genuine completion</strong><span>Real watch/finish tracking — a “complete” means they actually did it, not a click-through.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Genuine completion tracking</strong><span>The player follows real watch and finish time, so a completion means the learner truly finished the module.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Resume to the exact slide</strong><span>Learners pick up right where they stopped, across sessions and devices.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Video on a global CDN</strong><span>Large modules load fast and cheaply; the video is offloaded automatically.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Self-branded per organization</strong><span>Each association gets its own logo, colors, and certificate.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>No JavaScript on your side</strong><span>You call a URL and receive a webhook. All the player code stays on our server.</span></div></div>
-          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Your own content, first</strong><span>Author modules in your tool of choice — Captivate, iSpring, Articulate — and deliver them here. Or run the official U.S. Soccer packages.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Your own content, first</strong><span>Author modules in your own tools like Captivate, iSpring, or Articulate, and deliver them here. Or run the official U.S. Soccer packages.</span></div></div>
         </div>
       </div></section>
 
-      <section class="lp-section">
-        <div class="lp-panel reveal">
+      <section class="lp-endband">
+        <div class="lp-bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span></div>
+        <div class="lp-end-inner reveal">
           <h2>See it running</h2>
-          <p>A live, branded referee portal delivering the official U.S. Soccer recertification modules — resume, certificates, and completion tracking included.</p>
+          <p>A live, branded referee portal delivering the official U.S. Soccer recertification modules, with resume, certificates, and completion tracking included.</p>
           <a class="lp-btn primary" href="${PORTAL}">Open a live portal →</a>
         </div>
+        <footer class="lp-foot">
+          Built by Jeremy Layton-Brown-Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
+        </footer>
       </section>
-
-      <footer class="lp-foot">
-        Built by Jeremy Layton-Brown-Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
-      </footer>
     </div>`;
   // Reveal-on-scroll (skipped for reduced-motion users, who see everything up front).
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

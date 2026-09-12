@@ -702,10 +702,10 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 /* ============================================================
    Product landing page (getmatchready.app front door)
    ============================================================ */
-.lp { --lp-navy: #17224f; --lp-red: #ce2b37; color: #1a2036; overflow-x: hidden; }
+.lp { --lp-navy: #17224f; --lp-accent: #6366f1; --lp-accent2: #7c3aed; color: #1a2036; overflow-x: hidden; }
 .lp-head { position: relative; z-index: 3; display: flex; align-items: center; gap: 16px; padding: 18px 24px; max-width: 1100px; margin: 0 auto; }
 .lp-mark { font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--lp-navy); }
-.lp-mark span { color: var(--lp-red); }
+.lp-mark span { color: var(--lp-accent); }
 .lp-head .lp-spacer { flex: 1; }
 .lp-head a { font-weight: 600; color: var(--lp-navy); font-size: .95rem; }
 
@@ -715,7 +715,7 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .lp-bg .blob { position: absolute; width: 46vw; height: 46vw; max-width: 620px; max-height: 620px; border-radius: 50%; filter: blur(70px); opacity: .55; will-change: transform; }
 .lp-bg .b1 { top: -14%; left: -8%; background: #2b3f9e; animation: lpDrift1 16s ease-in-out infinite; }
 .lp-bg .b2 { top: -22%; right: -10%; background: #1e8f9e; animation: lpDrift2 20s ease-in-out infinite; }
-.lp-bg .b3 { bottom: -30%; left: 34%; background: #7a2340; opacity: .4; animation: lpDrift3 24s ease-in-out infinite; }
+.lp-bg .b3 { bottom: -30%; left: 34%; background: #4b2a8f; opacity: .4; animation: lpDrift3 24s ease-in-out infinite; }
 .lp-gridlines { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 46px 46px; mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 75%); }
 .lp-hero-inner { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
 .lp-hero .eyebrow { text-transform: uppercase; letter-spacing: .2em; font-size: .72rem; font-weight: 700; color: #8fd6e6; margin: 0 0 14px; }
@@ -723,8 +723,8 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .lp-hero p.sub { font-size: clamp(1rem, 1.8vw, 1.2rem); color: #d5ddf5; max-width: 60ch; margin: 0 auto 30px; line-height: 1.55; }
 .lp-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 700; border-radius: 11px; padding: 13px 24px; font-size: 1rem; text-decoration: none; border: 2px solid transparent; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
-.lp-btn.primary { background: var(--lp-red); color: #fff; box-shadow: 0 10px 30px rgba(206,43,55,.4); }
-.lp-btn.primary:hover { background: #d83440; text-decoration: none; transform: translateY(-2px); box-shadow: 0 14px 38px rgba(206,43,55,.5); }
+.lp-btn.primary { background: linear-gradient(120deg, var(--lp-accent), var(--lp-accent2)); color: #fff; box-shadow: 0 10px 30px rgba(99,102,241,.42); }
+.lp-btn.primary:hover { filter: brightness(1.08); text-decoration: none; transform: translateY(-2px); box-shadow: 0 14px 38px rgba(99,102,241,.55); }
 .lp-btn.ghost { background: rgba(255,255,255,.04); color: #fff; border-color: rgba(255,255,255,.45); }
 .lp-btn.ghost:hover { background: rgba(255,255,255,.14); text-decoration: none; }
 
@@ -758,7 +758,14 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .lp-panel { position: relative; overflow: hidden; background: linear-gradient(135deg, #17224f, #0f2b45); color: #fff; border-radius: 18px; padding: 40px; text-align: center; box-shadow: 0 20px 50px rgba(15,30,60,.25); }
 .lp-panel h2 { color: #fff; }
 .lp-panel p { color: #d5ddf5; max-width: 56ch; margin: 0 auto 22px; }
-.lp-foot { text-align: center; color: #8791a8; font-size: .85rem; padding: 30px 22px 48px; border-top: 1px solid #e6e9f2; }
+/* Closing band — full-width blue, mirroring the dark hero at the top. */
+.lp-endband { position: relative; overflow: hidden; background: linear-gradient(135deg, #0f2b45, #17224f); color: #fff; }
+.lp-endband .lp-bg .blob { opacity: .38; }
+.lp-end-inner { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; text-align: center; padding: 72px 22px 56px; }
+.lp-end-inner h2 { color: #fff; font-size: clamp(1.5rem, 3vw, 2.1rem); margin: 0 0 10px; font-weight: 800; letter-spacing: -0.015em; }
+.lp-end-inner p { color: #d5ddf5; max-width: 56ch; margin: 0 auto 24px; line-height: 1.55; }
+.lp-foot { position: relative; z-index: 1; text-align: center; color: #9fb0d6; font-size: .85rem; padding: 22px 22px 44px; border-top: 1px solid rgba(255,255,255,.12); }
+.lp-foot a { color: #cfe0ff; }
 
 /* Reveal-on-scroll */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
