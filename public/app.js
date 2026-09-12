@@ -223,6 +223,9 @@ function renderLanding() {
         <linearGradient id="wireG" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#7aa2ff"/>
         </linearGradient>
+        <linearGradient id="nodeG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
+        </linearGradient>
       </defs>
       <path class="wire" d="M180 92 C 320 60, 330 60, 460 92"/>
       <path class="wire" d="M460 128 C 330 160, 320 160, 180 128"/>
@@ -248,9 +251,9 @@ function renderLanding() {
       <section class="lp-hero">
         <div class="lp-bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="lp-gridlines"></span></div>
         <div class="lp-hero-inner">
-          <p class="eyebrow reveal">SCORM delivery, built to plug in</p>
-          <h1 class="reveal">The course-delivery layer for referee &amp; official training platforms</h1>
-          <p class="sub reveal">Host the official U.S. Soccer SCORM modules, prove genuine completion, and send the results straight back to your system — with no JavaScript for your team to build or maintain.</p>
+          <div class="lp-badge reveal"><span class="dot"></span> Live in production</div>
+          <h1 class="reveal">The <span class="grad">course-delivery layer</span> for referee &amp; official training platforms</h1>
+          <p class="sub reveal">Build and deliver <strong>your own</strong> SCORM modules — or run the official U.S. Soccer ones — with genuine completion tracking and results sent straight back to your system. No JavaScript for your team to build or maintain.</p>
           <div class="lp-cta reveal">
             <a class="lp-btn primary" href="${PORTAL}">See a live portal →</a>
             <a class="lp-btn ghost" href="${SPEC}">Read the integration spec</a>
@@ -278,7 +281,7 @@ function renderLanding() {
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Video on a global CDN</strong><span>Large modules load fast and cheaply; the video is offloaded automatically.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Self-branded per organization</strong><span>Each association gets its own logo, colors, and certificate.</span></div></div>
           <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>No JavaScript on your side</strong><span>You call a URL and receive a webhook. All the player code stays on our server.</span></div></div>
-          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Your modules or the USSF ones</strong><span>Upload your own SCORM packages, or run the official U.S. Soccer modules.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Your own content, first</strong><span>Author modules in your tool of choice — Captivate, iSpring, Articulate — and deliver them here. Or run the official U.S. Soccer packages.</span></div></div>
         </div>
       </div></section>
 

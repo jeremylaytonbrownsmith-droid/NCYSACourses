@@ -778,3 +778,20 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   .lp-bg .blob, .flow .wire, .flow .fnode.hot rect { animation: none !important; }
   .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+/* Landing — extra polish (badge, gradient headline, node float, mobile leading) */
+.lp-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); color: #cfe0ff; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; margin: 0 0 22px; }
+.lp-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: lpBlink 1.8s ease-in-out infinite; }
+.lp-hero h1 .grad { background: linear-gradient(90deg, #5eead4, #7aa2ff 60%, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+.flow .fnode rect { fill: url(#nodeG); }
+.flow .fnode { animation: lpFloat 6s ease-in-out infinite; }
+.flow .fnode.hot { animation-delay: -3s; }
+.flow .ft { font-size: 15px; } .flow .fs { font-size: 11px; } .flow .wlabel { font-size: 12px; }
+@keyframes lpBlink { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.7); } 50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); } }
+@keyframes lpFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (max-width: 560px) {
+  .lp-hero h1 { max-width: 100%; font-size: clamp(1.7rem, 8vw, 2.25rem); line-height: 1.16; letter-spacing: -0.02em; }
+  .lp-hero p.sub { font-size: 1rem; line-height: 1.55; }
+  .flow .ft { font-size: 18px; } .flow .fs { font-size: 13px; } .flow .wlabel { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .lp-badge .dot, .flow .fnode { animation: none !important; } }
