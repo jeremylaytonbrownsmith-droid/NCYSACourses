@@ -67,6 +67,13 @@ services:
         sync: false # Colin's course-designer password — a value you choose
       - key: STAFF_ACCESS_CODE
         sync: false # shared code that unlocks the Staff Portal (choose any phrase)
+      # ---- Partner integration (e.g. OMS): signed launch link in, signed
+      #      completion webhook out. Set the secret to enable /launch and the
+      #      admin test-link tool; set the webhook URL to push completions. ----
+      - key: INTEGRATION_SECRET
+        sync: false # shared HMAC secret for launch tokens + webhook signatures
+      - key: INTEGRATION_WEBHOOK_URL
+        sync: false # partner endpoint that receives completion callbacks (optional)
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----

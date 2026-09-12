@@ -16,7 +16,7 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'rm -rf .test-data && DATA_DIR=.test-data PORT=3100 node server.js',
+    command: 'rm -rf .test-data && DATA_DIR=.test-data PORT=3100 INTEGRATION_SECRET=test-secret-123 node server.js',
     url: 'http://localhost:3100/api/courses',
     reuseExistingServer: false,
   },

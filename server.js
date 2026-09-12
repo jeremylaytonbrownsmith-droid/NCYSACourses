@@ -16,6 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled } = require('./lib/integration');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -292,6 +293,49 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Partner launch (e.g. OMS): a signed JWT carries the referee's identity and the
+// module to open. We verify it, sign the referee in as a learner (no password),
+// enroll them, and drop them straight into the module. On completion, a signed
+// webhook reports back (see maybeCompleteCourse). The partner never touches the
+// player internals — they mint a token and receive a callback.
+app.get('/launch', (req, res) => {
+  if (!integrationEnabled()) return res.status(503).send('Integration is not configured on this server.');
+  let claims;
+  try { claims = verifyToken(req.query.token); }
+  catch (e) {
+    return res.status(400).send('This training link is invalid or has expired. Please return to your dashboard and open the module again.');
+  }
+  const db = load();
+  const courseId = String(claims.moduleId || claims.courseId || '');
+  const course = allCourses().find((c) => c.id === courseId);
+  if (!course) return res.status(404).send('That training module was not found.');
+  const email = String(claims.email || '').trim().toLowerCase();
+  // Never launch as a staff/admin account (those carry a password hash).
+  let user = email ? db.users.find((u) => u.email.toLowerCase() === email) : null;
+  if (user && user.passHash) return res.status(403).send('This email belongs to a staff account and cannot be used for a referee launch.');
+  if (!user) {
+    user = {
+      id: id('usr'), name: claims.name || 'Referee', email,
+      role: 'learner', externalRef: claims.refId || null, externalOrg: claims.org || null,
+      createdAt: new Date().toISOString(),
+    };
+    db.users.push(user);
+  } else {
+    if (claims.refId) user.externalRef = claims.refId;
+    if (claims.org) user.externalOrg = claims.org;
+    if (claims.name && !user.name) user.name = claims.name;
+  }
+  let enr = db.enrollments.find((e) => e.userId === user.id && e.courseId === course.id);
+  if (!enr) { enr = { userId: user.id, courseId: course.id, startedAt: new Date().toISOString(), completedAt: null, certId: null }; db.enrollments.push(enr); }
+  // Mark this enrollment as partner-launched so completion reports back.
+  enr.externalRef = claims.refId || enr.externalRef || null;
+  enr.externalOrg = claims.org || enr.externalOrg || null;
+  enr.reportBack = true;
+  save();
+  setSession(res, user.id);
+  res.redirect(302, `/#/course/${course.id}`);
+});
 
 // Clean per-org shortcut: /omg (and any partner-org slug) forwards to that org's
 // portal. Lets a partner hand out a tidy URL (e.g. getmatchready.app/omg) that
@@ -1032,6 +1076,25 @@ async function maybeCompleteCourse(user, course) {
 
   const quiz = progress.find((p) => p.quizScore != null);
   await onCourseCompleted({ user, course, certId: enr.certId, score: quiz?.quizScore ?? null });
+
+  // Partner callback: if this enrollment came from a signed launch (e.g. OMS),
+  // push a signed completion webhook back to them. Best-effort, non-blocking.
+  if (enr.reportBack) {
+    const durationSeconds = (enr.startedAt && enr.completedAt)
+      ? Math.max(0, Math.round((new Date(enr.completedAt) - new Date(enr.startedAt)) / 1000)) : null;
+    sendCompletionWebhook({
+      event: 'module.completed',
+      refId: enr.externalRef || null,
+      moduleId: course.id,
+      org: enr.externalOrg || null,
+      status: 'completed',
+      score: quiz?.quizScore ?? null,
+      startedAt: enr.startedAt || null,
+      completedAt: enr.completedAt,
+      certificateId: enr.certId,
+      durationSeconds,
+    }).catch(() => { /* never blocks completion */ });
+  }
   return enr;
 }
 
@@ -1238,6 +1301,25 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
   db.courses.push(course);
   save();
   res.json({ course });
+});
+
+// Generate a signed launch link for a course — the same kind a partner (OMS)
+// would mint, so it can be demoed live without their system. Admin/editor only.
+app.post('/api/admin/integration/test-link', requireEditor, (req, res) => {
+  if (!integrationEnabled()) return res.status(400).json({ error: 'Set INTEGRATION_SECRET in the environment first, then redeploy.' });
+  const b = req.body || {};
+  const course = allCourses().find((c) => c.id === b.courseId);
+  if (!course) return res.status(404).json({ error: 'Pick a valid course.' });
+  const rand = crypto.randomBytes(3).toString('hex');
+  const token = signToken({
+    refId: b.refId || `DEMO-${rand}`,
+    name: b.name || 'Demo Referee',
+    email: b.email || `demo+${rand}@getmatchready.app`,
+    moduleId: course.id,
+    org: b.org || 'DEMO',
+  }, undefined, 3600);
+  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  res.json({ url: `${base}/launch?token=${token}`, expiresInMinutes: 60 });
 });
 
 // Publish or unpublish a course (show/hide it from learners).
