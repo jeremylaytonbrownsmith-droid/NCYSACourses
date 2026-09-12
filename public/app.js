@@ -211,52 +211,79 @@ const coursePortalHash = (c) => orgPortal(c && c.orgId, (c && c.audience === 're
 // the tool itself, distinct from any org's learner portal. Self-contained: it
 // hides the app nav and renders its own header/footer.
 function renderLanding() {
-  document.title = 'MatchReady — SCORM delivery for training platforms';
+  document.title = 'GetMatchReady — SCORM delivery for training platforms';
   try { topnav.innerHTML = ''; } catch (e) { /* ignore */ }
   const SPEC = '/downloads/getmatchready-integration.docx';
   const PORTAL = '#/org/omg/referees'; // a live, branded portal running the real USSF modules
+  // The animated "connection" — the integration itself, in motion: a signed
+  // launch flows out, a signed completion flows back. On-message and futuristic.
+  const flow = `
+    <svg class="flow" viewBox="0 0 640 220" role="img" aria-label="Your platform connects to GetMatchReady">
+      <defs>
+        <linearGradient id="wireG" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#7aa2ff"/>
+        </linearGradient>
+      </defs>
+      <path class="wire" d="M180 92 C 320 60, 330 60, 460 92"/>
+      <path class="wire" d="M460 128 C 330 160, 320 160, 180 128"/>
+      <circle class="pkt" r="4.5"><animateMotion dur="2.4s" repeatCount="indefinite" path="M180 92 C 320 60, 330 60, 460 92"/></circle>
+      <circle class="pkt" r="4.5"><animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite" path="M180 92 C 320 60, 330 60, 460 92"/></circle>
+      <circle class="pkt" r="4.5"><animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path="M180 92 C 320 60, 330 60, 460 92"/></circle>
+      <circle class="pkt back" r="4.5"><animateMotion dur="2.7s" repeatCount="indefinite" path="M460 128 C 330 160, 320 160, 180 128"/></circle>
+      <circle class="pkt back" r="4.5"><animateMotion dur="2.7s" begin="1.3s" repeatCount="indefinite" path="M460 128 C 330 160, 320 160, 180 128"/></circle>
+      <g class="fnode"><rect x="24" y="74" width="156" height="72" rx="16"/>
+        <text x="102" y="106" class="ft">Your platform</text><text x="102" y="126" class="fs">registration · reporting</text></g>
+      <g class="fnode hot"><rect x="460" y="74" width="156" height="72" rx="16"/>
+        <text x="538" y="106" class="ft">GetMatchReady</text><text x="538" y="126" class="fs">SCORM player</text></g>
+      <text x="320" y="46" class="wlabel">signed launch →</text>
+      <text x="320" y="188" class="wlabel">← completion webhook</text>
+    </svg>`;
   app.innerHTML = `
     <div class="lp">
-      <header class="lp-head">
-        <span class="lp-mark">Match<span>Ready</span></span>
+      <header class="lp-head reveal">
+        <span class="lp-mark">Get<span>Match</span>Ready</span>
         <span class="lp-spacer"></span>
         <a href="${SPEC}">Integration spec</a>
       </header>
       <section class="lp-hero">
-        <p class="eyebrow">SCORM delivery, built to plug in</p>
-        <h1>The course-delivery layer for referee &amp; official training platforms</h1>
-        <p class="sub">Host the official U.S. Soccer SCORM modules, prove genuine completion, and send the results straight back to your system — with no JavaScript for your team to build or maintain.</p>
-        <div class="lp-cta">
-          <a class="lp-btn primary" href="${PORTAL}">See a live portal →</a>
-          <a class="lp-btn ghost" href="${SPEC}">Read the integration spec</a>
+        <div class="lp-bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="lp-gridlines"></span></div>
+        <div class="lp-hero-inner">
+          <p class="eyebrow reveal">SCORM delivery, built to plug in</p>
+          <h1 class="reveal">The course-delivery layer for referee &amp; official training platforms</h1>
+          <p class="sub reveal">Host the official U.S. Soccer SCORM modules, prove genuine completion, and send the results straight back to your system — with no JavaScript for your team to build or maintain.</p>
+          <div class="lp-cta reveal">
+            <a class="lp-btn primary" href="${PORTAL}">See a live portal →</a>
+            <a class="lp-btn ghost" href="${SPEC}">Read the integration spec</a>
+          </div>
+          <div class="lp-flow reveal">${flow}</div>
         </div>
       </section>
 
       <section class="lp-section">
-        <h2>How it plugs in</h2>
-        <p class="lead">Three clean HTTPS touchpoints. Your platform owns registration, identity, and reporting; MatchReady runs the player.</p>
+        <h2 class="reveal">How it plugs in</h2>
+        <p class="lead reveal">Three clean HTTPS touchpoints. Your platform owns registration, identity, and reporting; GetMatchReady runs the player.</p>
         <div class="lp-steps">
-          <div class="lp-step"><div class="n">1</div><h3>Launch</h3><p>Your system opens a signed link carrying the learner’s ID and the module. They land straight in it — no separate login.</p></div>
-          <div class="lp-step"><div class="n">2</div><h3>Deliver &amp; resume</h3><p>MatchReady plays the module, streams the video from a global CDN, and resumes each learner exactly where they left off.</p></div>
-          <div class="lp-step"><div class="n">3</div><h3>Report back</h3><p>The moment they finish, a signed webhook posts the completion — learner, module, date, certificate ID — to your system.</p></div>
+          <div class="lp-step reveal"><div class="n">1</div><h3>Launch</h3><p>Your system opens a signed link carrying the learner’s ID and the module. They land straight in it — no separate login.</p></div>
+          <div class="lp-step reveal"><div class="n">2</div><h3>Deliver &amp; resume</h3><p>GetMatchReady plays the module, streams the video from a global CDN, and resumes each learner exactly where they left off.</p></div>
+          <div class="lp-step reveal"><div class="n">3</div><h3>Report back</h3><p>The moment they finish, a signed webhook posts the completion — learner, module, date, certificate ID — to your system.</p></div>
         </div>
       </section>
 
-      <section class="lp-why lp-section-wrap"><div class="lp-section">
-        <h2>Why platforms choose it</h2>
-        <p class="lead">The hard parts of course delivery, already built and running in production.</p>
+      <section class="lp-why"><div class="lp-section">
+        <h2 class="reveal">Why platforms choose it</h2>
+        <p class="lead reveal">The hard parts of course delivery, already built and running in production.</p>
         <div class="lp-feats">
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>Genuine completion</strong><span>Real watch/finish tracking — a “complete” means they actually did it, not a click-through.</span></div></div>
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>Resume to the exact slide</strong><span>Learners pick up right where they stopped, across sessions and devices.</span></div></div>
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>Video on a global CDN</strong><span>Large modules load fast and cheaply; the video is offloaded automatically.</span></div></div>
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>Self-branded per organization</strong><span>Each association gets its own logo, colors, and certificate.</span></div></div>
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>No JavaScript on your side</strong><span>You call a URL and receive a webhook. All the player code stays on our server.</span></div></div>
-          <div class="lp-feat"><span class="tick">✓</span><div><strong>Your modules or the USSF ones</strong><span>Upload your own SCORM packages, or run the official U.S. Soccer modules.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Genuine completion</strong><span>Real watch/finish tracking — a “complete” means they actually did it, not a click-through.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Resume to the exact slide</strong><span>Learners pick up right where they stopped, across sessions and devices.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Video on a global CDN</strong><span>Large modules load fast and cheaply; the video is offloaded automatically.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Self-branded per organization</strong><span>Each association gets its own logo, colors, and certificate.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>No JavaScript on your side</strong><span>You call a URL and receive a webhook. All the player code stays on our server.</span></div></div>
+          <div class="lp-feat reveal"><span class="tick">✓</span><div><strong>Your modules or the USSF ones</strong><span>Upload your own SCORM packages, or run the official U.S. Soccer modules.</span></div></div>
         </div>
       </div></section>
 
       <section class="lp-section">
-        <div class="lp-panel">
+        <div class="lp-panel reveal">
           <h2>See it running</h2>
           <p>A live, branded referee portal delivering the official U.S. Soccer recertification modules — resume, certificates, and completion tracking included.</p>
           <a class="lp-btn primary" href="${PORTAL}">Open a live portal →</a>
@@ -267,6 +294,17 @@ function renderLanding() {
         Built by Jeremy Layton-Brown-Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
       </footer>
     </div>`;
+  // Reveal-on-scroll (skipped for reduced-motion users, who see everything up front).
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const items = app.querySelectorAll('.reveal');
+  if (reduce || !('IntersectionObserver' in window)) {
+    items.forEach((el) => el.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    items.forEach((el) => io.observe(el));
+  }
   window.scrollTo(0, 0);
 }
 
