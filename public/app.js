@@ -119,6 +119,9 @@ const DOMAIN_ORG = {
   'getmatchready.app': 'omg',
   'www.getmatchready.app': 'omg',
 };
+// Product domains: the front door (bare URL) shows the MatchReady product page,
+// not an org portal. The org portal is still reachable at /omg (and #/org/…).
+const PRODUCT_DOMAINS = new Set(['getmatchready.app', 'www.getmatchready.app']);
 let activeOrg = DEFAULT_ORG;
 // Make the browser-tab icon and title match the org/domain in view — so OMG's
 // domain shows the OMG shield and name, not NCYSA's. Domain wins; otherwise the
@@ -204,6 +207,69 @@ const coursePortalHash = (c) => orgPortal(c && c.orgId, (c && c.audience === 're
 // The landing page is a clean chooser: two separate portals under one app —
 // Coaches (NCYSA) and Referees (NCSRA). Each is its own front door; neither
 // shows the other's courses.
+// The product landing page (getmatchready.app front door) — the shopfront for
+// the tool itself, distinct from any org's learner portal. Self-contained: it
+// hides the app nav and renders its own header/footer.
+function renderLanding() {
+  document.title = 'MatchReady — SCORM delivery for training platforms';
+  try { topnav.innerHTML = ''; } catch (e) { /* ignore */ }
+  const SPEC = '/downloads/getmatchready-integration.docx';
+  const PORTAL = '#/org/omg/referees'; // a live, branded portal running the real USSF modules
+  app.innerHTML = `
+    <div class="lp">
+      <header class="lp-head">
+        <span class="lp-mark">Match<span>Ready</span></span>
+        <span class="lp-spacer"></span>
+        <a href="${SPEC}">Integration spec</a>
+      </header>
+      <section class="lp-hero">
+        <p class="eyebrow">SCORM delivery, built to plug in</p>
+        <h1>The course-delivery layer for referee &amp; official training platforms</h1>
+        <p class="sub">Host the official U.S. Soccer SCORM modules, prove genuine completion, and send the results straight back to your system — with no JavaScript for your team to build or maintain.</p>
+        <div class="lp-cta">
+          <a class="lp-btn primary" href="${PORTAL}">See a live portal →</a>
+          <a class="lp-btn ghost" href="${SPEC}">Read the integration spec</a>
+        </div>
+      </section>
+
+      <section class="lp-section">
+        <h2>How it plugs in</h2>
+        <p class="lead">Three clean HTTPS touchpoints. Your platform owns registration, identity, and reporting; MatchReady runs the player.</p>
+        <div class="lp-steps">
+          <div class="lp-step"><div class="n">1</div><h3>Launch</h3><p>Your system opens a signed link carrying the learner’s ID and the module. They land straight in it — no separate login.</p></div>
+          <div class="lp-step"><div class="n">2</div><h3>Deliver &amp; resume</h3><p>MatchReady plays the module, streams the video from a global CDN, and resumes each learner exactly where they left off.</p></div>
+          <div class="lp-step"><div class="n">3</div><h3>Report back</h3><p>The moment they finish, a signed webhook posts the completion — learner, module, date, certificate ID — to your system.</p></div>
+        </div>
+      </section>
+
+      <section class="lp-why lp-section-wrap"><div class="lp-section">
+        <h2>Why platforms choose it</h2>
+        <p class="lead">The hard parts of course delivery, already built and running in production.</p>
+        <div class="lp-feats">
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>Genuine completion</strong><span>Real watch/finish tracking — a “complete” means they actually did it, not a click-through.</span></div></div>
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>Resume to the exact slide</strong><span>Learners pick up right where they stopped, across sessions and devices.</span></div></div>
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>Video on a global CDN</strong><span>Large modules load fast and cheaply; the video is offloaded automatically.</span></div></div>
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>Self-branded per organization</strong><span>Each association gets its own logo, colors, and certificate.</span></div></div>
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>No JavaScript on your side</strong><span>You call a URL and receive a webhook. All the player code stays on our server.</span></div></div>
+          <div class="lp-feat"><span class="tick">✓</span><div><strong>Your modules or the USSF ones</strong><span>Upload your own SCORM packages, or run the official U.S. Soccer modules.</span></div></div>
+        </div>
+      </div></section>
+
+      <section class="lp-section">
+        <div class="lp-panel">
+          <h2>See it running</h2>
+          <p>A live, branded referee portal delivering the official U.S. Soccer recertification modules — resume, certificates, and completion tracking included.</p>
+          <a class="lp-btn primary" href="${PORTAL}">Open a live portal →</a>
+        </div>
+      </section>
+
+      <footer class="lp-foot">
+        Built by Jeremy Layton-Brown-Smith · getmatchready.app · <a href="${SPEC}">Integration spec</a>
+      </footer>
+    </div>`;
+  window.scrollTo(0, 0);
+}
+
 async function viewHome() {
   let courses = [];
   // The NCYSA home chooser only reflects NCYSA courses — other orgs live under
@@ -2401,6 +2467,7 @@ function viewHelp() {
 
 const routes = [
   { re: /^#?\/?$/, fn: viewHome },
+  { re: /^#\/tool$/, fn: renderLanding }, // product landing (also the getmatchready.app front door)
   { re: /^#\/coaches$/, fn: viewCoaches },
   { re: /^#\/courses$/, fn: viewCoaches }, // legacy alias → Coaches Portal
   { re: /^#\/referees$/, fn: viewReferees },
@@ -2500,6 +2567,8 @@ async function route() {
   // the NCYSA chooser). Only the root hash is redirected, so deep links still
   // work; NCYSA's own hosts aren't in the map and are unaffected.
   const domainOrg = DOMAIN_ORG[location.hostname];
+  // Product domain front door → the MatchReady product page (org portal lives at /omg).
+  if (PRODUCT_DOMAINS.has(location.hostname) && (hash === '#/' || hash === '')) { renderLanding(); return; }
   if (domainOrg && (hash === '#/' || hash === '')) { location.hash = orgPortal(domainOrg, 'referees'); return; }
   navMinimal = /^#\/watch\//.test(hash);
   // On a partner domain the whole site is that org (so register/sign-in/etc. stay
