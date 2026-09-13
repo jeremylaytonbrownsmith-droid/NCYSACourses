@@ -799,6 +799,9 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 @media (max-width: 560px) {
   .lp-hero h1 { max-width: 100%; font-size: clamp(1.7rem, 8vw, 2.25rem); line-height: 1.16; letter-spacing: -0.02em; }
   .lp-hero p.sub { font-size: 1rem; line-height: 1.55; }
+  /* Stack the hero CTAs full-width so they line up evenly instead of wrapping to different lengths. */
+  .lp-cta { flex-direction: column; align-items: stretch; }
+  .lp-cta .lp-btn { width: 100%; }
   .flow .ft { font-size: 18px; } .flow .fs { font-size: 13px; } .flow .wlabel { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .lp-badge .dot, .flow .fnode { animation: none !important; } }
