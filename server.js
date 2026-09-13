@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject } = require('./lib/integration');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -332,6 +332,9 @@ app.get('/launch', (req, res) => {
   enr.externalRef = claims.refId || enr.externalRef || null;
   enr.externalOrg = claims.org || enr.externalOrg || null;
   enr.reportBack = true;
+  // Where to send the referee when they finish (only accept absolute http(s)).
+  const returnUrl = (typeof claims.returnUrl === 'string' && /^https?:\/\//i.test(claims.returnUrl)) ? claims.returnUrl : null;
+  enr.returnUrl = returnUrl || enr.returnUrl || null;
   save();
   setSession(res, user.id);
   res.redirect(302, `/#/course/${course.id}`);
@@ -344,10 +347,10 @@ app.get('/launch', (req, res) => {
 app.get('/api/v1/completions', (req, res) => {
   if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
   const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
-  const secret = integrationSecret();
+  const apiKey = integrationApiKey();
   let ok = false;
-  if (m && secret) {
-    const a = Buffer.from(m[1]); const b = Buffer.from(secret);
+  if (m && apiKey) {
+    const a = Buffer.from(m[1]); const b = Buffer.from(apiKey);
     ok = a.length === b.length && crypto.timingSafeEqual(a, b);
   }
   if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
@@ -356,12 +359,20 @@ app.get('/api/v1/completions', (req, res) => {
   const db = load();
   const rows = db.enrollments
     .filter((e) => e.externalRef === refId)
-    .map((e) => ({
-      moduleId: e.courseId,
-      status: e.completedAt ? 'completed' : 'in-progress',
-      completedAt: e.completedAt || null,
-      certificateId: e.certId || null,
-    }));
+    .map((e) => {
+      const rec = db.lessonProgress.find((p) => p.userId === e.userId && p.courseId === e.courseId && p.scorm);
+      let status;
+      if (e.completedAt) status = mapScormStatus(rec && rec.scorm && rec.scorm.status) === 'passed' ? 'passed' : 'completed';
+      else if (rec && rec.scorm && rec.scorm.reported) status = rec.scorm.reported; // terminal failure (failed / incomplete)
+      else status = 'in-progress'; // started but not finished
+      return {
+        moduleId: e.courseId,
+        status,
+        score: scoreObject(rec && rec.scorm && rec.scorm.score),
+        completedAt: e.completedAt || null,
+        certificateId: e.certId || null,
+      };
+    });
   res.json(rows);
 });
 
@@ -989,7 +1000,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, async (re
   }
   save();
   const completion = passed ? await maybeCompleteCourse(req.user, course) : null;
-  res.json({ score, passed, passPercent: lesson.passPercent, correct, total: lesson.questions.length, courseCompleted: !!completion, certId: completion?.certId || null });
+  res.json({ score, passed, passPercent: lesson.passPercent, correct, total: lesson.questions.length, courseCompleted: !!completion, certId: completion?.certId || null, returnUrl: (completion && completion.returnUrl) || null });
 });
 
 // Generic completion for text/video lessons.
@@ -1024,7 +1035,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async
     save();
   }
   const completion = await maybeCompleteCourse(req.user, course);
-  res.json({ ok: true, courseCompleted: !!completion, certId: completion?.certId || null });
+  res.json({ ok: true, courseCompleted: !!completion, certId: completion?.certId || null, returnUrl: (completion && completion.returnUrl) || null });
 });
 
 // SCORM 1.2 runtime callback. The in-page window.API (public/app.js) relays the
@@ -1063,6 +1074,17 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   if (typeof b.status === 'string' && b.status) rec.scorm.status = b.status;
   if (b.location != null) rec.scorm.location = String(b.location).slice(0, 4096);
   if (b.suspendData != null) rec.scorm.suspendData = String(b.suspendData).slice(0, 4096);
+  // Capture the SCORM test score the package reports (cmi.core.score.raw/min/max).
+  // Stored as-is so we can pass raw + min/max through without guessing the scale.
+  const numOrNull = (v) => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
+  if (b.scoreRaw != null || b.scoreMin != null || b.scoreMax != null) {
+    const prev = rec.scorm.score || {};
+    rec.scorm.score = {
+      raw: b.scoreRaw != null && b.scoreRaw !== '' ? numOrNull(b.scoreRaw) : (prev.raw ?? null),
+      min: b.scoreMin != null && b.scoreMin !== '' ? numOrNull(b.scoreMin) : (prev.min ?? null),
+      max: b.scoreMax != null && b.scoreMax !== '' ? numOrNull(b.scoreMax) : (prev.max ?? null),
+    };
+  }
 
   // Minimum time before completion counts. Modules uploaded before this gate
   // existed have no minSeconds field, so they fall back to the default (rather
@@ -1070,26 +1092,71 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   const required = lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS;
   const timeMet = rec.scorm.activeSeconds >= required;
   const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
+  const mapped = mapScormStatus(rec.scorm.status);
+  const scoreObj = scoreObject(rec.scorm.score);
   let newlyCompleted = false;
   if (reachedEnd && timeMet && !rec.completed) {
     rec.completed = true;
     rec.completedAt = new Date().toISOString();
     newlyCompleted = true;
   }
-  save();
-  const completion = newlyCompleted ? await maybeCompleteCourse(req.user, course) : null;
+
+  // A terminal FAILURE (the package reported "failed", or finished as
+  // "incomplete" — which Captivate uses when the embedded test is failed) never
+  // completes the course, but for a partner-launched enrollment it is still an
+  // outcome the partner needs. Report it once per distinct terminal status.
+  const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
+  const terminalFailure = !rec.completed && (mapped === 'failed' || (b.finished && mapped === 'incomplete'));
+  if (enr && enr.reportBack && terminalFailure && rec.scorm.reported !== mapped) {
+    rec.scorm.reported = mapped;
+    save();
+    sendPartnerOutcome(enr, course, { status: mapped, score: scoreObj, completedAt: new Date().toISOString() });
+  } else {
+    save();
+  }
+  // On success, pass the real SCORM status (completed/passed) + score through to
+  // the completion webhook.
+  const completion = newlyCompleted
+    ? await maybeCompleteCourse(req.user, course, { status: mapped === 'passed' ? 'passed' : 'completed', score: scoreObj })
+    : null;
   res.json({
     ok: true, status: rec.scorm.status, completed: rec.completed,
     activeSeconds: Math.floor(rec.scorm.activeSeconds), required,
     remaining: Math.max(0, required - Math.floor(rec.scorm.activeSeconds)),
     reachedEnd,
     courseCompleted: !!completion, certId: completion?.certId || null,
+    returnUrl: (completion && completion.returnUrl) || null,
   });
 });
 
+// Fire a signed outcome webhook to a partner. Used for both a successful
+// completion and a terminal failure; only fires for partner-launched
+// enrollments (reportBack). `status` is one of completed/passed/failed/
+// incomplete; the event name mirrors it (module.completed, module.failed, …).
+// `score` is a { raw, min, max, percent } object or null. Never throws/blocks.
+function sendPartnerOutcome(enr, course, { status, score = null, certificateId = null, completedAt = null }) {
+  if (!enr || !enr.reportBack) return;
+  const endedAt = completedAt || null;
+  const durationSeconds = (enr.startedAt && endedAt)
+    ? Math.max(0, Math.round((new Date(endedAt) - new Date(enr.startedAt)) / 1000)) : null;
+  sendCompletionWebhook({
+    event: 'module.' + status,
+    refId: enr.externalRef || null,
+    moduleId: course.id,
+    org: enr.externalOrg || null,
+    status,
+    score,
+    startedAt: enr.startedAt || null,
+    completedAt: endedAt,
+    certificateId,
+    durationSeconds,
+  }).catch(() => { /* never blocks */ });
+}
+
 // When every lesson is done: complete the course, mint a certificate,
-// notify the learner and NCYSA.
-async function maybeCompleteCourse(user, course) {
+// notify the learner and NCYSA. `outcome` (optional) carries the real SCORM
+// status + score object when completion came from a SCORM module.
+async function maybeCompleteCourse(user, course, outcome) {
   const db = load();
   const enr = db.enrollments.find((e) => e.userId === user.id && e.courseId === course.id);
   if (!enr || enr.completedAt) return null;
@@ -1106,22 +1173,13 @@ async function maybeCompleteCourse(user, course) {
   await onCourseCompleted({ user, course, certId: enr.certId, score: quiz?.quizScore ?? null });
 
   // Partner callback: if this enrollment came from a signed launch (e.g. OMS),
-  // push a signed completion webhook back to them. Best-effort, non-blocking.
+  // push a signed completion webhook back to them. Prefer an explicit SCORM
+  // outcome; otherwise fall back to a quiz score (a known 0–100 percentage).
   if (enr.reportBack) {
-    const durationSeconds = (enr.startedAt && enr.completedAt)
-      ? Math.max(0, Math.round((new Date(enr.completedAt) - new Date(enr.startedAt)) / 1000)) : null;
-    sendCompletionWebhook({
-      event: 'module.completed',
-      refId: enr.externalRef || null,
-      moduleId: course.id,
-      org: enr.externalOrg || null,
-      status: 'completed',
-      score: quiz?.quizScore ?? null,
-      startedAt: enr.startedAt || null,
-      completedAt: enr.completedAt,
-      certificateId: enr.certId,
-      durationSeconds,
-    }).catch(() => { /* never blocks completion */ });
+    const status = (outcome && outcome.status) || 'completed';
+    const score = (outcome && outcome.score)
+      || (quiz && quiz.quizScore != null ? { raw: quiz.quizScore, min: 0, max: 100, percent: quiz.quizScore } : null);
+    sendPartnerOutcome(enr, course, { status, score, certificateId: enr.certId, completedAt: enr.completedAt });
   }
   return enr;
 }

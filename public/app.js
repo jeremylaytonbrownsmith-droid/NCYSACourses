@@ -972,19 +972,24 @@ function renderScormLesson(pane, course, lesson, lp) {
   function finalize(r) {
     if (done) return;
     done = true; stopBeat();
-    if (r && r.courseCompleted) { showCourseComplete(course, r.certId); return; }
+    if (r && r.courseCompleted) { showCourseComplete(course, r.certId, null, r.returnUrl); return; }
     const a = document.getElementById('scormActions');
     if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
     toast('✓ Module complete!');
   }
 
-  function sync(activeDelta, onDone) {
+  function sync(activeDelta, onDone, finished) {
     api(`/api/courses/${course.id}/lessons/${lesson.id}/scorm`, {
       method: 'POST',
       body: {
         status: cmi['cmi.core.lesson_status'],
         location: cmi['cmi.core.lesson_location'],
         suspendData: cmi['cmi.suspend_data'],
+        // Relay the module's test score so completion/failure reports carry it.
+        scoreRaw: cmi['cmi.core.score.raw'],
+        scoreMin: cmi['cmi.core.score.min'],
+        scoreMax: cmi['cmi.core.score.max'],
+        finished: !!finished, // true when the module called LMSFinish
         activeDelta,
       },
     }).then((r) => { if (r) { paintGate(r); if (r.completed) finalize(r); } if (onDone) onDone(r); }).catch(() => { /* retried next heartbeat */ });
@@ -1022,13 +1027,17 @@ function renderScormLesson(pane, course, lesson, lp) {
 
   window.API = {
     LMSInitialize: function () { return 'true'; },
-    LMSFinish: function () { sync(0); return 'true'; },
+    LMSFinish: function () { sync(0, null, true); return 'true'; }, // finish = terminal; server may report failed/incomplete
     LMSGetValue: function (k) { return cmi[k] != null ? String(cmi[k]) : ''; },
     LMSSetValue: function (k, v) {
       cmi[k] = v;
-      if (k === 'cmi.core.lesson_status' && (v === 'completed' || v === 'passed') && !reachedEnd) {
-        reachedEnd = true;
-        sync(0); // push the "reached end" status; server completes now if the time is already met, else on a later heartbeat
+      if (k === 'cmi.core.lesson_status') {
+        if ((v === 'completed' || v === 'passed') && !reachedEnd) {
+          reachedEnd = true;
+          sync(0); // push the "reached end" status; server completes now if time is met, else on a later heartbeat
+        } else if (v === 'failed') {
+          sync(0); // push a failed result promptly so a partner is notified
+        }
       }
       return 'true';
     },
@@ -1246,7 +1255,7 @@ function renderQuizLesson(pane, course, lesson, lp) {
     const answers = Object.fromEntries(new FormData(e.target).entries());
     try {
       const r = await api(`/api/courses/${course.id}/lessons/${lesson.id}/quiz`, { method: 'POST', body: { answers } });
-      if (r.passed && r.courseCompleted) return showCourseComplete(course, r.certId, r.score);
+      if (r.passed && r.courseCompleted) return showCourseComplete(course, r.certId, r.score, r.returnUrl);
       const box = document.getElementById('quizResult');
       box.innerHTML = r.passed
         ? `<div class="quiz-result pass">✓ You passed with ${r.score}% (${r.correct}/${r.total} correct).</div>`
@@ -1256,9 +1265,12 @@ function renderQuizLesson(pane, course, lesson, lp) {
   });
 }
 
-async function showCourseComplete(course, certId, score) {
+async function showCourseComplete(course, certId, score, returnUrl) {
   await refreshMe(); // pick up the new notification badge
-  const redirect = /^https?:\/\//i.test(course.completionRedirectUrl || '') ? course.completionRedirectUrl : null;
+  // A per-launch returnUrl (e.g. a partner's system) takes precedence over the
+  // course's own completion redirect.
+  const redirect = /^https?:\/\//i.test(returnUrl || '') ? returnUrl
+    : (/^https?:\/\//i.test(course.completionRedirectUrl || '') ? course.completionRedirectUrl : null);
   app.innerHTML = `
     <div class="complete-hero">
       ${course.coLogoUrl ? `<img class="complete-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || course.title)}" />` : ''}
@@ -1275,7 +1287,7 @@ async function showCourseComplete(course, certId, score) {
           ? `<a class="btn btn-accent btn-lg" href="${esc(redirect)}" style="margin-left:10px">Continue →</a>`
           : `<a class="btn btn-ghost btn-lg" href="${coursePortalHash(course)}" style="margin-left:10px">Back to courses</a>`}
       </p>
-      ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back to NCSRA in <span id="rdCount">10</span> seconds… <a href="${coursePortalHash(course)}" id="rdStay">stay here</a></p>` : ''}
+      ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back in <span id="rdCount">10</span> seconds… <a href="${coursePortalHash(course)}" id="rdStay">stay here</a></p>` : ''}
     </div>`;
   if (redirect) {
     let n = 10, cancelled = false;

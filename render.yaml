@@ -74,6 +74,8 @@ services:
         sync: false # shared HMAC secret for launch tokens + webhook signatures
       - key: INTEGRATION_WEBHOOK_URL
         sync: false # partner endpoint that receives completion callbacks (optional)
+      - key: INTEGRATION_API_KEY
+        sync: false # per-tenant key for the reconciliation pull API (falls back to INTEGRATION_SECRET if unset)
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----

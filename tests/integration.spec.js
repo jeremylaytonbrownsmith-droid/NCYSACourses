@@ -3,10 +3,33 @@ const { test, expect } = require('@playwright/test');
 process.env.INTEGRATION_SECRET = 'test-secret-123'; // must match the webServer (playwright.config.js)
 const crypto = require('crypto');
 const http = require('http');
-const { signToken, verifyToken, sendCompletionWebhook } = require('../lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, mapScormStatus, scoreObject } = require('../lib/integration');
 
 const BASE = 'http://localhost:3100';
 const SECRET = 'test-secret-123';
+const API_KEY = 'test-api-key-456'; // reconciliation key, separate from the HMAC secret
+
+test('SCORM status maps to the terminal set; unknowns are non-terminal', () => {
+  expect(mapScormStatus('completed')).toBe('completed');
+  expect(mapScormStatus('passed')).toBe('passed');
+  expect(mapScormStatus('failed')).toBe('failed');
+  expect(mapScormStatus('incomplete')).toBe('incomplete');
+  expect(mapScormStatus('PASSED')).toBe('passed');       // case-insensitive
+  expect(mapScormStatus('browsed')).toBeNull();          // non-terminal
+  expect(mapScormStatus('not attempted')).toBeNull();
+  expect(mapScormStatus('')).toBeNull();
+});
+
+test('score object: absolute (with min/max) normalizes; percentage-only does not guess; none is null', () => {
+  // Absolute score with a reported scale → normalized percentage.
+  expect(scoreObject({ raw: 8, min: 0, max: 10 })).toEqual({ raw: 8, min: 0, max: 10, percent: 80 });
+  expect(scoreObject({ raw: 45, min: 10, max: 60 })).toEqual({ raw: 45, min: 10, max: 60, percent: 70 });
+  // Percentage-style raw with no reported scale → percent stays null (no guessing).
+  expect(scoreObject({ raw: 82 })).toEqual({ raw: 82, min: null, max: null, percent: null });
+  // No score reported at all → null (not 0).
+  expect(scoreObject(null)).toBeNull();
+  expect(scoreObject({})).toBeNull();
+});
 
 test('launch token signs and verifies; tampering and expiry are rejected', async () => {
   const tok = signToken({ refId: 'OMS-1', email: 'a@b.com', moduleId: 'x' }, SECRET, 60);
@@ -75,15 +98,17 @@ test('the reconciliation API returns a referee\'s enrollments (bearer-authentica
   const ctx = await playwright.request.newContext({ baseURL: BASE });
   await ctx.get(`/launch?token=${token}`, { maxRedirects: 0 });
 
-  // Missing/incorrect bearer is refused.
+  // Missing/incorrect key is refused — and the HMAC secret is NOT the API key.
   expect((await ctx.get('/api/v1/completions?refId=OMS-RC-1')).status()).toBe(401);
   expect((await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: 'Bearer wrong' } })).status()).toBe(401);
+  expect((await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: `Bearer ${SECRET}` } })).status()).toBe(401);
 
-  // Correct bearer returns the referee's enrollment (in-progress until completed).
-  const ok = await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: `Bearer ${SECRET}` } });
+  // The separate per-tenant API key returns the referee's enrollment (in-progress until completed).
+  const ok = await ctx.get('/api/v1/completions?refId=OMS-RC-1', { headers: { Authorization: `Bearer ${API_KEY}` } });
   expect(ok.status()).toBe(200);
   const rows = await ok.json();
   const row = rows.find((r) => r.moduleId === courseId);
   expect(row).toBeTruthy();
   expect(row.status).toBe('in-progress');
+  expect(row.score).toBeNull(); // no score reported yet
 });
