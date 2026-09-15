@@ -294,6 +294,13 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
+// GetMatchReady partnership proposal — a standalone, password-gated page served
+// at /proposal (e.g. getmatchready.app/proposal). Self-contained; not part of
+// any org portal or the SPA, and it touches no NCYSA/NCSRA data.
+app.get('/proposal', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'proposal.html'));
+});
+
 // Partner launch (e.g. OMS): a signed JWT carries the referee's identity and the
 // module to open. We verify it, sign the referee in as a learner (no password),
 // enroll them, and drop them straight into the module. On completion, a signed
