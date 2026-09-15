@@ -72,6 +72,7 @@ section{padding-block:34px}
 .eyebrow2{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
 h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .lead{color:var(--muted);margin:8px 0 0;max-width:64ch}
+.note{color:var(--muted);font-size:.78rem;margin:12px 0 0;max-width:60ch}
 
 .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
 .opt{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
@@ -93,13 +94,18 @@ h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .brow .bn{font-weight:600;font-size:.92rem;line-height:1.2}
 .brow .bn small{display:block;font-weight:400;color:var(--muted);font-size:.76rem;margin-top:2px}
 .btrack{position:relative;height:38px;background:var(--paper);border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.bfill{position:absolute;top:0;height:100%;background:var(--bar);transition:width .4s ease}
+.bfill{position:absolute;top:0;height:100%;background:var(--bar);transition:width .4s ease,filter .2s ease}
 .bfill.soft{background:color-mix(in srgb,var(--bar) 32%,transparent)}
 .brow.gmr .bfill{background:var(--grad)}
 .brow.gmr .btrack{border-color:transparent;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)}
 .brow.gmr{background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:12px;padding:8px;margin-inline:-8px}
 .brow.gmr .bn{color:var(--accent)}
-.bval{position:absolute;top:50%;transform:translateY(-50%);font:700 .8rem/1 var(--display);white-space:nowrap;color:var(--ink);background:var(--surface);padding:2px 7px;border-radius:6px;box-shadow:0 1px 4px rgba(23,34,79,.14)}
+/* endpoint marker at the end of each bar */
+.bend{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);background:var(--bar);box-shadow:0 0 0 3px var(--surface),0 1px 5px rgba(23,34,79,.28);z-index:2;transition:transform .2s ease}
+.brow.gmr .bend{background:var(--accent2)}
+.brow:hover .bfill{filter:brightness(1.06)}
+.brow:hover .bend{transform:translate(-50%,-50%) scale(1.22)}
+.bval{position:absolute;top:50%;transform:translateY(-50%);font:700 .8rem/1 var(--display);white-space:nowrap;color:var(--ink);background:var(--surface);padding:2px 7px;border-radius:6px;box-shadow:0 1px 4px rgba(23,34,79,.14);z-index:3}
 .delta{margin-top:22px;background:var(--surface);border-left:5px solid var(--bar);border-radius:0 12px 12px 0;padding:18px 22px;box-shadow:var(--shadow);font-size:1.05rem}
 .delta b{color:var(--accent);font-weight:700}
 .delta b.g{color:var(--bar)}
@@ -110,8 +116,9 @@ h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .val b{display:block;font-weight:600}
 .val span{color:var(--muted);font-size:.86rem}
 
-footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;color:var(--muted);font-size:.8rem}
+footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;color:var(--muted);font-size:.78rem}
 footer strong{color:var(--ink)}
+footer p{margin:0 0 8px;max-width:74ch}
 
 @media (max-width:820px){ .hero-in{grid-template-columns:1fr} .opts{grid-template-columns:1fr} }
 @media (max-width:560px){ .brow{grid-template-columns:1fr;gap:6px} }
@@ -214,32 +221,34 @@ footer strong{color:var(--ink)}
     <p class="lead">What the same three years would cost OMS at 75,000 officials. Every other path also has to be built or wired up first. GetMatchReady is running now.</p>
     <div class="bars" id="bars" aria-hidden="true"></div>
     <div class="delta" id="delta"></div>
-    <p class="lead" style="font-size:.8rem;margin-top:12px">3-year totals at 75,000 officials. Competitor figures are directional estimates from public pricing (SCORM Cloud; Docebo, Absorb and LearnUpon; and the custom-build quote OMS received) — not vendor quotes.</p>
+    <p class="note">3-year totals at 75,000 officials. Competitor figures are estimates from public pricing, not vendor quotes.</p>
   </section>
 
   <section aria-labelledby="host-h">
     <div class="eyebrow2">Hosting</div>
     <h2 id="host-h">The video bill stays small</h2>
-    <p class="lead">OMS asked about AWS. GetMatchReady already streams the same video through Bunny CDN — a fraction of AWS CloudFront's rate — and hosting is billed to OMS at actual cost either way. Estimated annual video delivery at roughly 75 TB (about 1&nbsp;GB of video per official).</p>
+    <p class="lead">OMS asked about AWS. GetMatchReady already streams the same video through Bunny CDN — a fraction of AWS CloudFront's rate — billed to OMS at actual cost either way. Estimated at ~75 TB/year (about 1&nbsp;GB per official).</p>
     <div class="bars">
       <div class="brow">
         <div class="bn">AWS CloudFront<small>What OMS was considering</small></div>
         <div class="btrack">
-          <div class="bfill" style="left:0;width:60%"></div>
-          <div class="bfill soft" style="left:60%;width:40%"></div>
-          <div class="bval" style="right:6px">~$4,000–6,400 / yr</div>
+          <div class="bfill" style="left:0;width:58%"></div>
+          <div class="bfill soft" style="left:58%;width:38%"></div>
+          <div class="bend" style="left:96%"></div>
+          <div class="bval" style="right:calc(4% + 20px)">~$4,000–6,400 / yr</div>
         </div>
       </div>
       <div class="brow gmr">
         <div class="bn">Bunny CDN<small>What GetMatchReady uses</small></div>
         <div class="btrack">
           <div class="bfill" style="left:0;width:18%"></div>
-          <div class="bval" style="left:calc(18% + 6px)">~$750–1,500 / yr</div>
+          <div class="bend" style="left:18%"></div>
+          <div class="bval" style="left:calc(18% + 18px)">~$750–1,500 / yr</div>
         </div>
       </div>
     </div>
-    <div class="delta">Bunny CDN delivers the same video for roughly <b class="g">4–8× less</b> than AWS CloudFront — on the order of <b>$3,000–5,000 saved per year</b> — with no change to quality, and billed to OMS at actual cost.</div>
-    <p class="lead" style="font-size:.8rem;margin-top:12px">Estimates from published rates (Bunny CDN ~$0.005–0.01/GB; AWS CloudFront ~$0.05–0.085/GB) at ~75 TB delivered per year. Actual cost scales with how much video is watched.</p>
+    <div class="delta">Bunny CDN delivers the same video for roughly <b class="g">4–8× less</b> than AWS CloudFront — on the order of <b>$3,000–5,000 saved per year</b> — with no change to quality.</div>
+    <p class="note">Estimates from published rates at ~75 TB/year; actual cost scales with video watched.</p>
   </section>
 
   <section aria-labelledby="get-h">
@@ -256,8 +265,8 @@ footer strong{color:var(--ink)}
   </section>
 
   <footer>
-    <p style="margin:0 0 10px"><strong>How these figures were built.</strong> The comparison costs are drawn from published pricing — SCORM Cloud registration plans; Docebo, Absorb and LearnUpon enterprise ranges; Bunny CDN and AWS CloudFront delivery rates — together with the custom-build quote OMS received. Checked September 2026.</p>
-    <p style="margin:0">Prepared by Jeremy Layton Brown Smith · GetMatchReady. GetMatchReady pricing is proposed for discussion; comparison figures are directional estimates from public sources, not vendor quotes. NCYSA and NCSRA are separate and not part of this agreement. Confidential — intended only for Officials Management Systems.</p>
+    <p><strong>How these figures were built.</strong> Comparison costs are estimates from published pricing (SCORM Cloud; Docebo, Absorb, LearnUpon; Bunny CDN; AWS CloudFront) and the custom-build quote OMS received. Checked September 2026.</p>
+    <p>Prepared by Jeremy Layton Brown Smith · GetMatchReady. GetMatchReady pricing is proposed for discussion; comparison figures are directional estimates, not vendor quotes. Confidential — for Officials Management Systems.</p>
   </footer>
 </div>
 
@@ -295,7 +304,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     {name:'GetMatchReady — license', note:'Live now · developer included', lo:98, hi:98, gmr:true},
     {name:'GetMatchReady — buy & own', note:'Live now · you own it', lo:83, hi:83, gmr:true}
   ];
-  var MAX=560;
+  var MAX=580;
   function kLabel(lo,hi){
     var f=function(n){ return n>=1000?'$'+(n/1000).toFixed(1)+'M':'$'+n+'k'; };
     return lo===hi ? '~'+f(lo) : f(lo)+'–'+f(hi)+(hi>=550?'+':'');
@@ -306,13 +315,15 @@ var ACCESS_CODE = "GetMatchReady2026";
       if(c.gmr){ baseW=c.hi/MAX*100; endPct=baseW; }
       else { baseW=c.lo/MAX*100; softW=(c.hi-c.lo)/MAX*100; endPct=(baseW+softW); }
       var lab=kLabel(c.lo,c.hi);
-      var pos = endPct>76 ? 'right:6px' : 'left:calc('+endPct+'% + 6px)';
+      // label inside (left of the end dot) when the bar is long; otherwise just past the dot
+      var lpos = endPct>66 ? 'right:calc('+(100-endPct)+'% + 20px)' : 'left:calc('+endPct+'% + 18px)';
       return '<div class="brow'+(c.gmr?' gmr':'')+'">'
         +'<div class="bn">'+c.name+'<small>'+c.note+'</small></div>'
         +'<div class="btrack">'
         +'<div class="bfill" style="left:0;width:'+baseW+'%"></div>'
         +(softW>0?'<div class="bfill soft" style="left:'+baseW+'%;width:'+softW+'%"></div>':'')
-        +'<div class="bval" style="'+pos+'">'+lab+'</div>'
+        +'<div class="bend" style="left:'+endPct+'%"></div>'
+        +'<div class="bval" style="'+lpos+'">'+lab+'</div>'
         +'</div></div>';
     }).join('');
   }
