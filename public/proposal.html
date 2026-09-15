@@ -71,9 +71,6 @@ section{padding-block:34px}
 .eyebrow2{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
 h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .lead{color:var(--muted);margin:8px 0 0;max-width:64ch}
-.years{display:inline-flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;margin-top:16px}
-.years button{font:600 .85rem/1 var(--body);border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:999px;cursor:pointer}
-.years button[aria-pressed="true"]{background:var(--grad);color:#fff}
 
 .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
 .opt{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
@@ -113,9 +110,7 @@ h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .val span{color:var(--muted);font-size:.86rem}
 
 footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;color:var(--muted);font-size:.8rem}
-.draft{display:inline-block;background:color-mix(in srgb,var(--amber) 22%,transparent);color:#8a6410;font-weight:700;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .draft{color:#e9a626}}
-:root[data-theme="dark"] .draft{color:#e9a626}
+footer strong{color:var(--ink)}
 
 @media (max-width:820px){ .hero-in{grid-template-columns:1fr} .opts{grid-template-columns:1fr} }
 @media (max-width:560px){ .brow{grid-template-columns:1fr;gap:6px} }
@@ -165,18 +160,12 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;
     <div class="eyebrow2">The offer</div>
     <h2 id="opts-h">Three ways forward</h2>
     <p class="lead">All three give OMS exclusive use of the same platform. What changes is ownership: license it now, own it later, or own it outright. Buying is always optional, never required.</p>
-    <div class="years" role="group" aria-label="Compare over">
-      <span style="align-self:center;color:var(--muted);font-size:.8rem;font-weight:600;padding:0 8px">Totals over</span>
-      <button type="button" data-y="1" aria-pressed="false">1 yr</button>
-      <button type="button" data-y="3" aria-pressed="true">3 yrs</button>
-      <button type="button" data-y="5" aria-pressed="false">5 yrs</button>
-    </div>
 
     <div class="opts">
       <div class="opt">
         <h3>License</h3>
         <div class="one">Exclusive use across your sports. I keep ownership and stay on to build.</div>
-        <div class="hd" id="licTotal">$62,000<small> over 3 yrs</small></div>
+        <div class="hd">$18,000<small> / year + $8,000 setup</small></div>
         <dl>
           <dt>Setup &amp; integration</dt><dd>$8,000</dd>
           <dt>Annual license (soccer)</dt><dd>$18,000</dd>
@@ -191,7 +180,7 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;
         <div class="ribbon">Recommended</div>
         <h3>License&#8209;to&#8209;Own</h3>
         <div class="one">Everything in License, plus a price to own it locked in from day one.</div>
-        <div class="hd" id="l2oPrice">$66,000<small> to own after yr 1</small></div>
+        <div class="hd">$66,000<small> to own after yr 1</small></div>
         <dl>
           <dt>Buy after</dt><dd>Month 12</dd>
           <dt>Purchase price*</dt><dd>$75,000</dd>
@@ -205,7 +194,7 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;
       <div class="opt">
         <h3>Own it</h3>
         <div class="one">OMS buys outright and owns the code — and I stay on to grow it.</div>
-        <div class="hd" id="ownPrice">$75,000<small> + retainer</small></div>
+        <div class="hd">$75,000<small> + retainer</small></div>
         <dl>
           <dt>Purchase price*</dt><dd>$75,000</dd>
           <dt>Payment</dt><dd>Installments</dd>
@@ -227,6 +216,31 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;
     <p class="lead" style="font-size:.8rem;margin-top:12px">3-year totals at 75,000 officials. Competitor figures are directional estimates from public pricing (SCORM Cloud; Docebo, Absorb and LearnUpon; and the custom-build quote OMS received) — not vendor quotes.</p>
   </section>
 
+  <section aria-labelledby="host-h">
+    <div class="eyebrow2">Hosting</div>
+    <h2 id="host-h">The video bill stays small</h2>
+    <p class="lead">OMS asked about AWS. GetMatchReady already streams the same video through Bunny CDN — a fraction of AWS CloudFront's rate — and hosting is billed to OMS at actual cost either way. Estimated annual video delivery at roughly 75 TB (about 1&nbsp;GB of video per official).</p>
+    <div class="bars">
+      <div class="brow">
+        <div class="bn">AWS CloudFront<small>What OMS was considering</small></div>
+        <div class="btrack">
+          <div class="bfill" style="left:0;width:60%"></div>
+          <div class="bfill soft" style="left:60%;width:40%"></div>
+          <div class="bval" style="right:6px">~$4,000–6,400 / yr</div>
+        </div>
+      </div>
+      <div class="brow gmr">
+        <div class="bn">Bunny CDN<small>What GetMatchReady uses</small></div>
+        <div class="btrack">
+          <div class="bfill" style="left:0;width:18%"></div>
+          <div class="bval" style="left:calc(18% + 6px)">~$750–1,500 / yr</div>
+        </div>
+      </div>
+    </div>
+    <div class="delta">Bunny CDN delivers the same video for roughly <b class="g">4–8× less</b> than AWS CloudFront — on the order of <b>$3,000–5,000 saved per year</b> — with no change to quality, and billed to OMS at actual cost.</div>
+    <p class="lead" style="font-size:.8rem;margin-top:12px">Estimates from published rates (Bunny CDN ~$0.005–0.01/GB; AWS CloudFront ~$0.05–0.085/GB) at ~75 TB delivered per year. Actual cost scales with how much video is watched.</p>
+  </section>
+
   <section aria-labelledby="get-h">
     <div class="eyebrow2">What you get</div>
     <h2 id="get-h">A finished platform, not a starting point</h2>
@@ -241,15 +255,15 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-block:22px 40px;
   </section>
 
   <footer>
-    <span class="draft">Draft · placeholder pricing</span>
-    <p style="margin:12px 0 0">Prepared by Jeremy Layton Brown Smith · GetMatchReady. GetMatchReady figures are proposed pricing for discussion; all other figures are directional estimates, not vendor quotes. NCYSA and NCSRA are separate and not part of this agreement. Confidential — intended only for Officials Management Systems.</p>
+    <p style="margin:0 0 10px"><strong>How these figures were built.</strong> The comparison costs are drawn from published pricing — SCORM Cloud registration plans; Docebo, Absorb and LearnUpon enterprise ranges; Bunny CDN and AWS CloudFront delivery rates — together with the custom-build quote OMS received. Checked September 2026.</p>
+    <p style="margin:0">Prepared by Jeremy Layton Brown Smith · GetMatchReady. GetMatchReady pricing is proposed for discussion; comparison figures are directional estimates from public sources, not vendor quotes. NCYSA and NCSRA are separate and not part of this agreement. Confidential — intended only for Officials Management Systems.</p>
   </footer>
 </div>
 
 <script>
-/* ===== Access code — change this to whatever you want to give Dick ===== */
+/* ===== Access code — change this to whatever you want to give the recipient ===== */
 var ACCESS_CODE = "GetMatchReady2026";
-/* ====================================================================== */
+/* =============================================================================== */
 (function(){
   var gate=document.getElementById('gate'), doc=document.getElementById('doc');
   function unlock(){ gate.hidden=true; doc.hidden=false; try{sessionStorage.setItem('gmr_ok','1');}catch(e){} }
@@ -261,22 +275,14 @@ var ACCESS_CODE = "GetMatchReady2026";
     else { document.getElementById('gateErr').textContent='Incorrect code. Please try again.'; }
   });
 
-  var P={setup:8000,license:18000,retainer:1000,buyout:75000,credit:0.5};
+  var LICENSE=18000;
   var refs=document.getElementById('refs');
-  var years=3;
-  var fmt=function(n){return '$'+Math.round(n).toLocaleString('en-US');};
-
   function perRef(){
     var r=+refs.value;
     document.getElementById('refsOut').textContent=r.toLocaleString('en-US');
     document.getElementById('refCap').textContent=r.toLocaleString('en-US');
-    var v=P.license/r;
+    var v=LICENSE/r;
     document.getElementById('perRef').textContent= v<1 ? '$'+v.toFixed(2) : '$'+v.toFixed(0);
-  }
-  function totals(){
-    document.getElementById('licTotal').innerHTML=fmt(P.setup+P.license*years)+'<small> over '+years+' yr'+(years>1?'s':'')+'</small>';
-    document.getElementById('l2oPrice').innerHTML=fmt(P.buyout-P.credit*P.license)+'<small> to own after yr 1</small>';
-    document.getElementById('ownPrice').innerHTML=fmt(P.buyout)+'<small> + retainer</small>';
   }
 
   /* 3-year cost comparison at 75,000 officials ($ thousands) */
@@ -314,14 +320,7 @@ var ACCESS_CODE = "GetMatchReady2026";
   }
 
   refs.addEventListener('input',perRef);
-  Array.prototype.forEach.call(document.querySelectorAll('.years button'),function(b){
-    b.addEventListener('click',function(){
-      years=+b.getAttribute('data-y');
-      document.querySelectorAll('.years button').forEach(function(x){x.setAttribute('aria-pressed', x===b?'true':'false');});
-      totals();
-    });
-  });
-  perRef(); totals(); bars(); delta();
+  perRef(); bars(); delta();
 })();
 </script>
 </body></html>
