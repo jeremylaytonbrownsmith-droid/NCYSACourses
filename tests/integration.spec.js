@@ -78,6 +78,19 @@ test('completion webhook is POSTed with a valid HMAC signature', async () => {
   }
 });
 
+test('a 5xx from the partner endpoint is reported as retries-exhausted with the status', async () => {
+  const server = http.createServer((req, res) => { res.writeHead(500); res.end('boom'); });
+  await new Promise((r) => server.listen(0, r));
+  try {
+    const result = await sendCompletionWebhook({ event: 'module.completed' }, `http://127.0.0.1:${server.address().port}/hook`);
+    expect(result.sent).toBe(false);
+    expect(result.reason).toBe('retries-exhausted');
+    expect(result.status).toBe(500); // the partner's endpoint is up but erroring on the payload
+  } finally {
+    server.close();
+  }
+});
+
 test('a signed launch link signs the referee in and enrolls them', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
