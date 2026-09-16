@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome Screen — SCORM 2004 check</title>
+<style>
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0e1726;color:#eef3fa}
+  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box}
+  h1{font-size:1.4rem;margin:0 0 6px}
+  .slide{font-size:1.05rem;margin:14px 0;max-width:520px}
+  .status{margin-top:10px;font-weight:700}
+  button{margin-top:22px;padding:12px 26px;font-size:1rem;border:0;border-radius:8px;background:#f6c945;color:#1a2436;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .done{color:#7ee08a}
+  .nolms{color:#ffb4b4}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Welcome Screen</h1>
+  <div class="slide" id="slide">A small SCORM 2004 sample used to prove the portal records completion. Answer the question and click <strong>Finish</strong>.</div>
+  <div class="status" id="status"></div>
+  <button id="finish" type="button">Finish</button>
+</div>
+<script>
+/* Minimal SCORM 2004 (3rd/4th ed) SCO. Same API-discovery contract as a real
+   package: walk up window.parent looking for `API_1484_11`, Initialize, set
+   completion + success + score, Commit, then Terminate. No-ops (still shows a
+   message) if no LMS is present. */
+(function(){"use strict";
+  function find(w){var t=0;while(w&&w.API_1484_11==null&&w.parent&&w.parent!==w&&t<15){t++;w=w.parent;}return w?w.API_1484_11:null;}
+  var API=null;try{API=find(window);}catch(e){}
+  var statusEl=document.getElementById('status');
+  if(API){ API.Initialize(""); statusEl.textContent="Connected to the LMS."; }
+  else { statusEl.innerHTML='<span class="nolms">No LMS detected — running standalone.</span>'; }
+
+  document.getElementById('finish').addEventListener('click',function(){
+    this.disabled=true;
+    if(API){
+      API.SetValue("cmi.completion_status","completed");
+      API.SetValue("cmi.success_status","passed");
+      API.SetValue("cmi.score.raw","1");
+      API.SetValue("cmi.score.min","0");
+      API.SetValue("cmi.score.max","1");
+      API.SetValue("cmi.score.scaled","1");
+      API.Commit("");
+      API.Terminate("");
+      statusEl.innerHTML='<span class="done">✓ Reported complete (passed) to the portal.</span>';
+    } else {
+      statusEl.innerHTML='<span class="done">✓ Finished (standalone).</span>';
+    }
+  });
+})();
+</script>
+</body>
+</html>

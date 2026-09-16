@@ -923,8 +923,28 @@ function renderScormLesson(pane, course, lesson, lp) {
       LMSGetErrorString: function () { return ''; },
       LMSGetDiagnostic: function () { return ''; },
     };
+    // Read-only SCORM 2004 runtime for reviewing a completed 2004 package.
+    const r2 = {
+      'cmi.completion_status': 'completed',
+      'cmi.success_status': saved.status === 'failed' ? 'failed' : 'passed',
+      'cmi.location': saved.location || '',
+      'cmi.suspend_data': saved.suspendData || '',
+      'cmi.learner_id': (me && me.user && me.user.id) || '',
+      'cmi.learner_name': (me && me.user && me.user.name) || '',
+    };
+    window.API_1484_11 = {
+      Initialize: function () { return 'true'; },
+      Terminate: function () { return 'true'; },
+      GetValue: function (k) { return r2[k] != null ? String(r2[k]) : ''; },
+      SetValue: function (k, v) { r2[k] = v; return 'true'; },
+      Commit: function () { return 'true'; },
+      GetLastError: function () { return '0'; },
+      GetErrorString: function () { return ''; },
+      GetDiagnostic: function () { return ''; },
+    };
     window.addEventListener('hashchange', function cleanup() {
       try { delete window.API; } catch (e) { window.API = undefined; }
+      try { delete window.API_1484_11; } catch (e) { window.API_1484_11 = undefined; }
       window.removeEventListener('hashchange', cleanup);
     });
     return;
@@ -1047,6 +1067,58 @@ function renderScormLesson(pane, course, lesson, lp) {
     LMSGetDiagnostic: function () { return ''; },
   };
 
+  // SCORM 2004 runtime (window.API_1484_11) for Captivate/2004 packages. It
+  // discovers the API the same way (walk up window.parent looking for
+  // API_1484_11), then translates 2004 CMI into the same internal 1.2-shaped
+  // model above, so the server sync and completion/failure reporting are
+  // unchanged. 2004 splits completion (completed/incomplete) from success
+  // (passed/failed); we fold both into the single terminal status we report.
+  const s2 = {
+    'cmi.completion_status': (saved.status === 'completed' || saved.status === 'passed') ? 'completed' : 'unknown',
+    'cmi.success_status': saved.status === 'passed' ? 'passed' : (saved.status === 'failed' ? 'failed' : 'unknown'),
+    'cmi.location': saved.location || '',
+    'cmi.suspend_data': saved.suspendData || '',
+    'cmi.learner_id': (me && me.user && me.user.id) || '',
+    'cmi.learner_name': (me && me.user && me.user.name) || '',
+  };
+  function map2004Status() {
+    const comp = String(s2['cmi.completion_status'] || '').toLowerCase();
+    const succ = String(s2['cmi.success_status'] || '').toLowerCase();
+    let st = null;
+    if (succ === 'passed') st = 'passed';
+    else if (succ === 'failed') st = 'failed';
+    else if (comp === 'completed') st = 'completed';
+    else if (comp === 'incomplete') st = 'incomplete';
+    if (st) cmi['cmi.core.lesson_status'] = st;
+    return st;
+  }
+  window.API_1484_11 = {
+    Initialize: function () { return 'true'; },
+    Terminate: function () { map2004Status(); sync(0, null, true); return 'true'; },
+    GetValue: function (k) { return s2[k] != null ? String(s2[k]) : ''; },
+    SetValue: function (k, v) {
+      s2[k] = v;
+      if (k === 'cmi.location') cmi['cmi.core.lesson_location'] = v;
+      else if (k === 'cmi.suspend_data') cmi['cmi.suspend_data'] = v;
+      else if (k === 'cmi.score.raw') cmi['cmi.core.score.raw'] = v;
+      else if (k === 'cmi.score.min') cmi['cmi.core.score.min'] = v;
+      else if (k === 'cmi.score.max') cmi['cmi.core.score.max'] = v;
+      else if (k === 'cmi.score.scaled' && cmi['cmi.core.score.raw'] == null) {
+        cmi['cmi.core.score.raw'] = Math.round(Number(v) * 100); cmi['cmi.core.score.min'] = '0'; cmi['cmi.core.score.max'] = '100';
+      } else if (k === 'cmi.completion_status' || k === 'cmi.success_status') {
+        // 2004 sets completion and success in separate calls; wait for Commit or
+        // Terminate to report a pass/complete (so both are known), but push a
+        // failure promptly so a partner is notified.
+        if (map2004Status() === 'failed') sync(0);
+      }
+      return 'true';
+    },
+    Commit: function () { const st = map2004Status(); if ((st === 'completed' || st === 'passed') && !reachedEnd) reachedEnd = true; sync(0); return 'true'; },
+    GetLastError: function () { return '0'; },
+    GetErrorString: function () { return ''; },
+    GetDiagnostic: function () { return ''; },
+  };
+
   paintGate({ activeSeconds: active, required });
   startBeat();
 
@@ -1056,6 +1128,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     stopBeat();
     document.removeEventListener('visibilitychange', onVisibility);
     try { delete window.API; } catch (e) { window.API = undefined; }
+    try { delete window.API_1484_11; } catch (e) { window.API_1484_11 = undefined; }
     window.removeEventListener('hashchange', cleanup);
   });
 }
