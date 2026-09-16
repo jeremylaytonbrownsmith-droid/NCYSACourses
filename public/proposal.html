@@ -185,7 +185,7 @@ footer a{color:var(--accent);text-decoration:underline}
         <p class="sub">GetMatchReady certifies referees in production today. Three ways to put it to work for OMS: license it, own it later, or own it now, with me building it into your multi-sport platform.</p>
       </div>
       <div class="stat" role="group" aria-label="Cost per user">
-        <div class="big" id="perRef">$1.20</div>
+        <div class="big" id="perRef">$1.00</div>
         <div class="stat-mid">
           <div class="cap">per user, per year. The soccer license across <span id="refCap" class="tnum">15,000</span> users, and it drops as you grow.</div>
           <div class="slider">
@@ -208,10 +208,10 @@ footer a{color:var(--accent);text-decoration:underline}
       <div class="opt">
         <h3>License</h3>
         <div class="one">Exclusive use across your sports. I keep ownership and stay on to build.</div>
-        <div class="hd">$18,000<small> / year + $8,000 setup</small></div>
+        <div class="hd">$15,000<small> / year + $8,000 setup</small></div>
         <dl>
           <dt>Setup &amp; integration</dt><dd>$8,000</dd>
-          <dt>Annual license (soccer)</dt><dd>$18,000</dd>
+          <dt>Annual license (soccer)</dt><dd>$15,000</dd>
           <dt>Each added sport / yr</dt><dd>$6,000</dd>
           <dt>Dev &amp; support (optional)</dt><dd>$1,000/mo</dd>
           <dt>Hosting</dt><dd>At cost</dd>
@@ -223,15 +223,15 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="ribbon">Recommended</div>
         <h3>License&#8209;to&#8209;Own</h3>
         <div class="one">Everything in License, plus a price to own it locked in from day one.</div>
-        <div class="hd">$51,000<small> to own after year 1</small></div>
+        <div class="hd">$45,000<small> to own after year 1</small></div>
         <dl>
           <dt>Buy after</dt><dd>Month 12</dd>
           <dt>Purchase price*</dt><dd>$60,000</dd>
-          <dt>License fees credited</dt><dd>50%</dd>
+          <dt>License fees credited</dt><dd>100%</dd>
           <dt>Installments</dt><dd>up to 12 mo</dd>
           <dt>Obligation to buy</dt><dd>None</dd>
         </dl>
-        <div class="foot">The lowest-risk way to own it, with zero pressure. *Illustrative, set with counsel.</div>
+        <div class="foot">Same total as owning outright ($68k), with a risk-free trial year. *Illustrative, set with counsel.</div>
       </div>
 
       <div class="opt">
@@ -249,8 +249,8 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="foot">You own it; I keep a growth stake and stay building.</div>
       </div>
     </div>
-    <p class="rec"><b>My recommendation: License-to-Own.</b> It is the lowest-risk path to owning it outright: you try it for a year, own it after that, and there is zero obligation to buy.</p>
-    <p class="note">Prefer per-user pricing? At your current reach the soccer license works out to about $1.20 per user per year, and less as you grow. It can be structured as a flat annual license or a per-user subscription, whichever fits your budgeting.</p>
+    <p class="rec"><b>My recommendation: License-to-Own.</b> It costs the same as buying outright ($68k all in), but you try it risk-free for a year first and every license dollar credits toward ownership. Zero obligation to buy.</p>
+    <p class="note">Prefer per-user pricing? At your current reach the soccer license works out to about $1.00 per user per year, and less as you grow. It can be structured as a flat annual license or a per-user subscription, whichever fits your budgeting.</p>
     <p class="scope"><b>Scope.</b> NCYSA and NCSRA are excluded from this agreement. GetMatchReady continues to operate their learning systems, and any exclusivity covers your sports and markets only, not organizations GetMatchReady already serves.</p>
   </section>
 
@@ -325,7 +325,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     else { document.getElementById('gateErr').textContent='Incorrect code. Please try again.'; }
   });
 
-  var LICENSE=18000;
+  var LICENSE=15000;
   var refs=document.getElementById('refs');
   function perRef(){
     var r=+refs.value;
@@ -341,9 +341,8 @@ var ACCESS_CODE = "GetMatchReady2026";
     {name:'Enterprise LMS', note:'Docebo, Absorb, LearnUpon. Months to set up', lo:75, hi:180},
     {name:'Full custom build', note:'The quote OMS received. 6+ months to build', lo:330, hi:395},
     {name:'SCORM Cloud + your build', note:'Player fees plus a full build. 3 to 6 months', lo:80, hi:170},
-    {name:'GetMatchReady license', note:'Live now. Setup, license, and hosting. Optional support not included', lo:62, hi:62, gmr:true},
-    {name:'GetMatchReady license, then own', note:'Live now, you own it after year 1', lo:77, hi:77, gmr:true, suffix:' + your team&rsquo;s upkeep'},
-    {name:'GetMatchReady, own now', note:'Live now, you own it', lo:68, hi:68, gmr:true, suffix:' + your team&rsquo;s upkeep'}
+    {name:'GetMatchReady license', note:'Live now. Rent it, low commitment, never expires', lo:53, hi:53, gmr:true},
+    {name:'GetMatchReady, own it', note:'Live now. Buy now or after a trial year, same price', lo:68, hi:68, gmr:true, suffix:' + your team&rsquo;s upkeep'}
   ];
   var MAX=420;
   function kLabel(lo,hi){
@@ -368,7 +367,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     }).join('');
   }
   function delta(){
-    document.getElementById('delta').innerHTML='Licensing GetMatchReady runs about <b class="g">$62k</b> over three years, and even owning it outright runs about <b>$68k</b> before your team&rsquo;s upkeep, less than every alternative and roughly <b>$250,000 less</b> than a full custom build. Every other option has to be built or connected first. GetMatchReady is live today.';
+    document.getElementById('delta').innerHTML='Licensing GetMatchReady runs about <b class="g">$53k</b> over three years, and even owning it outright runs about <b>$68k</b> before your team&rsquo;s upkeep, less than every alternative and roughly <b>$250,000 less</b> than a full custom build. Every other option has to be built or connected first. GetMatchReady is live today.';
   }
 
   refs.addEventListener('input',perRef);
