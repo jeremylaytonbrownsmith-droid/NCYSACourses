@@ -90,6 +90,10 @@ h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
 .own{color:var(--accent);font-weight:600}
 .rec{margin-top:20px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:12px;padding:14px 18px;font-size:.95rem;color:var(--ink)}
 .rec b{color:var(--accent);font-weight:700}
+.dlbar{display:flex;justify-content:flex-end;margin-top:16px}
+.dlbtn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:var(--surface);border:1px solid var(--line);color:var(--ink);font:600 .9rem var(--body);padding:10px 16px;border-radius:10px;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease}
+.dlbtn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(23,34,79,.14)}
+.dlbtn .ic{width:18px;height:18px;border-radius:6px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:800}
 
 /* cost bars */
 .bars{display:flex;flex-direction:column;gap:12px;margin-top:22px}
@@ -178,18 +182,20 @@ footer a{color:var(--accent);text-decoration:underline}
         <h1>Deliver training to <em>every official</em>, on a platform that's already live.</h1>
         <p class="sub">GetMatchReady certifies referees in production today. Three ways to put it to work for OMS: license it, own it later, or own it now, with me building it into your multi-sport platform.</p>
       </div>
-      <div class="stat" role="group" aria-label="Cost per official">
-        <div class="big" id="perRef">$0.24</div>
+      <div class="stat" role="group" aria-label="Cost per user">
+        <div class="big" id="perRef">$1.20</div>
         <div class="stat-mid">
-          <div class="cap">per official, per year, the soccer license across <span id="refCap" class="tnum">75,000</span> officials</div>
+          <div class="cap">per user, per year. The soccer license across <span id="refCap" class="tnum">15,000</span> users, and it drops as you grow.</div>
           <div class="slider">
-            <label for="refs">Officials per year <output id="refsOut" for="refs" class="tnum">75,000</output></label>
-            <input id="refs" type="range" min="25000" max="200000" step="5000" value="75000">
+            <label for="refs">Users per year <output id="refsOut" for="refs" class="tnum">15,000</output></label>
+            <input id="refs" type="range" min="10000" max="100000" step="5000" value="15000">
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <div class="dlbar"><a class="dlbtn" href="/downloads/GetMatchReady-Proposal.pdf" download><span class="ic">↓</span> Download PDF</a></div>
 
   <section aria-labelledby="opts-h">
     <div class="eyebrow2">The offer</div>
@@ -242,22 +248,23 @@ footer a{color:var(--accent);text-decoration:underline}
       </div>
     </div>
     <p class="rec"><b>My recommendation: License-to-Own.</b> It is the lowest-cost path to owning it outright, you own it after a single year, and there is zero obligation to buy.</p>
+    <p class="note">Prefer per-user pricing? At your current reach the soccer license works out to about $1.20 per user per year, and less as you grow. It can be structured as a flat annual license or a per-user subscription, whichever fits your budgeting.</p>
   </section>
 
   <section aria-labelledby="cmp-h">
     <div class="eyebrow2">Why now</div>
     <h2 id="cmp-h">Less than every alternative, and live today</h2>
-    <p class="lead">What the same three years would cost OMS at 75,000 officials. Every other path also has to be built or wired up first. GetMatchReady is running now.</p>
+    <p class="lead">What the same three years would cost at your scale, about 15,000 users today and growing. Every other path also has to be built or wired up first. GetMatchReady is running now.</p>
     <div class="bars" id="bars" aria-hidden="true"></div>
     <div class="delta" id="delta"></div>
     <p class="note">Optional support ($1,000/mo) adds $36k over three years and includes a dedicated developer, which no other option includes.</p>
-    <p class="note">3-year totals at 75,000 officials. Competitor figures are estimates from public pricing, not vendor quotes.</p>
+    <p class="note">3-year totals at your current scale (about 15,000 users). Competitor figures are estimates for comparable, full-featured solutions, not vendor quotes.</p>
   </section>
 
   <section aria-labelledby="host-h">
     <div class="eyebrow2">Hosting</div>
     <h2 id="host-h">The video bill stays small</h2>
-    <p class="lead">OMS asked about AWS. GetMatchReady already streams the same video through Bunny CDN, a fraction of AWS CloudFront's rate, billed to OMS at actual cost either way. Estimated at ~75 TB/year (about 1&nbsp;GB per official).</p>
+    <p class="lead">OMS asked about AWS. GetMatchReady already streams the same video through Bunny CDN, a fraction of AWS CloudFront's rate, billed to you at actual cost either way. Estimated at roughly 15 TB/year at current reach (about 1&nbsp;GB per user), and it scales as you grow.</p>
     <div class="bars">
       <div class="brow">
         <div class="bn">AWS CloudFront<small>What OMS was considering</small></div>
@@ -265,7 +272,7 @@ footer a{color:var(--accent);text-decoration:underline}
           <div class="bfill" style="left:0;width:58%"></div>
           <div class="bfill soft" style="left:58%;width:38%"></div>
           <div class="bend" style="left:96%"></div>
-          <div class="bval" style="right:calc(4% + 20px)">~$4,000 to $6,400 / yr</div>
+          <div class="bval" style="right:calc(4% + 20px)">~$1,200 to $1,800 / yr</div>
         </div>
       </div>
       <div class="brow gmr">
@@ -273,12 +280,12 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="btrack">
           <div class="bfill" style="left:0;width:18%"></div>
           <div class="bend" style="left:18%"></div>
-          <div class="bval" style="left:calc(18% + 18px)">~$750 to $1,500 / yr</div>
+          <div class="bval" style="left:calc(18% + 18px)">~$150 to $350 / yr</div>
         </div>
       </div>
     </div>
-    <div class="delta">Bunny CDN delivers the same video for roughly <b class="g">3 to 8 times less</b> than AWS CloudFront, about <b>$2,500 to $5,600 saved per year</b>.</div>
-    <p class="note">Estimates from published rates at ~75 TB/year; actual cost scales with video watched.</p>
+    <div class="delta">Bunny CDN delivers the same video for roughly <b class="g">3 to 8 times less</b> than AWS CloudFront, about <b>$1,000 to $1,500 saved per year</b> at current reach, and the gap grows as you scale.</div>
+    <p class="note">Estimates from published rates at roughly 15 TB/year; actual cost scales with video watched.</p>
   </section>
 
   <section aria-labelledby="get-h">
@@ -322,23 +329,23 @@ var ACCESS_CODE = "GetMatchReady2026";
     document.getElementById('refsOut').textContent=r.toLocaleString('en-US');
     document.getElementById('refCap').textContent=r.toLocaleString('en-US');
     var v=LICENSE/r;
-    document.getElementById('perRef').textContent= v<1 ? '$'+v.toFixed(2) : '$'+v.toFixed(0);
+    document.getElementById('perRef').textContent= v<10 ? '$'+v.toFixed(2) : '$'+v.toFixed(0);
   }
 
-  /* 3-year cost comparison at 75,000 officials ($ thousands) */
+  /* 3-year cost comparison at ~15,000 users ($ thousands). Competitor ranges
+     are estimates for comparable, full-featured solutions, not vendor quotes. */
   var CMP=[
-    {name:'Enterprise LMS', note:'Docebo, Absorb, LearnUpon. Months to set up', lo:150, hi:550},
-    {name:'Full custom build', note:'Your quote. 6+ months to build', lo:330, hi:395},
-    {name:'SCORM Cloud + your build', note:'Player only. 3 to 6 months', lo:100, hi:220},
-    {name:'$18k player + finishing', note:'3 to 6 months before launch', lo:78, hi:145},
+    {name:'Enterprise LMS', note:'Docebo, Absorb, LearnUpon. Months to set up', lo:75, hi:180},
+    {name:'Full custom build', note:'The quote OMS received. 6+ months to build', lo:330, hi:395},
+    {name:'SCORM Cloud + your build', note:'Player fees plus a full build. 3 to 6 months', lo:80, hi:170},
     {name:'GetMatchReady license', note:'Live now. Setup, license, and hosting. Optional support not included', lo:65, hi:65, gmr:true},
     {name:'GetMatchReady license, then own', note:'Live now, you own it after year 1', lo:80, hi:80, gmr:true, suffix:' + your team&rsquo;s upkeep'},
     {name:'GetMatchReady, own now', note:'Live now, you own it', lo:86, hi:86, gmr:true, suffix:' + your team&rsquo;s upkeep'}
   ];
-  var MAX=580;
+  var MAX=420;
   function kLabel(lo,hi){
     var f=function(n){ return n>=1000?'$'+(n/1000).toFixed(1)+'M':'$'+n+'k'; };
-    return lo===hi ? '~'+f(lo) : f(lo)+' to '+f(hi)+(hi>=550?'+':'');
+    return lo===hi ? '~'+f(lo) : f(lo)+' to '+f(hi)+(hi>=395?'+':'');
   }
   function bars(){
     document.getElementById('bars').innerHTML=CMP.map(function(c){
