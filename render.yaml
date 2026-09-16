@@ -39,6 +39,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PUBLIC_URL
+        value: https://getmatchready.app # branded base URL used in generated launch links (falls back to the Render host if unset)
       - key: DATA_DIR
         value: /tmp/ncysa-data # ephemeral local cache; Firestore is the source of truth
       # Uploaded SCORM packages live on the persistent disk so they survive

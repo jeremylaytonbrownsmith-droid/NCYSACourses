@@ -1405,15 +1405,24 @@ app.post('/api/admin/integration/test-link', requireEditor, (req, res) => {
   const course = allCourses().find((c) => c.id === b.courseId);
   if (!course) return res.status(404).json({ error: 'Pick a valid course.' });
   const rand = crypto.randomBytes(3).toString('hex');
-  const token = signToken({
+  // Demo links are for hand-off/testing, so default to a long life (7 days) and
+  // allow up to 30, instead of the old 1-hour expiry that kept links dying
+  // before the recipient clicked them.
+  const expiresInSec = Math.min(Math.max(Number(b.expiresInSec) || 604800, 300), 2592000);
+  const claims = {
     refId: b.refId || `DEMO-${rand}`,
     name: b.name || 'Demo Referee',
     email: b.email || `demo+${rand}@getmatchready.app`,
     moduleId: course.id,
     org: b.org || 'DEMO',
-  }, undefined, 3600);
+  };
+  // Optional per-launch completion webhook (validated + host-allow-listed).
+  const cb = allowedCallbackUrl(b.callbackUrl);
+  if (cb) claims.callbackUrl = cb;
+  const token = signToken(claims, undefined, expiresInSec);
+  // Prefer the branded public domain over the raw Render host for shared links.
   const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
-  res.json({ url: `${base}/launch?token=${token}`, expiresInMinutes: 60 });
+  res.json({ url: `${base}/launch?token=${token}`, expiresInMinutes: Math.round(expiresInSec / 60) });
 });
 
 // Publish or unpublish a course (show/hide it from learners).
