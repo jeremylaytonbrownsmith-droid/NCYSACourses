@@ -12,25 +12,35 @@ const BASE = 'http://localhost:3100';
 const SECRET = 'test-secret-123';
 const API_KEY = 'test-api-key-456';
 const HOOK_PORT = 3131; // must match INTEGRATION_WEBHOOK_URL in playwright.config.js
+const HOOK2_PORT = 3132; // a per-launch (per-state) endpoint, set via the token's callbackUrl
 
-let server, received = [];
-test.beforeAll(async () => {
-  server = http.createServer((req, res) => {
+function receiver(store) {
+  return http.createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      try { received.push({ sig: req.headers['x-getmatchready-signature'], payload: JSON.parse(body) }); } catch (_) {}
+      try { store.push({ sig: req.headers['x-getmatchready-signature'], payload: JSON.parse(body) }); } catch (_) {}
       res.writeHead(200); res.end('ok');
     });
   });
-  await new Promise((r) => server.listen(HOOK_PORT, '127.0.0.1', r));
-});
-test.afterAll(async () => { await new Promise((r) => server.close(r)); });
+}
 
-async function waitForHook(refId, timeoutMs = 8000) {
+let server, server2, received = [], received2 = [];
+test.beforeAll(async () => {
+  server = receiver(received);
+  server2 = receiver(received2);
+  await new Promise((r) => server.listen(HOOK_PORT, '127.0.0.1', r));
+  await new Promise((r) => server2.listen(HOOK2_PORT, '127.0.0.1', r));
+});
+test.afterAll(async () => {
+  await new Promise((r) => server.close(r));
+  await new Promise((r) => server2.close(r));
+});
+
+async function waitForHook(refId, arr = received, timeoutMs = 8000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const hit = received.find((h) => h.payload && h.payload.refId === refId);
+    const hit = arr.find((h) => h.payload && h.payload.refId === refId);
     if (hit) return hit.payload;
     await new Promise((r) => setTimeout(r, 100));
   }
@@ -47,8 +57,8 @@ test.beforeAll(async ({ playwright }) => {
 });
 
 // Launch a partner referee and return a request context carrying their session.
-async function launch(playwright, refId, email) {
-  const token = signToken({ refId, name: refId, email, moduleId: courseId, org: 'NC', returnUrl: 'https://oms.example.com/back' }, SECRET, 300);
+async function launch(playwright, refId, email, extra = {}) {
+  const token = signToken({ refId, name: refId, email, moduleId: courseId, org: 'NC', returnUrl: 'https://oms.example.com/back', ...extra }, SECRET, 300);
   const ctx = await playwright.request.newContext({ baseURL: BASE });
   const res = await ctx.get(`/launch?token=${token}`, { maxRedirects: 0 });
   expect(res.status()).toBe(302);
@@ -109,4 +119,15 @@ test('a plain completed (no score) reports completed with a null score', async (
   const row = (await (await recon(ctx, 'OMS-DONE')).json()).find((r) => r.moduleId === courseId);
   expect(row.status).toBe('completed');
   expect(row.score).toBeNull();
+});
+
+test('a per-launch callbackUrl routes the completion to that endpoint, not the global one', async ({ playwright }) => {
+  const ctx = await launch(playwright, 'OMS-CB', 'cb@example.com', { callbackUrl: `http://127.0.0.1:${HOOK2_PORT}/state-nc` });
+  await postScorm(ctx, { status: 'passed', scoreRaw: 9, scoreMin: 0, scoreMax: 10 });
+  // It arrives at the per-launch endpoint...
+  const hook = await waitForHook('OMS-CB', received2);
+  expect(hook.event).toBe('module.passed');
+  expect(hook.status).toBe('passed');
+  // ...and not at the global one.
+  expect(received.find((h) => h.payload && h.payload.refId === 'OMS-CB')).toBeFalsy();
 });

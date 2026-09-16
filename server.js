@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl } = require('./lib/integration');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -339,6 +339,10 @@ app.get('/launch', (req, res) => {
   // Where to send the referee when they finish (only accept absolute http(s)).
   const returnUrl = (typeof claims.returnUrl === 'string' && /^https?:\/\//i.test(claims.returnUrl)) ? claims.returnUrl : null;
   enr.returnUrl = returnUrl || enr.returnUrl || null;
+  // Per-launch completion webhook URL (each OMS state has its own endpoint).
+  // Validated + host-allow-listed; falls back to the global webhook when absent.
+  const callbackUrl = allowedCallbackUrl(claims.callbackUrl);
+  enr.callbackUrl = callbackUrl || enr.callbackUrl || null;
   save();
   setSession(res, user.id);
   res.redirect(302, `/#/course/${course.id}`);
@@ -1154,7 +1158,7 @@ function sendPartnerOutcome(enr, course, { status, score = null, certificateId =
     completedAt: endedAt,
     certificateId,
     durationSeconds,
-  }).catch(() => { /* never blocks */ });
+  }, enr.callbackUrl || undefined).catch(() => { /* never blocks */ });
 }
 
 // When every lesson is done: complete the course, mint a certificate,

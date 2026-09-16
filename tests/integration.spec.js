@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 process.env.INTEGRATION_SECRET = 'test-secret-123'; // must match the webServer (playwright.config.js)
 const crypto = require('crypto');
 const http = require('http');
-const { signToken, verifyToken, sendCompletionWebhook, mapScormStatus, scoreObject } = require('../lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, mapScormStatus, scoreObject, allowedCallbackUrl } = require('../lib/integration');
 
 const BASE = 'http://localhost:3100';
 const SECRET = 'test-secret-123';
@@ -29,6 +29,23 @@ test('score object: absolute (with min/max) normalizes; percentage-only does not
   // No score reported at all → null (not 0).
   expect(scoreObject(null)).toBeNull();
   expect(scoreObject({})).toBeNull();
+});
+
+test('per-launch callback URL: https required, loopback http allowed, allow-list enforced', () => {
+  delete process.env.INTEGRATION_CALLBACK_ALLOWED_HOSTS;
+  // With no allow-list: any https URL is accepted; http is rejected except loopback.
+  expect(allowedCallbackUrl('https://nc.oms.example.com/hook')).toBe('https://nc.oms.example.com/hook');
+  expect(allowedCallbackUrl('http://evil.example.com/hook')).toBeNull();       // http, not loopback
+  expect(allowedCallbackUrl('http://127.0.0.1:3132/hook')).toBe('http://127.0.0.1:3132/hook'); // loopback ok
+  expect(allowedCallbackUrl('not-a-url')).toBeNull();
+  expect(allowedCallbackUrl('')).toBeNull();
+  expect(allowedCallbackUrl(undefined)).toBeNull();
+  // With an allow-list: only matching host suffixes pass.
+  process.env.INTEGRATION_CALLBACK_ALLOWED_HOSTS = 'oms.example.com';
+  expect(allowedCallbackUrl('https://nc.oms.example.com/hook')).toBe('https://nc.oms.example.com/hook');
+  expect(allowedCallbackUrl('https://oms.example.com/hook')).toBe('https://oms.example.com/hook');
+  expect(allowedCallbackUrl('https://somewhere-else.com/hook')).toBeNull();
+  delete process.env.INTEGRATION_CALLBACK_ALLOWED_HOSTS;
 });
 
 test('launch token signs and verifies; tampering and expiry are rejected', async () => {

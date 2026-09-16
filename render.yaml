@@ -76,6 +76,8 @@ services:
         sync: false # partner endpoint that receives completion callbacks (optional)
       - key: INTEGRATION_API_KEY
         sync: false # per-tenant key for the reconciliation pull API (falls back to INTEGRATION_SECRET if unset)
+      - key: INTEGRATION_CALLBACK_ALLOWED_HOSTS
+        sync: false # optional: comma-separated host suffixes a per-launch callback URL may use (e.g. oms.example.com). Leave unset to allow any HTTPS callback from a signed token.
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----
