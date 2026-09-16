@@ -384,6 +384,57 @@ app.get('/api/v1/completions', (req, res) => {
   res.json(rows);
 });
 
+// On-demand test webhook: fire a sample (or custom) completion callback to a URL
+// so a partner can debug their receiver as many times as they like, without
+// paging through a whole course. Same per-tenant API-key auth as reconciliation.
+// Returns the exact body and signature that were sent, so the partner can check
+// their HMAC verification against ground truth.
+app.post('/api/v1/test-webhook', async (req, res) => {
+  if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
+  const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  const apiKey = integrationApiKey();
+  let ok = false;
+  if (m && apiKey) {
+    const a = Buffer.from(m[1]); const b = Buffer.from(apiKey);
+    ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+  if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
+
+  const b = req.body || {};
+  // Where to send: an explicit (allow-listed) url, else the configured default.
+  const url = b.url ? allowedCallbackUrl(b.url) : (process.env.INTEGRATION_WEBHOOK_URL || null);
+  if (!url) {
+    return res.status(400).json({ error: b.url
+      ? 'That url is not allowed (must be HTTPS and, if an allow-list is set, within it).'
+      : 'No url provided and no default webhook is configured.' });
+  }
+  const status = ['passed', 'completed', 'failed', 'incomplete'].includes(b.status) ? b.status : 'passed';
+  const now = new Date().toISOString();
+  const payload = {
+    event: 'module.' + status,
+    refId: b.refId || 'TEST-REF',
+    moduleId: b.moduleId || 'omg-test',
+    org: b.org || 'DEMO',
+    status,
+    score: (b.score !== undefined) ? b.score : { raw: 8, min: 0, max: 10, percent: 80 },
+    startedAt: now,
+    completedAt: now,
+    certificateId: (status === 'passed' || status === 'completed') ? 'TEST-CERT' : null,
+    durationSeconds: 5,
+    test: true, // marks this as a test event, not a real completion
+  };
+  const result = await sendCompletionWebhook(payload, url);
+  recordWebhook({ event: payload.event, refId: payload.refId, moduleId: payload.moduleId, org: payload.org, status, url, result });
+  res.json({
+    sent: !!result.sent,
+    httpStatus: result.status || null,
+    url,
+    signatureHeader: result.signature || null,
+    body: result.body || JSON.stringify(payload),
+    error: result.error || result.reason || null,
+  });
+});
+
 // Clean per-org shortcut: /omg (and any partner-org slug) forwards to that org's
 // portal. Lets a partner hand out a tidy URL (e.g. getmatchready.app/omg) that
 // resolves to the hash-routed portal. Only single-segment, known non-default org

@@ -147,3 +147,27 @@ test('a per-launch callbackUrl routes the completion to that endpoint, not the g
   // ...and not at the global one.
   expect(received.find((h) => h.payload && h.payload.refId === 'OMS-CB')).toBeFalsy();
 });
+
+test('the test-webhook endpoint fires a signed sample webhook on demand, repeatedly', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  const url = `http://127.0.0.1:${HOOK2_PORT}/test`;
+  // No key is rejected.
+  expect((await api.post('/api/v1/test-webhook', { data: { url } })).status()).toBe(401);
+  // Fire it twice with the key; each call delivers.
+  let lastSig;
+  for (let i = 0; i < 2; i++) {
+    const j = await (await api.post('/api/v1/test-webhook', {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      data: { url, status: 'passed', refId: 'TEST-1' },
+    })).json();
+    expect(j.sent).toBe(true);
+    expect(j.httpStatus).toBe(200);
+    expect(j.signatureHeader).toMatch(/^sha256=[0-9a-f]{64}$/);
+    expect(JSON.parse(j.body).test).toBe(true);
+    lastSig = j.signatureHeader;
+  }
+  // Both landed at the receiver, and the returned signature matches what was sent.
+  await expect.poll(() => received2.filter((h) => h.payload && h.payload.refId === 'TEST-1' && h.payload.test === true).length, { timeout: 5000 }).toBe(2);
+  const last = received2.filter((h) => h.payload && h.payload.refId === 'TEST-1').slice(-1)[0];
+  expect(last.sig).toBe(lastSig);
+});
