@@ -88,7 +88,6 @@ function finalizeRefereeCourse() {
 
   db.migrations[REFEREE_FINALIZE_FLAG] = new Date().toISOString();
   save();
-  console.log('[finalize] referee course finalized as', course.id);
 }
 
 // One-time: make sure the referee course TITLE has no "Regional" in it (the
@@ -104,7 +103,6 @@ function fixRefereeTitle() {
   if (/regional/i.test(course.title || '')) course.title = 'NCSRA Referee Recertification';
   db.migrations[REFEREE_TITLE_FLAG] = new Date().toISOString();
   save();
-  console.log('[finalize] referee title is now:', course.title);
 }
 
 // One-time: stamp the year on the referee certificate title so referees submit
@@ -123,7 +121,6 @@ function setRefereeCertYear() {
   }
   db.migrations[REFEREE_CERT_YEAR_FLAG] = new Date().toISOString();
   save();
-  console.log('[finalize] referee certTitle is now:', course.certTitle);
 }
 
 // One-time: correct the "NCSYA" misspelling (transposed letters) of NCYSA in any

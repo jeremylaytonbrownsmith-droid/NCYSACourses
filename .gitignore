@@ -5,3 +5,12 @@ data/scorm/
 .test-data/
 test-results/
 playwright-report/
+
+# Local scratch DATA_DIR runs (never commit generated app state)
+.adm/
+.ce/
+.cheat-data/
+.col/
+.dbg/
+.em/
+.prod-test/
