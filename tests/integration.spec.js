@@ -78,6 +78,13 @@ test('completion webhook is POSTed with a valid HMAC signature', async () => {
   }
 });
 
+test('the bundled short OMG webhook-test course is available to launch', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  const token = signToken({ refId: 'OMS-WT', email: 'wt@example.com', name: 'WT', moduleId: 'omg-webhook-test' }, SECRET, 300);
+  const res = await api.get(`/launch?token=${token}`, { maxRedirects: 0 });
+  expect(res.status()).toBe(302); // 302 = launched (course exists); a 404 would mean the migration did not create it
+});
+
 test('a 5xx from the partner endpoint is reported as retries-exhausted with the status', async () => {
   const server = http.createServer((req, res) => { res.writeHead(500); res.end('boom'); });
   await new Promise((r) => server.listen(0, r));

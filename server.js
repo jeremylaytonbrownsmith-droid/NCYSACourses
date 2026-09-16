@@ -252,6 +252,45 @@ function setupOmgCourse() {
   save();
 }
 
+// One-time: a short "OMG Webhook Test" course in the OMG portal — a single
+// one-screen SCORM 2004 sample with no time gate, so a partner can trigger the
+// completion webhook end to end in seconds and repeat it freely (each fresh
+// launch is a new enrollment that fires again). Uses the bundled test-2004
+// package, so nothing needs to be uploaded.
+const OMG_WEBHOOK_TEST_FLAG = 'omg-webhook-test-v1';
+function setupOmgWebhookTest() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[OMG_WEBHOOK_TEST_FLAG]) return;
+  if (!db.courses.some((c) => c.id === 'omg-webhook-test')) {
+    db.courses.push({
+      id: 'omg-webhook-test',
+      orgId: 'omg',
+      title: 'OMG Webhook Test',
+      tagline: 'A one-screen module for testing the completion webhook end to end.',
+      description: 'A short SCORM 2004 sample. Finish it and the completion webhook fires. Launch it as often as you like to test your endpoint.',
+      badge: 'Test',
+      estMinutes: 1,
+      audience: 'referees',
+      published: true,
+      coBrandName: 'OMG Referee Education',
+      coLogoUrl: '/media/omg-logo.png',
+      certOrg: 'Officials Management Group',
+      certTitle: 'Webhook Test',
+      certPrefix: 'OMG',
+      lessons: [{
+        id: 'welcome-' + crypto.randomBytes(3).toString('hex'),
+        type: 'scorm',
+        title: 'Welcome Screen',
+        packageId: 'test-2004',
+        minSeconds: 0,
+      }],
+    });
+  }
+  db.migrations[OMG_WEBHOOK_TEST_FLAG] = new Date().toISOString();
+  save();
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -1892,7 +1931,7 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); omgNewRefereeFirst(); omgCourseOrder(); })
+    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); omgNewRefereeFirst(); omgCourseOrder(); })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
