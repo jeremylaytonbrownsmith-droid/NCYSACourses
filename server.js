@@ -1142,23 +1142,38 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
 // enrollments (reportBack). `status` is one of completed/passed/failed/
 // incomplete; the event name mirrors it (module.completed, module.failed, …).
 // `score` is a { raw, min, max, percent } object or null. Never throws/blocks.
+// Append a partner-webhook delivery result to a capped log, so the admin can see
+// what fired and whether the partner's endpoint accepted it (200 vs error).
+function recordWebhook({ event, refId, moduleId, org, status, url, result }) {
+  const db = load();
+  db.webhookLog = db.webhookLog || [];
+  db.webhookLog.push({
+    id: id('whk'), at: new Date().toISOString(),
+    event, refId: refId || null, moduleId: moduleId || null, org: org || null, status: status || null,
+    url: url || null,
+    ok: !!(result && result.sent),
+    httpStatus: (result && result.status) || null,
+    error: (result && (result.error || result.reason)) || null,
+  });
+  if (db.webhookLog.length > 200) db.webhookLog = db.webhookLog.slice(-200); // keep the most recent 200
+  save();
+}
+
 function sendPartnerOutcome(enr, course, { status, score = null, certificateId = null, completedAt = null }) {
   if (!enr || !enr.reportBack) return;
   const endedAt = completedAt || null;
   const durationSeconds = (enr.startedAt && endedAt)
     ? Math.max(0, Math.round((new Date(endedAt) - new Date(enr.startedAt)) / 1000)) : null;
+  const event = 'module.' + status;
+  const refId = enr.externalRef || null;
+  const org = enr.externalOrg || null;
+  const url = enr.callbackUrl || process.env.INTEGRATION_WEBHOOK_URL || null;
   sendCompletionWebhook({
-    event: 'module.' + status,
-    refId: enr.externalRef || null,
-    moduleId: course.id,
-    org: enr.externalOrg || null,
-    status,
-    score,
-    startedAt: enr.startedAt || null,
-    completedAt: endedAt,
-    certificateId,
-    durationSeconds,
-  }, enr.callbackUrl || undefined).catch(() => { /* never blocks */ });
+    event, refId, moduleId: course.id, org, status, score,
+    startedAt: enr.startedAt || null, completedAt: endedAt, certificateId, durationSeconds,
+  }, enr.callbackUrl || undefined)
+    .then((result) => recordWebhook({ event, refId, moduleId: course.id, org, status, url, result }))
+    .catch((e) => recordWebhook({ event, refId, moduleId: course.id, org, status, url, result: { sent: false, error: e && e.message } }));
 }
 
 // When every lesson is done: complete the course, mint a certificate,
@@ -1278,6 +1293,7 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
       .filter((n) => n.audience === 'ncysa')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    partnerWebhooks: (db.webhookLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
 });

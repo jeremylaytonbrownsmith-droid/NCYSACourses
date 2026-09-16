@@ -121,6 +121,22 @@ test('a plain completed (no score) reports completed with a null score', async (
   expect(row.score).toBeNull();
 });
 
+test('partner-webhook deliveries are logged for the admin dashboard', async ({ playwright }) => {
+  const ctx = await launch(playwright, 'OMS-LOG', 'log@example.com');
+  await postScorm(ctx, { status: 'passed', scoreRaw: 7, scoreMin: 0, scoreMax: 10 });
+  const admin = await playwright.request.newContext({ baseURL: BASE });
+  await admin.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const entryOf = async () => {
+    const overview = await (await admin.get('/api/admin/overview')).json();
+    return (overview.partnerWebhooks || []).find((w) => w.refId === 'OMS-LOG');
+  };
+  await expect.poll(async () => (await entryOf())?.ok, { timeout: 6000 }).toBe(true); // delivered (200)
+  const entry = await entryOf();
+  expect(entry.status).toBe('passed');
+  expect(entry.httpStatus).toBe(200);
+  expect(entry.url).toContain('3131'); // the global receiver
+});
+
 test('a per-launch callbackUrl routes the completion to that endpoint, not the global one', async ({ playwright }) => {
   const ctx = await launch(playwright, 'OMS-CB', 'cb@example.com', { callbackUrl: `http://127.0.0.1:${HOOK2_PORT}/state-nc` });
   await postScorm(ctx, { status: 'passed', scoreRaw: 9, scoreMin: 0, scoreMax: 10 });

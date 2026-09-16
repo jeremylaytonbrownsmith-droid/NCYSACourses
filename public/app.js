@@ -1637,6 +1637,19 @@ async function viewAdmin() {
               <pre>${esc(m.body)}</pre>
             </div>`).join('') : '<p class="empty">Outbox is empty.</p>'}
         </div>
+        <div class="admin-card">
+          <h2>Partner webhooks</h2>
+          <p class="empty" style="margin-bottom:12px">Completion callbacks sent to a partner (e.g. OMS). A green check means their endpoint accepted it; a red mark means it failed or no webhook URL is set.</p>
+          ${(d.partnerWebhooks && d.partnerWebhooks.length) ? d.partnerWebhooks.map((w) => `
+            <div class="mail">
+              <div class="mail-head">
+                ${w.ok ? '<span style="color:#109e73">✓ delivered</span>' : `<span style="color:#c0392b">✗ ${esc(w.error || ('HTTP ' + (w.httpStatus || '?')))}</span>`}
+                · <strong>${esc(w.status || '')}</strong> · ${new Date(w.at).toLocaleString()}
+              </div>
+              <div><strong>Ref:</strong> ${esc(w.refId || '—')} · <strong>Module:</strong> ${esc(w.moduleId || '—')}${w.org ? ` · <strong>Org:</strong> ${esc(w.org)}` : ''}${w.httpStatus ? ` · HTTP ${esc(String(w.httpStatus))}` : ''}</div>
+              <div class="meta" style="word-break:break-all">${esc(w.url || 'no webhook URL configured')}</div>
+            </div>`).join('') : '<p class="empty">No partner webhooks sent yet.</p>'}
+        </div>
       </div>
     </div>`;
 
