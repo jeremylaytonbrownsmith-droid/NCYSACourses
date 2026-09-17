@@ -423,6 +423,16 @@ app.get('/api/v1/completions', (req, res) => {
   res.json(rows);
 });
 
+// Constant-time check of the partner's Bearer integration API key (the same
+// per-tenant key used by the reconciliation and test-webhook endpoints).
+function partnerKeyOk(req) {
+  const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  const apiKey = integrationApiKey();
+  if (!m || !apiKey) return false;
+  const a = Buffer.from(m[1]); const b = Buffer.from(apiKey);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 // Simple in-memory per-key sliding-window rate limiter. Keeps only timestamps
 // within the window; returns true when the caller is over the limit.
 const _rlBuckets = new Map();
@@ -1689,13 +1699,21 @@ function decodeEntities(s) {
 // large module (hundreds of MB, or more) never has to fit in memory — which is
 // what previously forced a 500 MB cap and risked an out-of-memory restart.
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB sanity cap
-app.post('/api/admin/scorm', requireEditor, async (req, res) => {
+
+// Shared SCORM ingest. Streams the POSTed .zip to disk (never to RAM), validates
+// it's a SCORM package, extracts it into SCORM_DIR/<packageId>, offloads videos
+// to Bunny when configured, and returns the package metadata. Used by BOTH the
+// Course Designer upload (session-authenticated) and the partner upload API
+// (key-authenticated) so the two can never drift apart. Throws an Error carrying
+// a `.status` and a client-safe message on a bad upload; cleans up any
+// half-written package folder or temp zip on failure.
+async function ingestScormUpload(req, nameHint) {
   let dest = null;   // package folder — cleaned up if extraction fails
   let tmpZip = null; // temp upload file — always removed
   try {
     const declared = Number(req.headers['content-length'] || 0);
     if (declared && declared > MAX_UPLOAD_BYTES) {
-      return res.status(413).json({ error: `That file is ${(declared / 1e9).toFixed(2)} GB — over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.` });
+      throw Object.assign(new Error(`That file is ${(declared / 1e9).toFixed(2)} GB — over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.`), { status: 413 });
     }
     // 1) Stream the request body to a temp file on disk (bounded), never to RAM.
     fs.mkdirSync(SCORM_DIR, { recursive: true });
@@ -1712,15 +1730,15 @@ app.post('/api/admin/scorm', requireEditor, async (req, res) => {
       ws.on('finish', resolve);
       req.pipe(ws);
     });
-    if (!fs.statSync(tmpZip).size) { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'No file received.' }); }
+    if (!fs.statSync(tmpZip).size) throw Object.assign(new Error('No file received.'), { status: 400 });
 
     // 2) Read the zip's directory via random-access (does NOT load the whole file).
     let directory;
     try { directory = await unzipper.Open.file(tmpZip); }
-    catch { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'That file is not a valid .zip.' }); }
+    catch { throw Object.assign(new Error('That file is not a valid .zip.'), { status: 400 }); }
     const files = directory.files.filter((f) => f.type === 'File');
     const manEntry = files.find((f) => /(^|\/)imsmanifest\.xml$/i.test(f.path));
-    if (!manEntry) { fs.rmSync(tmpZip, { force: true }); return res.status(400).json({ error: 'Not a SCORM package — no imsmanifest.xml inside the .zip.' }); }
+    if (!manEntry) throw Object.assign(new Error('Not a SCORM package — no imsmanifest.xml inside the .zip.'), { status: 400 });
 
     // The manifest may sit inside a wrapping folder; everything is relative to it.
     const rootPrefix = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
@@ -1732,7 +1750,7 @@ app.post('/api/admin/scorm', requireEditor, async (req, res) => {
         || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
     );
 
-    const packageId = slugify(req.query.name || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
+    const packageId = slugify(nameHint || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
     dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
     fs.mkdirSync(dest, { recursive: true });
 
@@ -1755,29 +1773,111 @@ app.post('/api/admin/scorm', requireEditor, async (req, res) => {
     }
     fs.rmSync(tmpZip, { force: true }); tmpZip = null; // extraction done — drop the temp zip
 
-    if (!wrote) { fs.rmSync(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'The .zip was empty.' }); }
+    if (!wrote) throw Object.assign(new Error('The .zip was empty.'), { status: 400 });
     // Offload videos to the Bunny CDN if configured (streams; no-op otherwise).
     let cdn = { cdn: false };
     try { cdn = await offloadVideosToBunny(packageId, dest); }
     catch (e) { cdn = { cdn: false, error: e.message }; }
-    if (!fs.existsSync(path.join(dest, launchFile))) {
-      // Launch file named in the manifest isn't where expected — flag it rather
-      // than silently shipping a broken module.
-      return res.json({ packageId, launchFile, title, cdn: cdn.cdn, warning: `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.` });
-    }
-    res.json({ packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0 });
+    // Launch file named in the manifest isn't where expected — flag it (as a
+    // warning) rather than silently shipping a broken module.
+    const warning = !fs.existsSync(path.join(dest, launchFile))
+      ? `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.`
+      : null;
+    return { packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0, warning };
   } catch (e) {
     // A failed upload must not leave a half-written package folder or temp zip
     // behind — that would silently eat disk on every retry.
     if (dest) { try { fs.rmSync(dest, { recursive: true, force: true }); } catch { /* ignore */ } }
     if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
-    const msg = e.message === 'UPLOAD_TOO_LARGE'
-      ? `That file is over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.`
-      : /ENOSPC/.test(e.message || '')
-        ? 'Out of disk space. Free up module storage (Manage courses → Module storage → clean up) or enlarge the disk, then re-upload.'
-        : 'Could not read package: ' + e.message;
-    res.status(e.message === 'UPLOAD_TOO_LARGE' ? 413 : 400).json({ error: msg });
+    throw e;
   }
+}
+
+// Map an ingest error to an HTTP response (shared by both upload routes).
+function sendScormUploadError(res, e) {
+  if (e && e.status) return res.status(e.status).json({ error: e.message });
+  const msg = e.message === 'UPLOAD_TOO_LARGE'
+    ? `That file is over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.`
+    : /ENOSPC/.test(e.message || '')
+      ? 'Out of disk space. Free up module storage (Manage courses → Module storage → clean up) or enlarge the disk, then re-upload.'
+      : 'Could not read package: ' + e.message;
+  res.status(e.message === 'UPLOAD_TOO_LARGE' ? 413 : 400).json({ error: msg });
+}
+
+app.post('/api/admin/scorm', requireEditor, async (req, res) => {
+  try { res.json(await ingestScormUpload(req, req.query.name)); }
+  catch (e) { sendScormUploadError(res, e); }
+});
+
+// Partner upload API. A partner (OMS) can push a published SCORM package straight
+// into their own org's library over HTTP, so their system can AUTOMATE adding new
+// lessons instead of sending them to us by hand. Bearer-authenticated with the
+// same per-tenant integration API key as reconciliation. The module is created
+// as a published course in the partner org (never NCYSA/NCSRA), and the returned
+// `moduleId` is exactly what a launch token's `moduleId` claim references — so the
+// full loop is self-service: upload → moduleId → mint launch link → referee runs
+// it → completion webhook fires. The .zip is POSTed as the raw request body; all
+// options are query-string params (?title=, ?minMinutes=, ?moduleId=, ?publish=).
+const PARTNER_UPLOAD_ORG = (process.env.INTEGRATION_ORG || 'omg').toLowerCase();
+app.post('/api/v1/scorm', async (req, res) => {
+  if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
+  if (!partnerKeyOk(req)) return res.status(401).json({ error: 'Invalid or missing API key.' });
+  if (rateLimited('scorm-upload:' + (req.headers.authorization || ''), 60, 60000)) {
+    return res.status(429).json({ error: 'Rate limit exceeded: at most 60 uploads per minute.' });
+  }
+  const org = ORGS[PARTNER_UPLOAD_ORG] ? PARTNER_UPLOAD_ORG : DEFAULT_ORG; // the key belongs to this org; uploads never touch another
+  const q = req.query || {};
+
+  // Extract first (this consumes the request body stream).
+  let meta;
+  try { meta = await ingestScormUpload(req, q.title || q.name); }
+  catch (e) { return sendScormUploadError(res, e); }
+
+  const db = load();
+  const title = String(q.title || meta.title || 'Referee Module').slice(0, 200);
+  const minMinutes = q.minMinutes != null && q.minMinutes !== '' ? Number(q.minMinutes) : undefined;
+  const lesson = buildLesson({
+    type: 'scorm', title, packageId: meta.packageId, launchFile: meta.launchFile,
+    ...(Number.isFinite(minMinutes) ? { minMinutes } : {}),
+  });
+
+  // With ?moduleId=, replace the module inside an existing course of THIS org
+  // (a lesson update); otherwise create a new published course for this module.
+  let course = null;
+  if (q.moduleId) {
+    course = db.courses.find((c) => c.id === String(q.moduleId));
+    if (!course) return res.status(404).json({ error: `No module with id "${q.moduleId}".` });
+    if (orgOf(course) !== org) return res.status(403).json({ error: 'That module is not in your organization.' });
+    course.title = title;
+    course.lessons = [lesson];
+    if (q.publish === 'false') course.published = false;
+    else if (q.publish === 'true') course.published = true;
+  } else {
+    course = {
+      id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
+      title, tagline: '', description: '', badge: 'Module',
+      audience: 'referees', orgId: org,
+      estMinutes: 60, heroEmoji: '⚽',
+      completionRedirectUrl: '', publicVideoGate: false,
+      published: q.publish !== 'false', // published by default
+      lessons: [lesson],
+    };
+    db.courses.push(course);
+  }
+  save();
+
+  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  res.json({
+    ok: true,
+    moduleId: course.id,          // ← use this as the launch token's `moduleId` claim
+    packageId: meta.packageId,
+    launchFile: meta.launchFile,
+    title,
+    published: course.published,
+    cdn: meta.cdn, cdnVideos: meta.cdnVideos,
+    launchBase: `${base}/launch`, // mint a signed JWT then launch at `${launchBase}?token=...`
+    ...(meta.warning ? { warning: meta.warning } : {}),
+  });
 });
 
 // ---- Module storage housekeeping -------------------------------------------
