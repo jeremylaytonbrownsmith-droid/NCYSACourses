@@ -171,3 +171,15 @@ test('the test-webhook endpoint fires a signed sample webhook on demand, repeate
   const last = received2.filter((h) => h.payload && h.payload.refId === 'TEST-1').slice(-1)[0];
   expect(last.sig).toBe(lastSig);
 });
+
+test('the test-webhook endpoint is rate limited per API key', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  const url = `http://127.0.0.1:${HOOK2_PORT}/rl`;
+  const codes = [];
+  for (let i = 0; i < 40; i++) {
+    codes.push((await api.post('/api/v1/test-webhook', {
+      headers: { Authorization: `Bearer ${API_KEY}` }, data: { url, status: 'completed', refId: 'RL' },
+    })).status());
+  }
+  expect(codes).toContain(429); // a burst of 40 exceeds the 30/min cap
+});

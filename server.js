@@ -423,6 +423,18 @@ app.get('/api/v1/completions', (req, res) => {
   res.json(rows);
 });
 
+// Simple in-memory per-key sliding-window rate limiter. Keeps only timestamps
+// within the window; returns true when the caller is over the limit.
+const _rlBuckets = new Map();
+function rateLimited(key, max, windowMs) {
+  const now = Date.now();
+  const arr = (_rlBuckets.get(key) || []).filter((t) => now - t < windowMs);
+  if (arr.length >= max) { _rlBuckets.set(key, arr); return true; }
+  arr.push(now);
+  _rlBuckets.set(key, arr);
+  return false;
+}
+
 // On-demand test webhook: fire a sample (or custom) completion callback to a URL
 // so a partner can debug their receiver as many times as they like, without
 // paging through a whole course. Same per-tenant API-key auth as reconciliation.
@@ -438,6 +450,9 @@ app.post('/api/v1/test-webhook', async (req, res) => {
     ok = a.length === b.length && crypto.timingSafeEqual(a, b);
   }
   if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
+  if (rateLimited('test-webhook:' + m[1], 30, 60000)) {
+    return res.status(429).json({ error: 'Rate limit exceeded: at most 30 test webhooks per minute.' });
+  }
 
   const b = req.body || {};
   // Where to send: an explicit (allow-listed) url, else the configured default.
