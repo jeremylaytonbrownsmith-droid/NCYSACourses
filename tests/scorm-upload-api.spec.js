@@ -128,6 +128,18 @@ test('every upload is written to the admin audit log (org, moduleId, size, time)
   expect(entry.at).toBeTruthy();
 });
 
+test('storage is attributed to the partner org for at-cost billing', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await upload(api, scormZip('Footprint Module'), '?title=Footprint%20Module', { Authorization: `Bearer ${API_KEY}` });
+  const admin = await playwright.request.newContext({ baseURL: BASE });
+  await admin.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const storage = await (await admin.get('/api/admin/scorm/storage')).json();
+  const omg = (storage.byOrg || []).find((o) => o.org === 'omg');
+  expect(omg).toBeTruthy();
+  expect(omg.bytes).toBeGreaterThan(0);
+  expect(omg.modules).toBeGreaterThan(0);
+});
+
 test('a non-SCORM .zip is refused with a clear error', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   const zip = new AdmZip();

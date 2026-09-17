@@ -2109,6 +2109,14 @@ async function viewCourseAdmin(flash) {
         <div><span class="meta">Free on disk</span><strong>${fmtBytes(d.freeBytes)}${d.totalBytes ? ' / ' + fmtBytes(d.totalBytes) : ''}</strong></div>
         <div><span class="meta">Unused (reclaimable)</span><strong>${fmtBytes(d.orphanBytes)} · ${d.orphanCount} folder${d.orphanCount === 1 ? '' : 's'}</strong></div>
       </div>
+      ${(d.byOrg && d.byOrg.length) ? `
+      <div class="storage-byorg">
+        <span class="meta">Storage by organization (for at-cost billing)</span>
+        <ul>
+          ${d.byOrg.map((o) => `<li><strong>${esc(o.name)}</strong> — ${fmtBytes(o.bytes)} · ${o.modules} module${o.modules === 1 ? '' : 's'}</li>`).join('')}
+          ${d.sharedBytes ? `<li class="meta">Shared across organizations — ${fmtBytes(d.sharedBytes)} · ${d.sharedCount} module${d.sharedCount === 1 ? '' : 's'}</li>` : ''}
+        </ul>
+      </div>` : ''}
       ${cdnBlock}
       <ol class="bulk-list storage-list">${rows}</ol>
       <div class="form-actions">

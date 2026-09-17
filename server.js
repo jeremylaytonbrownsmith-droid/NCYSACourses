@@ -1945,10 +1945,37 @@ function listScormPackages() {
     hasVideo: dirHasVideo(path.join(SCORM_DIR, name)), // any local video left to move?
   })).sort((a, b) => b.bytes - a.bytes);
 }
+// Attribute storage to each organization so the hosting footprint (and the
+// at-cost bill to a partner like OMS) is easy to tally. A package referenced by
+// more than one org (e.g. a course cloned across orgs) is counted as "shared"
+// rather than billed to any single org.
+function storageByOrg(packages) {
+  const pkgOrgs = new Map(); // packageId -> Set(orgId)
+  for (const c of allCourses()) {
+    const o = orgOf(c);
+    for (const l of (c.lessons || [])) {
+      if (l.type === 'scorm' && l.packageId) {
+        if (!pkgOrgs.has(l.packageId)) pkgOrgs.set(l.packageId, new Set());
+        pkgOrgs.get(l.packageId).add(o);
+      }
+    }
+  }
+  const sizeOf = new Map(packages.map((p) => [p.packageId, p.bytes]));
+  const orgs = {}; let sharedBytes = 0, sharedCount = 0;
+  for (const [pkg, set] of pkgOrgs) {
+    const bytes = sizeOf.get(pkg) || 0;
+    if (set.size > 1) { sharedBytes += bytes; sharedCount += 1; continue; }
+    const o = [...set][0];
+    orgs[o] = orgs[o] || { org: o, name: (ORGS[o] && ORGS[o].name) || o, bytes: 0, modules: 0 };
+    orgs[o].bytes += bytes; orgs[o].modules += 1;
+  }
+  return { byOrg: Object.values(orgs).sort((a, b) => b.bytes - a.bytes), sharedBytes, sharedCount };
+}
 app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
   const packages = listScormPackages();
   let freeBytes = null, totalBytes = null;
   try { const s = fs.statfsSync(SCORM_DIR); freeBytes = s.bfree * s.bsize; totalBytes = s.blocks * s.bsize; } catch { /* older node / unsupported */ }
+  const perOrg = storageByOrg(packages);
   res.json({
     dir: SCORM_DIR,
     usedByPackages: packages.reduce((n, p) => n + p.bytes, 0),
@@ -1959,6 +1986,9 @@ app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
     // Only packages that still have a local video to move count as "pending" —
     // a package with no video (or already on the CDN) is nothing to do.
     cdnPending: packages.filter((p) => !p.cdn && p.hasVideo).length,
+    byOrg: perOrg.byOrg,               // storage attributed to each org (for the at-cost bill)
+    sharedBytes: perOrg.sharedBytes,   // packages used by more than one org
+    sharedCount: perOrg.sharedCount,
     packages,
   });
 });
