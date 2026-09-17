@@ -16,7 +16,7 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'rm -rf .test-data && DATA_DIR=.test-data PORT=3100 INTEGRATION_SECRET=test-secret-123 INTEGRATION_API_KEY=test-api-key-456 INTEGRATION_WEBHOOK_URL=http://127.0.0.1:3131/hook node server.js',
+    command: 'rm -rf .test-data && DATA_DIR=.test-data PORT=3100 INTEGRATION_SECRET=test-secret-123 INTEGRATION_API_KEY=test-api-key-456 INTEGRATION_PUBLISH_ENABLED=true INTEGRATION_WEBHOOK_URL=http://127.0.0.1:3131/hook node server.js',
     url: 'http://localhost:3100/api/courses',
     reuseExistingServer: false,
   },

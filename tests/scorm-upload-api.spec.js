@@ -102,6 +102,32 @@ test('re-uploading with ?moduleId= replaces the module in place (not a new cours
   expect(hits[0].title).toBe('Replaceable v2');
 });
 
+test('?publish=false stages the module as a draft (hidden from the portal)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  const j = await (await upload(api, scormZip('Draft Module'),
+    '?title=Draft%20Module&publish=false', { Authorization: `Bearer ${API_KEY}` })).json();
+  expect(j.ok).toBe(true);
+  expect(j.published).toBe(false);
+  // A draft does not appear in the public portal listing.
+  const omg = (await (await api.get('/api/courses?org=omg')).json()).courses;
+  expect(omg.find((c) => c.id === j.moduleId)).toBeFalsy();
+});
+
+test('every upload is written to the admin audit log (org, moduleId, size, time)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  const j = await (await upload(api, scormZip('Audited Module'),
+    '?title=Audited%20Module', { Authorization: `Bearer ${API_KEY}` })).json();
+  const admin = await playwright.request.newContext({ baseURL: BASE });
+  await admin.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const overview = await (await admin.get('/api/admin/overview')).json();
+  const entry = (overview.partnerUploads || []).find((u) => u.moduleId === j.moduleId);
+  expect(entry).toBeTruthy();
+  expect(entry.org).toBe('omg');
+  expect(entry.bytes).toBeGreaterThan(0);
+  expect(entry.title).toBe('Audited Module');
+  expect(entry.at).toBeTruthy();
+});
+
 test('a non-SCORM .zip is refused with a clear error', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   const zip = new AdmZip();

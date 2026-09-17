@@ -1274,6 +1274,22 @@ function recordWebhook({ event, refId, moduleId, org, status, url, result }) {
   save();
 }
 
+// Audit log of partner SCORM uploads (who uploaded what, how big, when) — so
+// every module added over the API is accountable and the hosting footprint is
+// visible. Kept alongside the webhook log and surfaced in the admin overview.
+function recordUpload({ org, moduleId, packageId, title, bytes, published, action }) {
+  const db = load();
+  db.uploadLog = db.uploadLog || [];
+  db.uploadLog.push({
+    id: id('upl'), at: new Date().toISOString(),
+    org: org || null, moduleId: moduleId || null, packageId: packageId || null,
+    title: title || null, bytes: Number(bytes) || 0,
+    published: !!published, action: action || 'create',
+  });
+  if (db.uploadLog.length > 200) db.uploadLog = db.uploadLog.slice(-200);
+  save();
+}
+
 function sendPartnerOutcome(enr, course, { status, score = null, certificateId = null, completedAt = null }) {
   if (!enr || !enr.reportBack) return;
   const endedAt = completedAt || null;
@@ -1409,6 +1425,7 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     partnerWebhooks: (db.webhookLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
+    partnerUploads: (db.uploadLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
 });
@@ -1730,7 +1747,8 @@ async function ingestScormUpload(req, nameHint) {
       ws.on('finish', resolve);
       req.pipe(ws);
     });
-    if (!fs.statSync(tmpZip).size) throw Object.assign(new Error('No file received.'), { status: 400 });
+    const uploadBytes = fs.statSync(tmpZip).size;
+    if (!uploadBytes) throw Object.assign(new Error('No file received.'), { status: 400 });
 
     // 2) Read the zip's directory via random-access (does NOT load the whole file).
     let directory;
@@ -1783,7 +1801,7 @@ async function ingestScormUpload(req, nameHint) {
     const warning = !fs.existsSync(path.join(dest, launchFile))
       ? `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.`
       : null;
-    return { packageId, launchFile, title, cdn: cdn.cdn, cdnVideos: cdn.count || 0, warning };
+    return { packageId, launchFile, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, warning };
   } catch (e) {
     // A failed upload must not leave a half-written package folder or temp zip
     // behind — that would silently eat disk on every retry.
@@ -1841,30 +1859,39 @@ app.post('/api/v1/scorm', async (req, res) => {
     ...(Number.isFinite(minMinutes) ? { minMinutes } : {}),
   });
 
+  // Publishing kill-switch. Until the license agreement is active, partner
+  // uploads are held as drafts NO MATTER what ?publish says — so states can load
+  // and preview real lessons without OMS going into production before signing.
+  // Flip INTEGRATION_PUBLISH_ENABLED=true once the agreement is in force.
+  const publishAllowed = String(process.env.INTEGRATION_PUBLISH_ENABLED || '').toLowerCase() === 'true';
+
   // With ?moduleId=, replace the module inside an existing course of THIS org
-  // (a lesson update); otherwise create a new published course for this module.
-  let course = null;
+  // (a lesson update); otherwise create a new course for this module.
+  let course = null, action = 'create', requestedPublish = false;
   if (q.moduleId) {
+    action = 'replace';
     course = db.courses.find((c) => c.id === String(q.moduleId));
     if (!course) return res.status(404).json({ error: `No module with id "${q.moduleId}".` });
     if (orgOf(course) !== org) return res.status(403).json({ error: 'That module is not in your organization.' });
     course.title = title;
     course.lessons = [lesson];
-    if (q.publish === 'false') course.published = false;
-    else if (q.publish === 'true') course.published = true;
+    requestedPublish = q.publish === 'true' ? true : q.publish === 'false' ? false : (course.published !== false);
+    course.published = publishAllowed && requestedPublish; // never live until the switch is on
   } else {
+    requestedPublish = q.publish !== 'false'; // create defaults to publish
     course = {
       id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
       title, tagline: '', description: '', badge: 'Module',
       audience: 'referees', orgId: org,
       estMinutes: 60, heroEmoji: '⚽',
       completionRedirectUrl: '', publicVideoGate: false,
-      published: q.publish !== 'false', // published by default
+      published: publishAllowed && requestedPublish,
       lessons: [lesson],
     };
     db.courses.push(course);
   }
   save();
+  recordUpload({ org, moduleId: course.id, packageId: meta.packageId, title, bytes: meta.bytes, published: course.published, action });
 
   const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
   res.json({
@@ -1876,6 +1903,8 @@ app.post('/api/v1/scorm', async (req, res) => {
     published: course.published,
     cdn: meta.cdn, cdnVideos: meta.cdnVideos,
     launchBase: `${base}/launch`, // mint a signed JWT then launch at `${launchBase}?token=...`
+    // Be explicit when a requested publish was held back by the switch.
+    ...(requestedPublish && !publishAllowed ? { note: 'Uploaded as a draft. Publishing is disabled until the license agreement is active.' } : {}),
     ...(meta.warning ? { warning: meta.warning } : {}),
   });
 });
