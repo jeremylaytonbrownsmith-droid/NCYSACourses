@@ -1715,7 +1715,12 @@ function decodeEntities(s) {
 // Uploads stream straight to disk and unzip with a streaming reader, so a very
 // large module (hundreds of MB, or more) never has to fit in memory — which is
 // what previously forced a 500 MB cap and risked an out-of-memory restart.
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB sanity cap
+// Upload size cap. Generous by default so a partner's own video-heavy courses
+// go through, and adjustable from the environment (MAX_UPLOAD_GB) without a code
+// change if a course is ever larger. Keep it comfortably under the persistent
+// disk size, since a big upload holds the temp .zip plus its extracted files at
+// once (video is then offloaded to the CDN).
+const MAX_UPLOAD_BYTES = Math.round((Number(process.env.MAX_UPLOAD_GB) || 5) * 1024 * 1024 * 1024);
 
 // Shared SCORM ingest. Streams the POSTed .zip to disk (never to RAM), validates
 // it's a SCORM package, extracts it into SCORM_DIR/<packageId>, offloads videos
