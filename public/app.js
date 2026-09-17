@@ -536,6 +536,13 @@ function authForm({ title, sub, fields, submitLabel, alt, note, onSubmit }) {
 }
 
 function viewLogin() {
+  // On a partner/referee portal (e.g. OMG), use that org's name and don't show
+  // the NCYSA staff sign-in link — that belongs only to the NCYSA platform.
+  const b = activeBrand;
+  const name = b ? esc(b.name) : 'NCYSA Learn';
+  const alt = b
+    ? `New to ${name}? <a href="#/register">Create a free account</a>`
+    : 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>';
   authForm({
     title: 'Welcome back',
     sub: 'Enter your email to continue — no password needed.',
@@ -544,7 +551,7 @@ function viewLogin() {
     ],
     submitLabel: 'Continue',
     note: 'No password required. Your email is only used to save your progress — nothing is sent anywhere.',
-    alt: 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>',
+    alt,
     onSubmit: async (v) => {
       try {
         const r = await api('/api/login', { method: 'POST', body: v });
