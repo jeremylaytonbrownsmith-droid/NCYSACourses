@@ -130,10 +130,19 @@ function applyOrgChrome() {
   const org = DOMAIN_ORG[location.hostname] || orgFromHash(location.hash || '#/');
   const brand = ORG_BRANDS[org];
   const iconEl = document.querySelector('link[rel="icon"]');
-  if (brand) {
+  const onProductDomain = PRODUCT_DOMAINS.has(location.hostname);
+  const inOrgPortal = /^#\/org\//.test(location.hash || '');
+  if (brand && (!onProductDomain || inOrgPortal)) {
+    // An org portal (e.g. OMG) — show that org's shield and name.
     if (iconEl) iconEl.href = brand.coLogoUrl;
     document.title = `${brand.coBrandName} — Education & Training`;
+  } else if (onProductDomain) {
+    // The GetMatchReady product front door — the neutral product mark, never an
+    // org logo (and never NCYSA's).
+    if (iconEl) iconEl.href = '/media/getmatchready-mark.svg';
+    document.title = 'GetMatchReady — SCORM delivery for training platforms';
   } else {
+    // NCYSA's own hosts.
     if (iconEl) iconEl.href = '/media/ncysa-logo.png';
     document.title = 'NCYSA Learn — Education & Training Platform';
   }
