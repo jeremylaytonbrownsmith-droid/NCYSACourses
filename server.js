@@ -1946,7 +1946,18 @@ if (require.main === module) {
   //    what prevents the static seed from wiping cloud data on restart.
   initFromCloud()
     .catch(() => {})
-    .then(() => { seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses(); finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo(); fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); omgNewRefereeFirst(); omgCourseOrder(); })
+    .then(() => {
+      // Seeds and one-time migrations only fill gaps. Wrap them so a single
+      // failing migration can never stop the server from listening — the site
+      // stays up (degraded at worst) instead of going fully down on boot.
+      try {
+        seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses();
+        finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
+        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); omgNewRefereeFirst(); omgCourseOrder();
+      } catch (e) {
+        console.error('[boot] a seed/migration failed (continuing to serve):', e && e.stack || e);
+      }
+    })
     .then(() => {
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
