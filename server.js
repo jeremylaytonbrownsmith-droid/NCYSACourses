@@ -979,10 +979,15 @@ app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
 app.get('/api/courses/:courseId', requireAuth, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
-  if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role)) return res.status(404).json({ error: 'Course not found' });
-  if (course.audience === 'staff' && !staffAuthorized(req)) return res.status(403).json({ error: 'This is a staff training — unlock the staff area with the access code first.', needsStaffCode: true });
   const db = load();
   const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
+  // A draft (unpublished) course is hidden from the public portal, but staff and
+  // anyone explicitly enrolled may still open it — e.g. a referee launched via a
+  // signed partner token to preview/QA a not-yet-live module. Public self-enroll
+  // into a draft is still blocked (see /enroll), so this only opens what was
+  // deliberately handed out.
+  if (!isPublished(course) && !STAFF_ROLES.includes(req.user.role) && !enr) return res.status(404).json({ error: 'Course not found' });
+  if (course.audience === 'staff' && !staffAuthorized(req)) return res.status(403).json({ error: 'This is a staff training — unlock the staff area with the access code first.', needsStaffCode: true });
   if (!enr) return res.status(403).json({ error: 'Enroll in this course first' });
   res.json({
     course: publicCourse(course),
@@ -1908,8 +1913,9 @@ app.post('/api/v1/scorm', async (req, res) => {
     published: course.published,
     cdn: meta.cdn, cdnVideos: meta.cdnVideos,
     launchBase: `${base}/launch`, // mint a signed JWT then launch at `${launchBase}?token=...`
-    // Be explicit when a requested publish was held back by the switch.
-    ...(requestedPublish && !publishAllowed ? { note: 'Uploaded as a draft. Publishing is disabled until the license agreement is active.' } : {}),
+    // Be explicit when a requested publish was held back by the switch. Neutral
+    // wording — no contractual language in a machine response the partner logs.
+    ...(requestedPublish && !publishAllowed ? { note: 'Uploaded as a draft (not yet visible to referees). Preview it with a launch link; it goes live when publishing is enabled.' } : {}),
     ...(meta.warning ? { warning: meta.warning } : {}),
   });
 });

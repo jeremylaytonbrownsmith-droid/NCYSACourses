@@ -102,7 +102,7 @@ test('re-uploading with ?moduleId= replaces the module in place (not a new cours
   expect(hits[0].title).toBe('Replaceable v2');
 });
 
-test('?publish=false stages the module as a draft (hidden from the portal)', async ({ playwright }) => {
+test('?publish=false stages a draft: hidden from the portal, but previewable via launch', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   const j = await (await upload(api, scormZip('Draft Module'),
     '?title=Draft%20Module&publish=false', { Authorization: `Bearer ${API_KEY}` })).json();
@@ -111,6 +111,15 @@ test('?publish=false stages the module as a draft (hidden from the portal)', asy
   // A draft does not appear in the public portal listing.
   const omg = (await (await api.get('/api/courses?org=omg')).json()).courses;
   expect(omg.find((c) => c.id === j.moduleId)).toBeFalsy();
+
+  // ...but a referee launched into it (preview/QA) CAN open it — the player load
+  // must not 404 just because the module is a draft.
+  const token = signToken({ refId: 'OMS-DRAFT', name: 'Draft Ref', email: 'draft@example.com', moduleId: j.moduleId, org: 'NC' }, SECRET, 300);
+  const ref = await playwright.request.newContext({ baseURL: BASE });
+  expect((await ref.get(`/launch?token=${token}`, { maxRedirects: 0 })).status()).toBe(302);
+  const loaded = await ref.get(`/api/courses/${j.moduleId}`);
+  expect(loaded.status()).toBe(200); // draft opens for the enrolled/launched referee
+  expect((await loaded.json()).course.id).toBe(j.moduleId);
 });
 
 test('every upload is written to the admin audit log (org, moduleId, size, time)', async ({ playwright }) => {
