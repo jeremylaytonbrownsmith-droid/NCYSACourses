@@ -223,23 +223,23 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="ribbon">Recommended</div>
         <h3>License&#8209;to&#8209;Own</h3>
         <div class="one">Everything in License, plus a price to own it locked in from day one.</div>
-        <div class="hd">$205,000<small> to own after year one</small></div>
+        <div class="hd">$130,000<small> to own after year one</small></div>
         <dl>
           <dt>Buy after</dt><dd>Month 12</dd>
-          <dt>Purchase price*</dt><dd>$250,000</dd>
+          <dt>Purchase price*</dt><dd>$175,000</dd>
           <dt>Year-one license</dt><dd>$45,000</dd>
           <dt>License fees credited</dt><dd>100%</dd>
           <dt>Obligation to buy</dt><dd>None</dd>
         </dl>
-        <div class="foot">Same total as owning outright ($250k), with a risk-free trial year. *Illustrative, set with counsel.</div>
+        <div class="foot">Same total as owning outright ($175k), with a risk-free trial year. *Illustrative, set with counsel.</div>
       </div>
 
       <div class="opt">
         <h3>Own it</h3>
         <div class="one">OMS buys outright and owns the code, and I stay on to grow it.</div>
-        <div class="hd">$250,000<small> one-time + $8,000 setup</small></div>
+        <div class="hd">$175,000<small> one-time + $8,000 setup</small></div>
         <dl>
-          <dt>Purchase price</dt><dd>$250,000</dd>
+          <dt>Purchase price</dt><dd>$175,000</dd>
           <dt>Setup &amp; integration</dt><dd>$8,000</dd>
           <dt>Payment</dt><dd>Installments</dd>
           <dt>Build-out retainer</dt><dd>$2,000/mo (optional)</dd>
@@ -249,7 +249,7 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="foot">You own it; I keep a growth stake and stay building.</div>
       </div>
     </div>
-    <p class="rec"><b>My recommendation: License-to-Own.</b> It costs the same as buying outright ($250k all in), but you try it risk-free for a year first and every license dollar credits toward ownership. Zero obligation to buy.</p>
+    <p class="rec"><b>My recommendation: License-to-Own.</b> It costs the same as buying outright ($175k all in), but you try it risk-free for a year first and every license dollar credits toward ownership. Zero obligation to buy.</p>
     <p class="note">Prefer per-official pricing? At your current reach the license works out to about $0.60 per official per year, and less as you grow. It can be structured as a flat annual license or a per-official subscription, whichever fits your budgeting.</p>
     <p class="scope"><b>Scope.</b> NCYSA and NCSRA are excluded from this agreement. GetMatchReady continues to operate their learning systems, and any exclusivity covers your sports and markets only, not organizations GetMatchReady already serves.</p>
   </section>
@@ -261,7 +261,7 @@ footer a{color:var(--accent);text-decoration:underline}
     <div class="bars" id="bars" aria-hidden="true"></div>
     <div class="delta" id="delta"></div>
     <p class="note">Optional support ($2,000/mo) adds $72k over three years and includes a dedicated developer, which no other option includes.</p>
-    <p class="note">3-year totals at about 75,000 officials. SCORM Cloud is at its published $3.60/registration rate; the build figure is the quote OMS received. Estimates, not signed quotes.</p>
+    <p class="note">3-year totals at about 75,000 officials, setup included where it applies. The player-service figure ($250,000 setup plus $65,000/yr) and the build figure are quotes OMS received; SCORM Cloud is at its published $3.60/registration rate. GetMatchReady figures are $8,000 setup plus $45,000/yr to license, or $175,000 plus $8,000 setup to own.</p>
   </section>
 
   <section aria-labelledby="host-h">
@@ -346,9 +346,10 @@ var ACCESS_CODE = "GetMatchReady2026";
      the build figure is the quote OMS received. Estimates, not signed quotes. */
   var CMP=[
     {name:'SCORM Cloud (player only)', note:'Published $3.60/registration at 75,000. Just the player, you still build the rest', lo:810, hi:810},
-    {name:'Build the player yourself', note:'The quote OMS received. 6+ months, then you maintain it', lo:330, hi:395},
-    {name:'GetMatchReady license', note:'Live now. Rent it, exclusive, never expires', lo:135, hi:135, gmr:true},
-    {name:'GetMatchReady, own it', note:'Live now. Buy it outright, one time', lo:250, hi:250, gmr:true}
+    {name:'Player service (their quote)', note:'$250,000 setup plus $65,000/yr, and you never own it', lo:445, hi:445},
+    {name:'Build the player yourself', note:'A quote OMS received. 6+ months, then you maintain it', lo:330, hi:395},
+    {name:'GetMatchReady license', note:'Live now. Rent it, exclusive, never expires', lo:143, hi:143, gmr:true},
+    {name:'GetMatchReady, own it', note:'Live now. Buy it outright, one time, and you own it', lo:183, hi:183, gmr:true}
   ];
   var MAX=900;
   function kLabel(lo,hi){
@@ -373,7 +374,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     }).join('');
   }
   function delta(){
-    document.getElementById('delta').innerHTML='For the one function OMS needs, the player, SCORM Cloud alone runs about <b>$270,000 a year</b>, roughly <b>$810k</b> over three years, and you would still build the portal around it. GetMatchReady delivers the whole thing, live today, for about <b class="g">$135k</b> over three years to license, or <b>$250k</b> to own outright. Less than building the player yourself, and a fraction of renting it.';
+    document.getElementById('delta').innerHTML='OMS was quoted <b>$250,000 up front plus $65,000 a year</b> for the player, about <b>$445,000</b> over three years, and would still not own it. That setup fee alone is more than owning GetMatchReady outright. GetMatchReady delivers the whole platform, live today, for about <b class="g">$143k</b> over three years to license, or <b>$175k</b> to own it. A fraction of every alternative, and the only one you can actually own.';
   }
 
   refs.addEventListener('input',perRef);
