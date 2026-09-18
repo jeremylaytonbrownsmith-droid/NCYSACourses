@@ -185,7 +185,7 @@ footer a{color:var(--accent);text-decoration:underline}
         <p class="sub">GetMatchReady certifies referees in production today. Three ways to put it to work for OMS: license it, own it later, or own it now, with me building it into your multi-sport platform.</p>
       </div>
       <div class="stat" role="group" aria-label="Cost per official">
-        <div class="big" id="perRef">$0.80</div>
+        <div class="big" id="perRef">$0.60</div>
         <div class="stat-mid">
           <div class="cap">per official, per year. The license across <span id="refCap" class="tnum">75,000</span> officials, and it drops as you grow.</div>
           <div class="slider">
@@ -208,11 +208,11 @@ footer a{color:var(--accent);text-decoration:underline}
       <div class="opt">
         <h3>License</h3>
         <div class="one">Exclusive use across your sports. I keep ownership and stay on to build.</div>
-        <div class="hd">$60,000<small> / year + $10,000 setup</small></div>
+        <div class="hd">$45,000<small> / year + $10,000 setup</small></div>
         <dl>
           <dt>Setup &amp; integration</dt><dd>$10,000</dd>
-          <dt>Annual license (to 75,000 officials)</dt><dd>$60,000</dd>
-          <dt>75,001 to 150,000 officials</dt><dd>$100,000/yr</dd>
+          <dt>Annual license (to 75,000 officials)</dt><dd>$45,000</dd>
+          <dt>75,001 to 150,000 officials</dt><dd>$75,000/yr</dd>
           <dt>Dev &amp; support (optional)</dt><dd>$2,000/mo</dd>
           <dt>Hosting</dt><dd>At cost</dd>
         </dl>
@@ -223,11 +223,11 @@ footer a{color:var(--accent);text-decoration:underline}
         <div class="ribbon">Recommended</div>
         <h3>License&#8209;to&#8209;Own</h3>
         <div class="one">Everything in License, plus a price to own it locked in from day one.</div>
-        <div class="hd">$190,000<small> to own after year one</small></div>
+        <div class="hd">$205,000<small> to own after year one</small></div>
         <dl>
           <dt>Buy after</dt><dd>Month 12</dd>
           <dt>Purchase price*</dt><dd>$250,000</dd>
-          <dt>Year-one license</dt><dd>$60,000</dd>
+          <dt>Year-one license</dt><dd>$45,000</dd>
           <dt>License fees credited</dt><dd>100%</dd>
           <dt>Obligation to buy</dt><dd>None</dd>
         </dl>
@@ -250,7 +250,7 @@ footer a{color:var(--accent);text-decoration:underline}
       </div>
     </div>
     <p class="rec"><b>My recommendation: License-to-Own.</b> It costs the same as buying outright ($250k all in), but you try it risk-free for a year first and every license dollar credits toward ownership. Zero obligation to buy.</p>
-    <p class="note">Prefer per-official pricing? At your current reach the license works out to about $0.80 per official per year, and less as you grow. It can be structured as a flat annual license or a per-official subscription, whichever fits your budgeting.</p>
+    <p class="note">Prefer per-official pricing? At your current reach the license works out to about $0.60 per official per year, and less as you grow. It can be structured as a flat annual license or a per-official subscription, whichever fits your budgeting.</p>
     <p class="scope"><b>Scope.</b> NCYSA and NCSRA are excluded from this agreement. GetMatchReady continues to operate their learning systems, and any exclusivity covers your sports and markets only, not organizations GetMatchReady already serves.</p>
   </section>
 
@@ -331,7 +331,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     else { document.getElementById('gateErr').textContent='Incorrect code. Please try again.'; }
   });
 
-  var LICENSE=60000;
+  var LICENSE=45000;
   var refs=document.getElementById('refs');
   function perRef(){
     var r=+refs.value;
@@ -347,7 +347,7 @@ var ACCESS_CODE = "GetMatchReady2026";
   var CMP=[
     {name:'SCORM Cloud (player only)', note:'Published $3.60/registration at 75,000. Just the player, you still build the rest', lo:810, hi:810},
     {name:'Build the player yourself', note:'The quote OMS received. 6+ months, then you maintain it', lo:330, hi:395},
-    {name:'GetMatchReady license', note:'Live now. Rent it, exclusive, never expires', lo:180, hi:180, gmr:true},
+    {name:'GetMatchReady license', note:'Live now. Rent it, exclusive, never expires', lo:135, hi:135, gmr:true},
     {name:'GetMatchReady, own it', note:'Live now. Buy it outright, one time', lo:250, hi:250, gmr:true}
   ];
   var MAX=900;
@@ -373,7 +373,7 @@ var ACCESS_CODE = "GetMatchReady2026";
     }).join('');
   }
   function delta(){
-    document.getElementById('delta').innerHTML='For the one function OMS needs, the player, SCORM Cloud alone runs about <b>$270,000 a year</b>, roughly <b>$810k</b> over three years, and you would still build the portal around it. GetMatchReady delivers the whole thing, live today, for about <b class="g">$180k</b> over three years to license, or <b>$250k</b> to own outright. Less than building the player yourself, and a fraction of renting it.';
+    document.getElementById('delta').innerHTML='For the one function OMS needs, the player, SCORM Cloud alone runs about <b>$270,000 a year</b>, roughly <b>$810k</b> over three years, and you would still build the portal around it. GetMatchReady delivers the whole thing, live today, for about <b class="g">$135k</b> over three years to license, or <b>$250k</b> to own outright. Less than building the player yourself, and a fraction of renting it.';
   }
 
   refs.addEventListener('input',perRef);
