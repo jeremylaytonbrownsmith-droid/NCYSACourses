@@ -403,9 +403,12 @@ app.get('/api/v1/completions', (req, res) => {
   if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
   const refId = String(req.query.refId || '').trim();
   if (!refId) return res.status(400).json({ error: 'refId is required.' });
+  // Optional: narrow to a single module for this referee (check one lesson
+  // instead of the whole array). Accept either casing of the parameter.
+  const moduleId = String(req.query.moduleId || req.query.moduleid || '').trim();
   const db = load();
   const rows = db.enrollments
-    .filter((e) => e.externalRef === refId)
+    .filter((e) => e.externalRef === refId && (!moduleId || e.courseId === moduleId))
     .map((e) => {
       const rec = db.lessonProgress.find((p) => p.userId === e.userId && p.courseId === e.courseId && p.scorm);
       let status;

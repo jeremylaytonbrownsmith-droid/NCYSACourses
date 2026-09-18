@@ -148,4 +148,14 @@ test('the reconciliation API returns a referee\'s enrollments (bearer-authentica
   expect(row).toBeTruthy();
   expect(row.status).toBe('in-progress');
   expect(row.score).toBeNull(); // no score reported yet
+
+  // Optional moduleId filter: narrow to a single module instead of the whole array.
+  const one = await (await ctx.get(`/api/v1/completions?refId=OMS-RC-1&moduleId=${courseId}`, { headers: { Authorization: `Bearer ${API_KEY}` } })).json();
+  expect(one).toHaveLength(1);
+  expect(one[0].moduleId).toBe(courseId);
+  // Lowercase spelling also works; a non-matching module returns an empty array.
+  const oneLc = await (await ctx.get(`/api/v1/completions?refId=OMS-RC-1&moduleid=${courseId}`, { headers: { Authorization: `Bearer ${API_KEY}` } })).json();
+  expect(oneLc).toHaveLength(1);
+  const none = await (await ctx.get('/api/v1/completions?refId=OMS-RC-1&moduleId=does-not-exist', { headers: { Authorization: `Bearer ${API_KEY}` } })).json();
+  expect(none).toHaveLength(0);
 });
