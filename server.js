@@ -417,6 +417,7 @@ app.get('/api/v1/completions', (req, res) => {
       else status = 'in-progress'; // started but not finished
       return {
         moduleId: e.courseId,
+        org: e.externalOrg || null,
         status,
         score: scoreObject(rec && rec.scorm && rec.scorm.score),
         completedAt: e.completedAt || null,
@@ -1208,12 +1209,16 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   // Capture the SCORM test score the package reports (cmi.core.score.raw/min/max).
   // Stored as-is so we can pass raw + min/max through without guessing the scale.
   const numOrNull = (v) => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
-  if (b.scoreRaw != null || b.scoreMin != null || b.scoreMax != null) {
+  if (b.scoreRaw != null || b.scoreMin != null || b.scoreMax != null || b.scoreScaled != null) {
     const prev = rec.scorm.score || {};
     rec.scorm.score = {
       raw: b.scoreRaw != null && b.scoreRaw !== '' ? numOrNull(b.scoreRaw) : (prev.raw ?? null),
       min: b.scoreMin != null && b.scoreMin !== '' ? numOrNull(b.scoreMin) : (prev.min ?? null),
       max: b.scoreMax != null && b.scoreMax !== '' ? numOrNull(b.scoreMax) : (prev.max ?? null),
+      // SCORM 2004 cmi.score.scaled (0..1), kept distinct from raw so the partner
+      // can tell a reported percentage from a raw score (Captivate sends one or
+      // the other). See scoreObject in lib/integration.js.
+      scaled: b.scoreScaled != null && b.scoreScaled !== '' ? numOrNull(b.scoreScaled) : (prev.scaled ?? null),
     };
   }
 

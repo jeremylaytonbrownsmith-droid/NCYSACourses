@@ -49,5 +49,5 @@ test('a SCORM 2004 package reports completion and fires the webhook', async ({ p
   await expect.poll(() => received.find((p) => p.refId === 'OMS-2004')?.status, { timeout: 8000 }).toBe('passed');
   const hook = received.find((p) => p.refId === 'OMS-2004');
   expect(hook.event).toBe('module.passed');
-  expect(hook.score).toEqual({ raw: 1, min: 0, max: 1, percent: 100 });
+  expect(hook.score).toEqual({ raw: 1, min: 0, max: 1, scaled: 1, percent: 100 });
 });

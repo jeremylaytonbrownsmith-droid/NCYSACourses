@@ -1025,6 +1025,7 @@ function renderScormLesson(pane, course, lesson, lp) {
         scoreRaw: cmi['cmi.core.score.raw'],
         scoreMin: cmi['cmi.core.score.min'],
         scoreMax: cmi['cmi.core.score.max'],
+        scoreScaled: cmi['cmi.score.scaled'], // SCORM 2004 scaled (0..1), when the content reported a percentage
         finished: !!finished, // true when the module called LMSFinish
         activeDelta,
       },
@@ -1119,9 +1120,11 @@ function renderScormLesson(pane, course, lesson, lp) {
       else if (k === 'cmi.score.raw') cmi['cmi.core.score.raw'] = v;
       else if (k === 'cmi.score.min') cmi['cmi.core.score.min'] = v;
       else if (k === 'cmi.score.max') cmi['cmi.core.score.max'] = v;
-      else if (k === 'cmi.score.scaled' && cmi['cmi.core.score.raw'] == null) {
-        cmi['cmi.core.score.raw'] = Math.round(Number(v) * 100); cmi['cmi.core.score.min'] = '0'; cmi['cmi.core.score.max'] = '100';
-      } else if (k === 'cmi.completion_status' || k === 'cmi.success_status') {
+      // Keep the 2004 scaled (0..1) value as-is instead of faking a raw score
+      // from it. Reporting it distinctly lets a partner tell a percentage result
+      // from a raw one (content reports one or the other, never both).
+      else if (k === 'cmi.score.scaled') cmi['cmi.score.scaled'] = v;
+      else if (k === 'cmi.completion_status' || k === 'cmi.success_status') {
         // 2004 sets completion and success in separate calls; wait for Commit or
         // Terminate to report a pass/complete (so both are known), but push a
         // failure promptly so a partner is notified.

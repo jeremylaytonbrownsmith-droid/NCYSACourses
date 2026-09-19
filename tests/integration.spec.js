@@ -20,12 +20,16 @@ test('SCORM status maps to the terminal set; unknowns are non-terminal', () => {
   expect(mapScormStatus('')).toBeNull();
 });
 
-test('score object: absolute (with min/max) normalizes; percentage-only does not guess; none is null', () => {
-  // Absolute score with a reported scale → normalized percentage.
-  expect(scoreObject({ raw: 8, min: 0, max: 10 })).toEqual({ raw: 8, min: 0, max: 10, percent: 80 });
-  expect(scoreObject({ raw: 45, min: 10, max: 60 })).toEqual({ raw: 45, min: 10, max: 60, percent: 70 });
-  // Percentage-style raw with no reported scale → percent stays null (no guessing).
-  expect(scoreObject({ raw: 82 })).toEqual({ raw: 82, min: null, max: null, percent: null });
+test('score object: raw vs scaled pass through so a partner can tell which was reported', () => {
+  // Raw score with a reported scale → normalized percentage; scaled stays null (raw mode).
+  expect(scoreObject({ raw: 8, min: 0, max: 10 })).toEqual({ raw: 8, min: 0, max: 10, scaled: null, percent: 80 });
+  expect(scoreObject({ raw: 45, min: 10, max: 60 })).toEqual({ raw: 45, min: 10, max: 60, scaled: null, percent: 70 });
+  // Raw value with no reported scale → percent stays null (no guessing).
+  expect(scoreObject({ raw: 82 })).toEqual({ raw: 82, min: null, max: null, scaled: null, percent: null });
+  // Scaled (SCORM 2004 percentage mode) → percent derived from scaled, raw null.
+  expect(scoreObject({ scaled: 0.82 })).toEqual({ raw: null, min: null, max: null, scaled: 0.82, percent: 82 });
+  // If both are reported, both pass through and percent follows the scaled value.
+  expect(scoreObject({ raw: 9, min: 0, max: 10, scaled: 0.9 })).toEqual({ raw: 9, min: 0, max: 10, scaled: 0.9, percent: 90 });
   // No score reported at all → null (not 0).
   expect(scoreObject(null)).toBeNull();
   expect(scoreObject({})).toBeNull();
@@ -147,6 +151,7 @@ test('the reconciliation API returns a referee\'s enrollments (bearer-authentica
   const row = rows.find((r) => r.moduleId === courseId);
   expect(row).toBeTruthy();
   expect(row.status).toBe('in-progress');
+  expect(row.org).toBe('NC'); // the launch token's org is returned for reconciliation
   expect(row.score).toBeNull(); // no score reported yet
 
   // Optional moduleId filter: narrow to a single module instead of the whole array.

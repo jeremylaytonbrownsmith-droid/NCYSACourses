@@ -73,12 +73,23 @@ test('passed with an absolute score reports passed + a normalized percentage', a
   const hook = await waitForHook('OMS-PASS');
   expect(hook.event).toBe('module.passed');
   expect(hook.status).toBe('passed');
-  expect(hook.score).toEqual({ raw: 8, min: 0, max: 10, percent: 80 });
+  expect(hook.score).toEqual({ raw: 8, min: 0, max: 10, scaled: null, percent: 80 });
   expect(hook.certificateId).toBeTruthy();
 
   const row = (await (await recon(ctx, 'OMS-PASS')).json()).find((r) => r.moduleId === courseId);
   expect(row.status).toBe('passed');
   expect(row.score.percent).toBe(80);
+});
+
+test('a scaled (SCORM 2004 percentage) score reports scaled + percent, not a fabricated raw', async ({ playwright }) => {
+  const ctx = await launch(playwright, 'OMS-PCT', 'pct@example.com');
+  // Percentage-mode content reports cmi.score.scaled (0..1) and no raw score.
+  await postScorm(ctx, { status: 'passed', scoreScaled: 0.82 });
+  const hook = await waitForHook('OMS-PCT');
+  expect(hook.status).toBe('passed');
+  // The percentage is preserved as `scaled` (so it's clearly a percentage, not an
+  // accumulable raw score); `percent` is derived from it, and raw stays null.
+  expect(hook.score).toEqual({ raw: null, min: null, max: null, scaled: 0.82, percent: 82 });
 });
 
 test('a failed attempt reports failed and still reaches the partner (no completion)', async ({ playwright }) => {
@@ -88,7 +99,7 @@ test('a failed attempt reports failed and still reaches the partner (no completi
   const hook = await waitForHook('OMS-FAIL');
   expect(hook.event).toBe('module.failed');
   expect(hook.status).toBe('failed');
-  expect(hook.score).toEqual({ raw: 40, min: null, max: null, percent: null });
+  expect(hook.score).toEqual({ raw: 40, min: null, max: null, scaled: null, percent: null });
   expect(hook.certificateId).toBeNull(); // failing does not mint a certificate
 
   const row = (await (await recon(ctx, 'OMS-FAIL')).json()).find((r) => r.moduleId === courseId);
