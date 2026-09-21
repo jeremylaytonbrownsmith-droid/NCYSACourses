@@ -2348,6 +2348,11 @@ async function viewCourseAdmin(flash) {
           <button type="button" class="btn btn-ghost btn-sm" id="scormUpload">Upload package</button>
           <span id="scormStatus" class="meta">${has ? `Current package: <strong>${esc(l.packageId)}</strong> (${esc(l.launchFile || 'index.html')})` : 'No package uploaded yet.'}</span>
         </div>
+        <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
+          <select id="existingPkg" style="max-width:100%;padding:6px 8px"><option value="">— or attach a module already uploaded —</option></select>
+          <button type="button" class="btn btn-ghost btn-sm" id="useExisting">Use this</button>
+        </div>
+        <p class="form-hint" style="margin-top:2px">Reuse a package that's already on the server (no re-upload) — handy for rebuilding a course from modules you uploaded before.</p>
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
         <label>Minimum time on this module (minutes)
@@ -2409,6 +2414,36 @@ async function viewCourseAdmin(flash) {
         }
         finally { up.disabled = false; }
       });
+      // Attach an already-uploaded package (no re-upload). Populate the picker from
+      // module storage; on "Use this", recover the launch file from its manifest.
+      const pick = document.getElementById('existingPkg');
+      const useBtn = document.getElementById('useExisting');
+      if (pick && useBtn) {
+        api('/api/admin/scorm/storage').then((d) => {
+          (d.packages || []).slice().sort((a, b) => a.packageId.localeCompare(b.packageId)).forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = p.packageId;
+            opt.textContent = `${p.packageId} (${fmtBytes(p.bytes)}${p.referenced ? '' : ' · unused'})`;
+            pick.appendChild(opt);
+          });
+        }).catch(() => {});
+        useBtn.addEventListener('click', async () => {
+          const pkg = pick.value;
+          const status = document.getElementById('scormStatus');
+          if (!pkg) { status.textContent = 'Pick a package from the list first.'; return; }
+          useBtn.disabled = true;
+          try {
+            const m = await api(`/api/admin/scorm/${encodeURIComponent(pkg)}/launch`);
+            form.querySelector('[name=packageId]').value = m.packageId;
+            form.querySelector('[name=launchFile]').value = m.launchFile || 'index.html';
+            const titleEl = form.querySelector('[name=title]');
+            if (titleEl && !titleEl.value && m.title) titleEl.value = m.title;
+            status.innerHTML = `✓ Attached existing package: <strong>${esc(m.packageId)}</strong> (${esc(m.launchFile || 'index.html')}) — now click “Save lesson”.`;
+          } catch (err) {
+            status.textContent = '✗ ' + (err.message || 'Could not read that package.');
+          } finally { useBtn.disabled = false; }
+        });
+      }
     };
     sel.addEventListener('change', render);
     render();

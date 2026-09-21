@@ -2044,6 +2044,33 @@ app.post('/api/admin/scorm/migrate-cdn', requireEditor, async (req, res) => {
 // Peek inside one uploaded package: the file tree with sizes, plus which files
 // look like video and whether the launch HTML references them. Diagnostic for
 // "the slides show but the video won't play".
+// Recover an already-extracted package's launch file + title from its manifest,
+// so an existing (already-uploaded) package can be attached to a course as a
+// lesson without re-uploading it. Reads imsmanifest.xml at the package root
+// (the wrapper folder, if any, was stripped at upload time).
+function manifestFromDir(dir) {
+  let manifestName = null;
+  try { manifestName = fs.readdirSync(dir).find((n) => /^imsmanifest\.xml$/i.test(n)); } catch { return null; }
+  if (!manifestName) return null;
+  let manifest;
+  try { manifest = fs.readFileSync(path.join(dir, manifestName), 'utf8'); } catch { return null; }
+  const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
+  const launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
+  const title = decodeEntities(
+    ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
+      || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
+  );
+  return { launchFile, title };
+}
+app.get('/api/admin/scorm/:pkg/launch', requireEditor, (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
+  const m = manifestFromDir(base);
+  if (!m) return res.status(400).json({ error: 'No imsmanifest.xml found in that package.' });
+  res.json({ packageId: pkg, launchFile: m.launchFile, title: m.title });
+});
+
 app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
