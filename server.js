@@ -215,7 +215,11 @@ const orgOf = (c) => (c && c.orgId) || DEFAULT_ORG;
 // cloning the NCSRA course's lessons (same uploaded module files — the lessons
 // keep their packageId, so nothing is re-uploaded), with OMG branding and its
 // own course id (so OMG's learner records are entirely separate from NC's).
-const OMG_COURSE_FLAG = 'omg-referee-course-v1';
+// v2: re-run the clone once more to restore the OMG referee course after it was
+// deleted. The clone reuses the NCSRA course's existing package files (same
+// packageId), so nothing is re-uploaded. The inner guard below only recreates
+// the course when it is actually missing, so this never duplicates it.
+const OMG_COURSE_FLAG = 'omg-referee-course-v2';
 function setupOmgCourse() {
   const db = load();
   db.migrations = db.migrations || {};
