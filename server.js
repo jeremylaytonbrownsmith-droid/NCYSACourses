@@ -678,6 +678,24 @@ function injectCdnShim(html, cdnBase) {
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + shim) : shim + html;
 }
 
+// Phone layout fix for OUR slideshow player only. Its bottom toolbar centers the
+// Prev/Next controls and uses two flex spacers to push the menu (left) and
+// full-screen (right) icon buttons to the edges — which on a narrow phone shoves
+// those two buttons off-screen. On phone widths we drop the spacers and let the
+// toolbar wrap, so every button stays in frame. Landscape/desktop (>640px) are
+// untouched. Scoped by the player's own element ids so it can never affect a
+// third-party (e.g. Captivate) package a partner uploads.
+function injectPlayerMobileFix(html) {
+  if (!/id=["']toolbar["']/.test(html) || !/id=["']menuBtn["']/.test(html)) return html;
+  const style = '<style id="gmr-mobile-fix">@media (max-width:640px){'
+    + '#toolbar{flex-wrap:wrap;row-gap:8px}'
+    + '#toolbar .spacer{display:none}'
+    + '}</style>';
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, style + '</head>');
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, style + '</body>');
+  return html + style;
+}
+
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
 app.get('/scorm/:pkg/*', (req, res) => {
@@ -689,11 +707,16 @@ app.get('/scorm/:pkg/*', (req, res) => {
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-      // If this package's videos are on the CDN, inject the rewrite shim into the
-      // launch HTML so the <video> loads from Bunny instead of from us.
-      if (/\.html?$/i.test(rel) && fs.existsSync(path.join(base, '.cdn'))) {
-        const cdnBase = fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim();
-        return res.type('html').send(injectCdnShim(fs.readFileSync(file, 'utf8'), cdnBase));
+      // For a launch HTML page we may rewrite it on the way out: inject the CDN
+      // video shim (if this package's videos are on Bunny) and a small phone
+      // layout fix for our slideshow player's toolbar. Non-HTML is served as-is.
+      if (/\.html?$/i.test(rel)) {
+        let html = fs.readFileSync(file, 'utf8');
+        if (fs.existsSync(path.join(base, '.cdn'))) {
+          html = injectCdnShim(html, fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim());
+        }
+        html = injectPlayerMobileFix(html);
+        return res.type('html').send(html);
       }
       return res.sendFile(file);
     }
