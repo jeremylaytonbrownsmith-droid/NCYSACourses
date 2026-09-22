@@ -1902,16 +1902,23 @@ async function viewCourseAdmin(flash) {
                 <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
               </div>
               <div class="course-admin-actions">
-                <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="up" title="Move up (within this portal)">↑</button>
-                <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="down" title="Move down (within this portal)">↓</button>
+                <div class="reorder-group" role="group" aria-label="Reorder course">
+                  <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="up" title="Move up (within this portal)">↑</button>
+                  <button class="btn btn-ghost btn-sm move-course" data-course="${c.id}" data-dir="down" title="Move down (within this portal)">↓</button>
+                </div>
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
+                <button class="btn btn-primary btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
-                <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
-                ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
-                ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-expected" data-course="${c.id}">Fly-through length</button>` : ''}
-                <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
-                <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
-                <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
+                <details class="more-menu">
+                  <summary class="btn btn-ghost btn-sm">More ▾</summary>
+                  <div class="more-panel">
+                    ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
+                    ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-expected" data-course="${c.id}">Fly-through length</button>` : ''}
+                    <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
+                    <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
+                    <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
+                  </div>
+                </details>
               </div>
             </div>
             <ol class="admin-lessons">

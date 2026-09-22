@@ -539,7 +539,22 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .course-admin-list { display: flex; flex-direction: column; gap: 18px; margin-top: 16px; }
 .course-admin-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
 .course-admin-head h2 { font-size: 1.15rem; margin: 4px 0; }
-.course-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.course-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+/* Reorder arrows read as one paired control, not two loose buttons. */
+.reorder-group { display: inline-flex; gap: 2px; }
+.reorder-group .btn { padding-left: 10px; padding-right: 10px; }
+/* "More" overflow: a native <details> that expands INLINE (clip-safe inside the
+   card's overflow-x:auto) into a small grouped panel of the occasional actions. */
+.more-menu { display: inline-block; }
+.more-menu[open] { width: 100%; }
+.more-menu > summary { list-style: none; cursor: pointer; user-select: none; }
+.more-menu > summary::-webkit-details-marker { display: none; }
+.more-menu[open] > summary { background: var(--line); }
+.more-panel {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: #faf9f7;
+}
 .badge-inline { display: inline-block; background: var(--gold); color: #5b4708; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 2px 9px; }
 .admin-lessons { margin: 14px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .admin-lessons li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
