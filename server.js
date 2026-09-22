@@ -324,6 +324,17 @@ function ensureCourse(courseObj) {
 
 const app = express();
 app.use(express.json());
+// Baseline security headers on every response. Conservative so nothing breaks:
+// SAMEORIGIN still allows our own SCORM iframes (served same-origin) while
+// blocking third-party framing (clickjacking); nosniff stops MIME-sniffing;
+// HSTS is only asserted over real HTTPS so local/test HTTP is unaffected.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (isHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  next();
+});
 // Always revalidate the app shell (HTML/JS/CSS) so a new deploy is picked up on
 // the next page load instead of a stale cached copy lingering in the browser.
 app.use((req, res, next) => {
@@ -419,7 +430,7 @@ app.get('/launch', (req, res) => {
   const callbackUrl = allowedCallbackUrl(claims.callbackUrl);
   enr.callbackUrl = callbackUrl || enr.callbackUrl || null;
   save();
-  setSession(res, user.id);
+  setSession(req, res, user.id);
   res.redirect(302, `/#/course/${course.id}`);
 });
 
@@ -484,6 +495,26 @@ function rateLimited(key, max, windowMs) {
   _rlBuckets.set(key, arr);
   return false;
 }
+
+// Failed-password tracking for sign-in brute-force protection. Separate from the
+// generic limiter because only FAILURES count and a success clears them, so a
+// legitimate user is never locked out by their own successful login.
+const LOGIN_MAX_FAILURES = 10;      // per account+IP
+const LOGIN_WINDOW_MS = 15 * 60_000; // rolling 15 minutes
+const _loginFails = new Map();
+function loginBlocked(key) {
+  const now = Date.now();
+  const arr = (_loginFails.get(key) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
+  _loginFails.set(key, arr);
+  return arr.length >= LOGIN_MAX_FAILURES;
+}
+function noteLoginFailure(key) {
+  const now = Date.now();
+  const arr = (_loginFails.get(key) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
+  arr.push(now);
+  _loginFails.set(key, arr);
+}
+function clearLoginFailures(key) { _loginFails.delete(key); }
 
 // On-demand test webhook: fire a sample (or custom) completion callback to a URL
 // so a partner can debug their receiver as many times as they like, without
@@ -718,12 +749,21 @@ function staffAuthorized(req) {
   return !!(m && m[1] === staffCookieValue());
 }
 
-function setSession(res, userId) {
+// True when the request reached us over HTTPS (directly, or via a TLS-terminating
+// proxy like Render that sets x-forwarded-proto). Used to add the cookie Secure
+// flag in production without breaking plain-HTTP local/test runs.
+function isHttps(req) {
+  return !!(req && (req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'));
+}
+function cookieFlags(req) {
+  return `HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000${isHttps(req) ? '; Secure' : ''}`;
+}
+function setSession(req, res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
   db.sessions[token] = userId;
   save();
-  res.setHeader('Set-Cookie', `session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000`);
+  res.setHeader('Set-Cookie', `session=${token}; ${cookieFlags(req)}`);
 }
 
 function currentUser(req) {
@@ -906,7 +946,7 @@ app.post('/api/register', (req, res) => {
     if (existing.passHash || STAFF_ROLES.includes(existing.role)) {
       return res.status(403).json({ error: 'That email has a staff account — please use the staff sign-in with your password.', needsPassword: true });
     }
-    setSession(res, existing.id);
+    setSession(req, res, existing.id);
     return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
   }
   const user = {
@@ -916,7 +956,7 @@ app.post('/api/register', (req, res) => {
   };
   db.users.push(user);
   save();
-  setSession(res, user.id);
+  setSession(req, res, user.id);
   res.json({ user: { id: user.id, name, email, role: user.role } });
 });
 
@@ -924,15 +964,28 @@ app.post('/api/register', (req, res) => {
 // require the correct password, so only authorized staff reach the dashboard.
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body || {};
+  const emailKey = String(email || '').toLowerCase();
+  // Brute-force guard for password (staff/admin) sign-in. Keyed on the account
+  // being targeted plus the caller IP, so guessing one account's password is
+  // throttled without locking out everyone behind a shared IP. Only failures
+  // count (a correct password is never blocked). Learner sign-in is passwordless
+  // and unaffected.
+  const clientIp = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '';
+  const lockKey = `login:${emailKey}:${clientIp}`;
   const db = load();
-  const user = db.users.find((u) => u.email.toLowerCase() === String(email || '').toLowerCase());
+  const user = db.users.find((u) => u.email.toLowerCase() === emailKey);
   if (!user)
     return res.status(401).json({ error: 'No account with that email yet — use “Get started” to create one.' });
   if (STAFF_ROLES.includes(user.role)) {
-    if (!password || !user.passHash || hashPassword(password, user.salt) !== user.passHash)
+    if (loginBlocked(lockKey))
+      return res.status(429).json({ error: 'Too many sign-in attempts. Please wait a few minutes and try again.', needsPassword: true });
+    if (!password || !user.passHash || hashPassword(password, user.salt) !== user.passHash) {
+      noteLoginFailure(lockKey);
       return res.status(401).json({ error: 'Incorrect password.', needsPassword: true });
+    }
+    clearLoginFailures(lockKey); // a good password resets the counter
   }
-  setSession(res, user.id);
+  setSession(req, res, user.id);
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
@@ -959,7 +1012,7 @@ app.get('/api/me', (req, res) => {
 app.post('/api/staff-access', (req, res) => {
   const code = String((req.body && req.body.code) || '');
   if (!code || code !== String(STAFF_ACCESS_CODE)) return res.status(403).json({ error: 'That staff access code isn’t right.' });
-  res.setHeader('Set-Cookie', `staff_access=${staffCookieValue()}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000`);
+  res.setHeader('Set-Cookie', `staff_access=${staffCookieValue()}; ${cookieFlags(req)}`);
   res.json({ ok: true });
 });
 
