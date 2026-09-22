@@ -1262,7 +1262,11 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
     }
   }
 
-  const required = rec.scorm.requiredOverride != null ? rec.scorm.requiredOverride : baseRequired;
+  // The escalated minimum only ever raises the bar — never below the module's
+  // own base minimum, so a fly-through penalty can't accidentally weaken the gate.
+  const required = rec.scorm.requiredOverride != null
+    ? Math.max(baseRequired, rec.scorm.requiredOverride)
+    : baseRequired;
   const timeMet = rec.scorm.activeSeconds >= required;
   const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
   const mapped = mapScormStatus(rec.scorm.status);

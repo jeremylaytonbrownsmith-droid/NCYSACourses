@@ -127,25 +127,29 @@ let activeOrg = DEFAULT_ORG;
 // domain shows the OMG shield and name, not NCYSA's. Domain wins; otherwise the
 // hash decides; NCYSA is the default.
 function applyOrgChrome() {
-  const org = DOMAIN_ORG[location.hostname] || orgFromHash(location.hash || '#/');
-  const brand = ORG_BRANDS[org];
   const iconEl = document.querySelector('link[rel="icon"]');
   const onProductDomain = PRODUCT_DOMAINS.has(location.hostname);
-  const inOrgPortal = /^#\/org\//.test(location.hash || '');
-  if (brand && (!onProductDomain || inOrgPortal)) {
-    // An org portal (e.g. OMG) — show that org's shield and name.
-    if (iconEl) iconEl.href = brand.coLogoUrl;
-    document.title = `${brand.coBrandName} — Education & Training`;
-  } else if (onProductDomain) {
+  // The tab icon should match the page you're actually looking at. When a
+  // specific course or org portal is in view (activeBrand is set — resolved just
+  // before this runs), wear that brand's logo — so an NCYSA/NCSRA course shows
+  // its own logo even when served on the GetMatchReady domain, and the OMG
+  // portal shows the OMG shield. Only fall back to the neutral product mark on
+  // the product domain's own generic pages, and to NCYSA on NCYSA's hosts.
+  if (activeBrand && activeBrand.logo) {
+    if (iconEl) iconEl.href = activeBrand.logo;
+    document.title = `${activeBrand.name} — Education & Training`;
+    return;
+  }
+  if (onProductDomain) {
     // The GetMatchReady product front door — the neutral product mark, never an
     // org logo (and never NCYSA's).
     if (iconEl) iconEl.href = '/media/getmatchready-mark.svg';
     document.title = 'GetMatchReady — SCORM delivery for training platforms';
-  } else {
-    // NCYSA's own hosts.
-    if (iconEl) iconEl.href = '/media/ncysa-logo.png';
-    document.title = 'NCYSA Learn — Education & Training Platform';
+    return;
   }
+  // NCYSA's own hosts.
+  if (iconEl) iconEl.href = '/media/ncysa-logo.png';
+  document.title = 'NCYSA Learn — Education & Training Platform';
 }
 const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
 // Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
@@ -1000,8 +1004,12 @@ function renderScormLesson(pane, course, lesson, lp) {
     // No time gate: show a plain instruction — never any "minimum time" wording.
     if (req <= 0) { hint.textContent = 'Work through the whole module — it completes when you reach the end. Your place is saved if you leave.'; return; }
     const remaining = Math.max(0, req - active);
-    if (reachedEnd && remaining > 0) hint.innerHTML = `You’ve reached the end — keep this module open <strong>${fmt(remaining)}</strong> more and it will complete automatically.`;
-    else if (remaining > 0) hint.textContent = `Work through the whole module — it completes at the end (minimum ${fmt(req)} on this module).`;
+    // When the fly-through gate has escalated this module, say so persistently —
+    // not just the one-off toast — so the learner understands why the time rose.
+    const flew = r && (r.flyThroughCount || 0) > 0;
+    const flewNote = flew ? ` <span class="meta">(this module’s minimum was raised because it was rushed)</span>` : '';
+    if (reachedEnd && remaining > 0) hint.innerHTML = `You’ve reached the end — keep this module open <strong>${fmt(remaining)}</strong> more and it will complete automatically.${flewNote}`;
+    else if (remaining > 0) hint.innerHTML = `Work through the whole module — it completes at the end (minimum ${fmt(req)} on this module).${flewNote}`;
     else hint.textContent = `Minimum time met — reach the end of the module to complete it.`;
   }
 
@@ -2822,8 +2830,8 @@ async function route() {
   // On a partner domain the whole site is that org (so register/sign-in/etc. stay
   // in-org); otherwise the hash decides. Default is NCYSA.
   activeOrg = domainOrg || orgFromHash(hash);
-  applyOrgChrome(); // tab icon + title match the org/domain
-  await applyBrandForHash(hash);
+  await applyBrandForHash(hash); // resolve the in-view brand first…
+  applyOrgChrome();              // …so the tab icon + title can match it
   renderNav(); // reflect navMinimal + brand for this route
   for (const r of routes) {
     const m = hash.match(r.re);
