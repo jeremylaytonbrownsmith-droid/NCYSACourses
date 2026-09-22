@@ -1061,6 +1061,11 @@ const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
 const DEFAULT_SCORM_MIN_SECONDS = 0; // no time gate by default — the module's own "complete every element" requirement is the anti-skip
+// Escalating anti-skip: reaching the end of a module in under FLYTHROUGH_FRACTION
+// of its expected length is a "fly-through" — the module resets and its required
+// time climbs this ladder on each repeat offense (2, 6, then 10 minutes).
+const FLYTHROUGH_FRACTION = 0.5;
+const FLYTHROUGH_LADDER = [120, 360, 600];
 
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This
@@ -1229,7 +1234,35 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   // Minimum time before completion counts. Modules uploaded before this gate
   // existed have no minSeconds field, so they fall back to the default (rather
   // than 0 = no gate) — the anti-skip protection applies without re-uploading.
-  const required = lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS;
+  const baseRequired = lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS;
+  const expected = Math.max(0, Number(lesson.expectedSeconds) || 0);
+
+  // Escalating anti-skip. Record how fast they first reached the end this attempt.
+  // If that's under half the module's expected length, it's a fly-through: reset
+  // the module (so they go back through it) and raise its required time on the
+  // ladder, keeping the escalation across the reset.
+  let flaggedFlyThrough = false;
+  if ((rec.scorm.status === 'completed' || rec.scorm.status === 'passed') && rec.scorm.reachedEndSeconds == null) {
+    rec.scorm.reachedEndSeconds = Math.floor(rec.scorm.activeSeconds);
+    if (!rec.completed && expected > 0 && rec.scorm.reachedEndSeconds < FLYTHROUGH_FRACTION * expected) {
+      rec.scorm.flyThroughCount = (rec.scorm.flyThroughCount || 0) + 1;
+      // Keep the fastest reach we've seen for this module, for the admin report —
+      // the reset below clears reachedEndSeconds so they retake the module.
+      rec.scorm.fastestReachSeconds = rec.scorm.fastestReachSeconds != null
+        ? Math.min(rec.scorm.fastestReachSeconds, rec.scorm.reachedEndSeconds)
+        : rec.scorm.reachedEndSeconds;
+      rec.scorm.lastFlyThroughAt = new Date().toISOString();
+      rec.scorm.requiredOverride = FLYTHROUGH_LADDER[Math.min(rec.scorm.flyThroughCount, FLYTHROUGH_LADDER.length) - 1];
+      rec.scorm.status = 'incomplete';
+      rec.scorm.location = '';
+      rec.scorm.suspendData = '';
+      rec.scorm.activeSeconds = 0;
+      rec.scorm.reachedEndSeconds = null;
+      flaggedFlyThrough = true;
+    }
+  }
+
+  const required = rec.scorm.requiredOverride != null ? rec.scorm.requiredOverride : baseRequired;
   const timeMet = rec.scorm.activeSeconds >= required;
   const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
   const mapped = mapScormStatus(rec.scorm.status);
@@ -1246,7 +1279,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
   // completes the course, but for a partner-launched enrollment it is still an
   // outcome the partner needs. Report it once per distinct terminal status.
   const enr = db.enrollments.find((e) => e.userId === req.user.id && e.courseId === course.id);
-  const terminalFailure = !rec.completed && (mapped === 'failed' || (b.finished && mapped === 'incomplete'));
+  const terminalFailure = !flaggedFlyThrough && !rec.completed && (mapped === 'failed' || (b.finished && mapped === 'incomplete'));
   if (enr && enr.reportBack && terminalFailure && rec.scorm.reported !== mapped) {
     rec.scorm.reported = mapped;
     save();
@@ -1264,6 +1297,11 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
     activeSeconds: Math.floor(rec.scorm.activeSeconds), required,
     remaining: Math.max(0, required - Math.floor(rec.scorm.activeSeconds)),
     reachedEnd,
+    // Escalating anti-skip: tell the player to restart the module and show why.
+    flaggedFlyThrough,
+    reset: flaggedFlyThrough || undefined,
+    requiredMinutes: Math.round(required / 60),
+    flyThroughCount: rec.scorm.flyThroughCount || 0,
     courseCompleted: !!completion, certId: completion?.certId || null,
     returnUrl: (completion && completion.returnUrl) || null,
   });
@@ -1443,6 +1481,31 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     partnerWebhooks: (db.webhookLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     partnerUploads: (db.uploadLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
+    // Who is flying through modules — every progress record the escalating
+    // anti-skip gate has flagged at least once, so the dashboard can show which
+    // learners raced through which module and how many times.
+    flyThroughs: (db.lessonProgress || [])
+      .filter((p) => p.scorm && (p.scorm.flyThroughCount || 0) > 0)
+      .map((p) => {
+        const u = db.users.find((x) => x.id === p.userId);
+        const course = allCourses().find((c) => c.id === p.courseId);
+        const lesson = course ? course.lessons.find((l) => l.id === p.lessonId) : null;
+        const required = p.scorm.requiredOverride != null ? p.scorm.requiredOverride
+          : (lesson && lesson.minSeconds != null ? lesson.minSeconds : DEFAULT_SCORM_MIN_SECONDS);
+        return {
+          learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
+          email: u?.email,
+          course: course?.title, courseId: p.courseId,
+          module: lesson?.title || p.lessonId, lessonId: p.lessonId,
+          flyThroughCount: p.scorm.flyThroughCount || 0,
+          fastestReachSeconds: p.scorm.fastestReachSeconds != null ? p.scorm.fastestReachSeconds : null,
+          lastFlyThroughAt: p.scorm.lastFlyThroughAt || null,
+          expectedSeconds: lesson && lesson.expectedSeconds != null ? lesson.expectedSeconds : 0,
+          requiredMinutes: Math.round(required / 60),
+          completed: !!p.completed,
+        };
+      })
+      .sort((a, b) => (b.flyThroughCount - a.flyThroughCount)),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
   });
 });
@@ -1524,7 +1587,13 @@ function buildLesson(body) {
     if (body.minMinutes != null) minSeconds = Math.max(0, Math.round(Number(body.minMinutes) * 60)) || 0;
     else if (body.minSeconds != null) minSeconds = Math.max(0, Math.round(Number(body.minSeconds))) || 0;
     else minSeconds = DEFAULT_SCORM_MIN_SECONDS;
-    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds };
+    // Expected content length, used only to detect a "fly-through" (reaching the
+    // end far faster than this). 0 = detection off for this module (e.g. a short
+    // intro module that is legitimately fast).
+    let expectedSeconds = 0;
+    if (body.expectedMinutes != null) expectedSeconds = Math.max(0, Math.round(Number(body.expectedMinutes) * 60)) || 0;
+    else if (body.expectedSeconds != null) expectedSeconds = Math.max(0, Math.round(Number(body.expectedSeconds))) || 0;
+    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, expectedSeconds };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -1703,7 +1772,15 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   if (!course) return res.status(404).json({ error: 'Course not found' });
   const idx = course.lessons.findIndex((l) => l.id === req.params.lessonId);
   if (idx < 0) return res.status(404).json({ error: 'Lesson not found' });
-  course.lessons[idx] = buildLesson({ ...req.body, id: req.params.lessonId });
+  // Carry over the fly-through "expected length" on a partial edit. The quick
+  // Module-minutes editor only sends minMinutes, so without this a partial save
+  // would silently reset expectedSeconds to 0 (turning fly-through detection off).
+  const existing = course.lessons[idx] || {};
+  const body = { ...req.body, id: req.params.lessonId };
+  if (body.type === 'scorm' && body.expectedMinutes == null && body.expectedSeconds == null && existing.expectedSeconds != null) {
+    body.expectedSeconds = existing.expectedSeconds;
+  }
+  course.lessons[idx] = buildLesson(body);
   save();
   res.json({ lesson: course.lessons[idx] });
 });

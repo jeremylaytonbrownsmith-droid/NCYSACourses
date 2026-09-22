@@ -1029,7 +1029,30 @@ function renderScormLesson(pane, course, lesson, lp) {
         finished: !!finished, // true when the module called LMSFinish
         activeDelta,
       },
-    }).then((r) => { if (r) { paintGate(r); if (r.completed) finalize(r); } if (onDone) onDone(r); }).catch(() => { /* retried next heartbeat */ });
+    }).then((r) => {
+      if (r) {
+        if (r.flaggedFlyThrough) { flyThroughReset(r); if (onDone) onDone(r); return; }
+        paintGate(r);
+        if (r.completed) finalize(r);
+      }
+      if (onDone) onDone(r);
+    }).catch(() => { /* retried next heartbeat */ });
+  }
+
+  // Escalating anti-skip: the server detected the learner reached the end far too
+  // fast, reset the module, and raised its minimum. Restart the module here and
+  // tell them why, with the new (escalated) minimum.
+  function flyThroughReset(r) {
+    active = 0; reachedEnd = false;
+    cmi['cmi.core.lesson_status'] = 'incomplete';
+    cmi['cmi.core.lesson_location'] = '';
+    cmi['cmi.suspend_data'] = '';
+    if (cmi['cmi.score.scaled'] != null) delete cmi['cmi.score.scaled'];
+    paintGate({ activeSeconds: 0, required: r.required });
+    const frame = document.getElementById('scormFrame');
+    if (frame) frame.src = frame.src; // reload → the module restarts from the beginning
+    const mins = r.requiredMinutes || Math.round((r.required || 0) / 60);
+    toast(`You moved through that too quickly. Please take your time — the minimum for this module is now ${mins} minute${mins === 1 ? '' : 's'}.`, true);
   }
 
   // Heartbeat: credit ~5s of module time every 5s, only while the tab is visible
@@ -1668,6 +1691,19 @@ async function viewAdmin() {
               <div><strong>Ref:</strong> ${esc(w.refId || '—')} · <strong>Module:</strong> ${esc(w.moduleId || '—')}${w.org ? ` · <strong>Org:</strong> ${esc(w.org)}` : ''}${w.httpStatus ? ` · HTTP ${esc(String(w.httpStatus))}` : ''}</div>
               <div class="meta" style="word-break:break-all">${esc(w.url || 'no webhook URL configured')}</div>
             </div>`).join('') : '<p class="empty">No partner webhooks sent yet.</p>'}
+        </div>
+        <div class="admin-card">
+          <h2>Flagged for flying through</h2>
+          <p class="empty" style="margin-bottom:12px">Learners the anti-skip gate caught racing to the end of a module (reaching the end in under half its expected length). Each time it happens the module resets and their required time climbs to 2, then 6, then 10 minutes.</p>
+          ${(d.flyThroughs && d.flyThroughs.length) ? d.flyThroughs.map((f) => `
+            <div class="mail">
+              <div class="mail-head">
+                <strong>${esc(f.learner || f.email || 'Learner')}</strong>${f.email ? ` · ${esc(f.email)}` : ''}
+                · <span style="color:#c0392b">${f.flyThroughCount}×</span> flew through
+              </div>
+              <div><strong>Course:</strong> ${esc(f.course || '—')} · <strong>Module:</strong> ${esc(f.module || '—')}</div>
+              <div class="meta">${f.fastestReachSeconds != null ? `Reached the end in ${Math.round(f.fastestReachSeconds / 60 * 10) / 10} min (expected ${Math.round((f.expectedSeconds || 0) / 60)} min)` : ''}${f.fastestReachSeconds != null ? ' · ' : ''}now needs ${f.requiredMinutes} min · ${f.completed ? 'since completed' : 'not yet complete'}${f.lastFlyThroughAt ? ` · last ${new Date(f.lastFlyThroughAt).toLocaleString()}` : ''}</div>
+            </div>`).join('') : '<p class="empty">No fly-throughs flagged yet.</p>'}
         </div>
       </div>
     </div>`;
@@ -2358,7 +2394,10 @@ async function viewCourseAdmin(flash) {
         <label>Minimum time on this module (minutes)
           <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 0}" />
         </label>
-        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the minimum time above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. Add one lesson per module, in order.</p>`;
+        <label>Expected length of this module (minutes)
+          <input name="expectedMinutes" type="number" min="0" step="0.5" value="${l && l.expectedSeconds ? (l.expectedSeconds / 60) : 0}" />
+        </label>
+        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Fly-through catch:</strong> set the <em>expected length</em> to the module’s real running time; if a learner reaches the end in under half of it, they’re bounced back through and the minimum climbs to 2, then 6, then 10 minutes. Leave it at <strong>0</strong> to skip fly-through detection (e.g. a short intro). Add one lesson per module, in order.</p>`;
     }
     return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
@@ -2462,6 +2501,7 @@ async function viewCourseAdmin(flash) {
         payload.packageId = fd.get('packageId');
         payload.launchFile = fd.get('launchFile') || 'index.html';
         payload.minMinutes = fd.get('minMinutes');
+        payload.expectedMinutes = fd.get('expectedMinutes');
         if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
       }
       if (type === 'quiz') {
