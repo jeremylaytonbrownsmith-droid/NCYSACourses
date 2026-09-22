@@ -1892,6 +1892,7 @@ async function viewCourseAdmin(flash) {
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
                 <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                 ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
+                ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-expected" data-course="${c.id}">Fly-through length</button>` : ''}
                 <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
                 <button class="btn btn-accent btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
@@ -1994,6 +1995,30 @@ async function viewCourseAdmin(flash) {
       } catch { /* keep going */ }
     }
     viewCourseAdmin(`Set ${mins} minute(s) minimum on ${ok} of ${scorm.length} module(s).`);
+  }));
+  document.querySelectorAll('.mod-expected').forEach((b) => b.addEventListener('click', async () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const scorm = c.lessons.filter((l) => l.type === 'scorm');
+    const cur = scorm[0] && scorm[0].expectedSeconds ? (scorm[0].expectedSeconds / 60) : 0;
+    const ans = prompt(
+      `Fly-through length — the real running time (minutes) of EACH of the ${scorm.length} module(s).\n\n` +
+      `If a learner reaches the end of a module in under HALF this time, the module resets and its ` +
+      `minimum climbs (2, then 6, then 10 minutes). This is the escalating "no flying through" catch.\n\n` +
+      `0 = fly-through detection off. This applies the SAME number to every module in "${c.title}" — ` +
+      `you can still fine-tune an individual module afterward in its editor.`,
+      String(cur));
+    if (ans == null) return;
+    const mins = Math.max(0, Number(ans));
+    if (Number.isNaN(mins)) { msg('Enter a number of minutes.', true); return; }
+    b.disabled = true; b.textContent = 'Saving…';
+    let ok = 0;
+    for (const l of scorm) {
+      try {
+        await api(`/api/admin/courses/${c.id}/lessons/${l.id}`, { method: 'PUT', body: { type: 'scorm', title: l.title, html: l.html || '', packageId: l.packageId, launchFile: l.launchFile || 'index.html', minMinutes: (l.minSeconds || 0) / 60, expectedMinutes: mins } });
+        ok++;
+      } catch { /* keep going */ }
+    }
+    viewCourseAdmin(`Set ${mins} minute(s) fly-through length on ${ok} of ${scorm.length} module(s).`);
   }));
   document.querySelectorAll('.add-lesson').forEach((b) => b.addEventListener('click', () => {
     document.querySelector(`.panel-slot[data-course="${b.dataset.course}"]`).innerHTML = lessonForm(b.dataset.course, null);
