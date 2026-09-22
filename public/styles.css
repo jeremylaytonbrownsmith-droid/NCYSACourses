@@ -342,6 +342,21 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
 .admin-table th { color: var(--ink-soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+/* On phones a wide records table would be clipped, so each row becomes a stacked
+   card with "Label: value" pairs (via data-label) and nothing scrolls off. */
+@media (max-width: 640px) {
+  .table-scroll { overflow-x: visible; }
+  .admin-table { font-size: 0.92rem; }
+  .admin-table tr:first-child { display: none; }              /* header row */
+  .admin-table tr { display: block; border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px 12px; margin-bottom: 12px; background: #fff; }
+  .admin-table td { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 14px; border: 0; padding: 7px 0; text-align: right; }
+  .admin-table td:not(:last-child) { border-bottom: 1px solid var(--line); }
+  .admin-table td::before { content: attr(data-label); font-weight: 700; color: var(--ink-soft);
+    text-align: left; white-space: nowrap; }
+  .admin-table td:empty { display: none; }                    /* blank action cell */
+}
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
 .mail pre { white-space: pre-wrap; font: inherit; color: var(--ink-body); }

@@ -1828,13 +1828,13 @@ async function viewAdmin() {
       <div class="table-scroll"><table class="admin-table">
         <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
-          <td>${esc(c.learner)}</td><td>${esc(c.email)}</td><td>${esc(c.course)}</td>
-          <td>${progOf(c)}</td>
-          <td>${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
-          <td>${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
-          <td>${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
-          <td>${esc(c.certId || '—')}</td>
-          <td>${c.userId && c.courseId ? `<button class="linkbtn danger del-record" data-user="${esc(c.userId)}" data-course="${esc(c.courseId)}" data-name="${esc(c.learner || c.email || 'this record')}">Delete</button>` : ''}</td></tr>`).join('')}
+          <td data-label="Learner">${esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
+          <td data-label="Modules">${progOf(c)}</td>
+          <td data-label="Status">${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
+          <td data-label="Time to complete">${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
+          <td data-label="Completed">${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
+          <td data-label="Certificate">${esc(c.certId || '—')}</td>
+          <td data-label="">${c.userId && c.courseId ? `<button class="linkbtn danger del-record" data-user="${esc(c.userId)}" data-course="${esc(c.courseId)}" data-name="${esc(c.learner || c.email || 'this record')}">Delete</button>` : ''}</td></tr>`).join('')}
       </table></div>
       <p class="filter-count">${list.length} of ${rows.length} record${rows.length === 1 ? '' : 's'}</p>`
       : '<p class="empty">No records match these filters.</p>';
