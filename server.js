@@ -341,8 +341,8 @@ app.get(['/manifest.webmanifest', '/manifest.json'], (req, res) => {
   const host = String(req.hostname || '').toLowerCase();
   const isProduct = host === 'getmatchready.app' || host === 'www.getmatchready.app';
   const brand = isProduct
-    ? { key: 'gmr', name: 'GetMatchReady', theme: '#6366f1' }
-    : { key: 'ncysa', name: 'NCYSA Learn', theme: '#1b2a63' };
+    ? { key: 'gmr', name: 'GetMatchReady', theme: '#0b1220' }
+    : { key: 'ncysa', name: 'NCYSA Learn', theme: '#17224f' };
   const manifest = {
     id: '/',
     name: brand.name,

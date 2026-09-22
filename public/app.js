@@ -152,51 +152,21 @@ function applyOrgChrome() {
   document.title = 'NCYSA Learn — Education & Training Platform';
 }
 
-// The installed-app (home-screen) icon on iOS is read from <link rel="apple-touch-icon">
-// at "Add to Home Screen" time, so keep it matching the domain's brand — the
-// same split the PWA manifest uses (GetMatchReady on the product domain, NCYSA
-// on NCYSA's hosts).
-function applyAppleTouchIcon() {
-  const el = document.querySelector('link[rel="apple-touch-icon"]');
-  if (!el) return;
-  el.href = PRODUCT_DOMAINS.has(location.hostname) ? '/icons/gmr-192.png' : '/icons/ncysa-192.png';
+// Keep the PWA head bits matching the domain's brand: the iOS home-screen icon
+// (read from <link rel="apple-touch-icon"> at "Add to Home Screen" time) and the
+// browser-UI tint (theme-color). Navy for NCYSA's hosts, the product's dark
+// slate on the GetMatchReady domain — never the old purple, which clashed with
+// the NCYSA/NCSRA scheme.
+function applyPwaHead() {
+  const onProductDomain = PRODUCT_DOMAINS.has(location.hostname);
+  const icon = document.querySelector('link[rel="apple-touch-icon"]');
+  if (icon) icon.href = onProductDomain ? '/icons/gmr-192.png' : '/icons/ncysa-192.png';
+  const theme = document.querySelector('meta[name="theme-color"]');
+  if (theme) theme.setAttribute('content', onProductDomain ? '#0b1220' : '#17224f');
 }
-
-// Show a small "Install app" button when the browser offers installation
-// (Chrome/Edge/Android fire beforeinstallprompt). iOS/Safari has no such API —
-// there users install via Share → "Add to Home Screen" — so no button appears
-// there and nothing breaks. Purely additive: if anything here is unsupported,
-// the app runs exactly as before.
-function setupPwaInstall() {
-  let deferred = null;
-  const mk = () => {
-    if (document.getElementById('pwaInstallBtn')) return document.getElementById('pwaInstallBtn');
-    const b = document.createElement('button');
-    b.id = 'pwaInstallBtn';
-    b.type = 'button';
-    b.textContent = '⤓ Install app';
-    b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border:0;border-radius:999px;background:#6366f1;color:#fff;font:600 14px/1 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer';
-    b.addEventListener('click', async () => {
-      if (!deferred) return;
-      b.disabled = true;
-      deferred.prompt();
-      try { await deferred.userChoice; } catch (_) { /* ignore */ }
-      deferred = null;
-      b.remove();
-    });
-    document.body.appendChild(b);
-    return b;
-  };
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();      // suppress the mini-infobar; we show our own button
-    deferred = e;
-    mk();
-  });
-  window.addEventListener('appinstalled', () => {
-    deferred = null;
-    document.getElementById('pwaInstallBtn')?.remove();
-  });
-}
+// Note: the app is intentionally installable (manifest + service worker) but we
+// do NOT show an install button — those who want it can install from the browser
+// menu / Share sheet; everyone else just sees a normal site.
 const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_ORG;
 // Portal link for a course's org: NCYSA keeps the plain paths (unchanged);
 // another org uses its /org/<slug>/ prefix.
@@ -2932,8 +2902,7 @@ window.addEventListener('hashchange', route);
     app.setAttribute('role', 'main');
     const anchor = document.createElement('span'); anchor.id = 'main'; app.parentNode.insertBefore(anchor, app);
   }
-  applyAppleTouchIcon();
-  setupPwaInstall();
+  applyPwaHead();
   await refreshMe();
   await route();
 })();
