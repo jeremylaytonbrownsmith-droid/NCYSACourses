@@ -332,6 +332,38 @@ app.use((req, res, next) => {
   }
   next();
 });
+// PWA manifest — makes the site installable ("Add to Home Screen" / "Install
+// app") on phone, tablet and desktop. Served from a route (not a static file)
+// so the installed app's name + icon match the domain's brand: GetMatchReady on
+// the product domain, NCYSA Learn on NCYSA's own hosts. There is NO offline
+// behavior — see public/sw.js, which is a network-only no-op.
+app.get(['/manifest.webmanifest', '/manifest.json'], (req, res) => {
+  const host = String(req.hostname || '').toLowerCase();
+  const isProduct = host === 'getmatchready.app' || host === 'www.getmatchready.app';
+  const brand = isProduct
+    ? { key: 'gmr', name: 'GetMatchReady', theme: '#6366f1' }
+    : { key: 'ncysa', name: 'NCYSA Learn', theme: '#1b2a63' };
+  const manifest = {
+    id: '/',
+    name: brand.name,
+    short_name: brand.name,
+    description: 'Referee and coach education & training.',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#ffffff',
+    theme_color: brand.theme,
+    icons: [
+      { src: `/icons/${brand.key}-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `/icons/${brand.key}-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: `/icons/${brand.key}-maskable-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  };
+  res.type('application/manifest+json');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(JSON.stringify(manifest));
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // GetMatchReady partnership proposal — a standalone, password-gated page served

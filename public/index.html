@@ -7,11 +7,29 @@
   <link rel="stylesheet" href="/styles.css" />
   <!-- Neutral platform mark by default; each org/page sets its own icon in JS. -->
   <link rel="icon" href="/media/getmatchready-mark.svg" />
+  <!-- Installable app (PWA): manifest is dynamic per domain; icons are square
+       PNGs. No offline caching — see /sw.js. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="GetMatchReady" />
+  <link rel="apple-touch-icon" href="/icons/gmr-192.png" />
 </head>
 <body>
   <nav class="topnav" id="topnav"></nav>
   <main id="app"></main>
   <div id="toast"></div>
   <script src="/app.js"></script>
+  <!-- Register the install-only service worker (no offline caching). Failure is
+       harmless — the app runs identically without it. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () { /* ignore */ });
+      });
+    }
+  </script>
 </body>
 </html>
