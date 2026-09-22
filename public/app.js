@@ -188,12 +188,10 @@ function renderNav() {
     topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span>${brandName}<span class="sub">Education &amp; Training Platform</span></span></span>`;
     return;
   }
-  topnav.innerHTML = `
-    <a class="logo" href="${logoHref}">
-      ${brandLogo}
-      <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
-    </a>
-    <span class="spacer"></span>
+  // The links + auth controls live in .navmenu. On desktop it's `display:contents`
+  // so they flow in the bar exactly as before; on phones it collapses behind the
+  // ☰ button into a dropdown, so the bar never overflows or clips the logo.
+  const menu = `
     ${orgCtx ? '' : `
     <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
     <a class="navlink nav-referees" href="#/referees">Referees</a>
@@ -208,12 +206,40 @@ function renderNav() {
       <a class="navlink" href="#/login">Sign in</a>
       <a class="btn btn-primary" href="#/register">Get started</a>
     `}`;
+  topnav.innerHTML = `
+    <a class="logo" href="${logoHref}">
+      ${brandLogo}
+      <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
+    </a>
+    <span class="spacer"></span>
+    <button class="navtoggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="navMenu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="navmenu" id="navMenu">${menu}</div>`;
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await api('/api/logout', { method: 'POST' });
     await refreshMe();
     location.hash = logoHref; // org users stay in their own portal, not NCYSA's home
   });
   document.getElementById('bellBtn')?.addEventListener('click', () => (location.hash = '#/notifications'));
+  const navToggle = document.getElementById('navToggle');
+  const navMenu = document.getElementById('navMenu');
+  navToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = navMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  // Close the dropdown on an outside tap. Bound once for the whole app (renderNav
+  // runs on every route), so listeners don't stack up.
+  if (!renderNav._outsideBound) {
+    renderNav._outsideBound = true;
+    document.addEventListener('click', (e) => {
+      const m = document.getElementById('navMenu'), t = document.getElementById('navToggle');
+      if (m && m.classList.contains('open') && !m.contains(e.target) && t && !t.contains(e.target)) {
+        m.classList.remove('open'); t.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 }
 
 async function refreshMe() {
@@ -920,13 +946,29 @@ function renderScormLesson(pane, course, lesson, lp) {
     ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}
     ${missing
       ? `<div class="card notice-card"><h3>Module not uploaded yet</h3><p>This module has no course package attached. An administrator can upload it in the Course Designer.</p></div>`
-      : `<p class="scorm-tip">💡 Tip: click the <strong>☰ menu</strong> at the top-left of the module to hide its sidebar and give the slides &amp; videos the full width.</p>
+      : `<div class="scorm-controls">
+           <button class="btn btn-ghost btn-sm" id="scormFsBtn" hidden>⛶ Full screen</button>
+           <span class="scorm-tip">💡 Use the <strong>☰ menu</strong> inside the module to hide its sidebar. <span class="scorm-tip-mobile">On a phone, turn it sideways (landscape) for a bigger view.</span></span>
+         </div>
          <div class="scorm-shell"><iframe id="scormFrame" class="scorm-frame" title="${esc(lesson.title)}" src="${esc(launch)}" allow="fullscreen; autoplay" allowfullscreen></iframe></div>`}
     <div class="lesson-actions" id="scormActions">
       ${lp.completed
         ? `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`
         : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you reach the end. Your place is saved if you leave.</span>`}
     </div>`;
+
+  // Full screen: works on desktop and Android (real fullscreen for the module).
+  // iOS Safari can't fullscreen an iframe, so we only show the button where the
+  // browser supports it; on iPhone the landscape hint covers the big-view case.
+  const fsBtn = document.getElementById('scormFsBtn');
+  const fsFrame = document.getElementById('scormFrame');
+  if (fsBtn && fsFrame && (document.fullscreenEnabled || fsFrame.requestFullscreen || fsFrame.webkitRequestFullscreen)) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', () => {
+      const go = fsFrame.requestFullscreen || fsFrame.webkitRequestFullscreen;
+      if (go) { try { go.call(fsFrame); } catch (_) { /* ignore */ } }
+    });
+  }
 
   function goNext() {
     const idx = course.lessons.findIndex((l) => l.id === lesson.id);
