@@ -1736,6 +1736,10 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     completionRedirectUrl: String(b.completionRedirectUrl || ''),
     publicVideoGate: !!b.publicVideoGate,
     published: false, // start as a draft; the designer publishes when ready
+    // Who built this course, and when — so staff can see who designed each one.
+    // Set once at creation and never overwritten by later edits.
+    createdBy: { id: req.user.id, name: req.user.name || '', email: req.user.email || '', role: req.user.role },
+    createdAt: new Date().toISOString(),
     lessons: [],
   };
   db.courses.push(course);

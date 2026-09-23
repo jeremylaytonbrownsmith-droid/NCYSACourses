@@ -1963,7 +1963,9 @@ async function viewCourseAdmin(flash) {
                 <span class="badge-inline">${esc(c.badge)}</span>
                 ${c.published === false ? '<span class="pill-draft">● Draft — hidden</span>' : '<span class="pill-live">● Live</span>'}
                 <h2>${esc(c.title)}</h2>
-                <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'} · ${esc(c.tagline || '')}</p>
+                <p class="meta">${c.lessons.length} lesson${c.lessons.length === 1 ? '' : 's'}${c.tagline ? ` · ${esc(c.tagline)}` : ''}</p>
+                <p class="meta">Portal: <strong>${esc((c.orgId || 'ncysa').toUpperCase())}</strong> · ${esc((c.audience || 'everyone'))}${c.coBrandName ? ` · Brand: ${esc(c.coBrandName)}` : ''}</p>
+                ${c.createdBy && c.createdBy.name ? `<p class="meta">Designed by <strong>${esc(c.createdBy.name)}</strong>${c.createdAt ? ` · ${new Date(c.createdAt).toLocaleDateString()}` : ''}</p>` : ''}
               </div>
               <div class="course-admin-actions">
                 <div class="reorder-group" role="group" aria-label="Reorder course">
