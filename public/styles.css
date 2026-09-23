@@ -48,6 +48,10 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.01em;
 }
 .topnav .logo > span { min-width: 0; }
+/* Keep the brand NAME on a single line (a long co-brand like "NCSRA Referee
+   Education" was wrapping to two lines and looked stretched). The subtitle sits
+   on its own line below as designed. */
+.topnav .logo .brandname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
 /* The brand is a link; never underline it (a tap on mobile otherwise leaves the
    :hover underline stuck under the name). */
 .topnav .logo, .topnav .logo:hover { text-decoration: none; }

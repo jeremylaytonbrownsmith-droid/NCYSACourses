@@ -185,7 +185,7 @@ function renderNav() {
   const orgCtx = (activeBrand && activeBrand.orgId && activeBrand.orgId !== DEFAULT_ORG) ? activeBrand.orgId : null;
   const logoHref = orgCtx ? `#/org/${orgCtx}/referees` : '#/';
   if (navMinimal) {
-    topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span>${brandName}<span class="sub">Education &amp; Training Platform</span></span></span>`;
+    topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span><span class="brandname">${brandName}</span><span class="sub">Education &amp; Training Platform</span></span></span>`;
     return;
   }
   // The links + auth controls live in .navmenu. On desktop it's `display:contents`
@@ -209,7 +209,7 @@ function renderNav() {
   topnav.innerHTML = `
     <a class="logo" href="${logoHref}">
       ${brandLogo}
-      <span>${brandName}<span class="sub">Education &amp; Training Platform</span></span>
+      <span><span class="brandname">${brandName}</span><span class="sub">Education &amp; Training Platform</span></span>
     </a>
     <span class="spacer"></span>
     <button class="navtoggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="navMenu">
