@@ -252,6 +252,19 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .video-shell { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .video-shell video { width: 100%; display: block; }
 .scorm-shell { background: #0b1020; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+/* "Fill the whole screen" mode for phones (iPhone can't use the real fullscreen
+   API on an embedded module). The shell covers the viewport; the frame fills it. */
+.scorm-shell.pseudo-fs { position: fixed; inset: 0; z-index: 9999; border-radius: 0; }
+.scorm-shell.pseudo-fs .scorm-frame { height: 100%; max-height: none; min-height: 0; aspect-ratio: auto; }
+body.pseudo-fs-lock { overflow: hidden; }
+/* The lesson pane has a fadeSlide animation whose transform makes it the
+   containing block for position:fixed, which would trap the fill-screen shell to
+   the pane instead of the viewport. Drop it while filling the screen so the shell
+   covers the whole window. */
+body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !important; }
+.pseudo-fs-exit { position: fixed; z-index: 10000; top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px;
+  border: 0; border-radius: 999px; background: rgba(6, 19, 37, 0.92); color: #fff; font: 700 0.95rem var(--body);
+  padding: 10px 16px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
 /* These modules are self-contained apps (their own header, sidebar and internal
    scroll), so give them a big fixed stage that fills most of the window and let
    the module manage its own scrolling inside. */

@@ -63,3 +63,38 @@ test('a third-party package is left untouched (fix not injected)', async ({ play
   expect(served).not.toContain('gmr-mobile-fix');
   expect(served).toContain('third-party'); // served as-is
 });
+
+test('Full screen falls back to a CSS fill-screen mode where the fullscreen API is unavailable (iPhone)', async ({ browser, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'FS Mobile', audience: 'coaches' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'M1', packageId: 'test-module', minMinutes: 0 } })).json()).lesson.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  // Simulate an iPhone: no fullscreen API, phone viewport.
+  const ctx = await browser.newContext({ baseURL: BASE, viewport: { width: 390, height: 844 } });
+  await ctx.addInitScript(() => { try { Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => false }); } catch (e) {} });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/`);
+  // Register + enroll through the shared cookie jar, then load the lesson fresh.
+  await page.request.post(`${BASE}/api/register`, { data: { firstName: 'FS', lastName: 'Test', email: `fs${Date.now()}@example.com` } });
+  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+  await page.goto(`${BASE}/#/course/${courseId}/lesson/${lessonId}`);
+  await page.reload();
+
+  const fsBtn = page.locator('#scormFsBtn');
+  await expect(fsBtn).toBeVisible({ timeout: 15000 });
+  await fsBtn.click();
+  // The module shell expands to cover the viewport, with a Close button.
+  const shell = page.locator('.scorm-shell.pseudo-fs');
+  await expect(shell).toBeVisible();
+  await expect(page.locator('.pseudo-fs-exit')).toBeVisible();
+  // It must fill the whole screen — not be trapped to the lesson pane by a
+  // transformed ancestor (regression guard for the fadeSlide containing block).
+  const box = await shell.boundingBox();
+  expect(box.width).toBeGreaterThanOrEqual(380);
+  expect(box.height).toBeGreaterThanOrEqual(800);
+  await page.locator('.pseudo-fs-exit').click();
+  await expect(page.locator('.scorm-shell.pseudo-fs')).toHaveCount(0);
+  await ctx.close();
+});

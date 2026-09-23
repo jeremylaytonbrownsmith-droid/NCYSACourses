@@ -957,16 +957,38 @@ function renderScormLesson(pane, course, lesson, lp) {
         : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you reach the end. Your place is saved if you leave.</span>`}
     </div>`;
 
-  // Full screen: works on desktop and Android (real fullscreen for the module).
-  // iOS Safari can't fullscreen an iframe, so we only show the button where the
-  // browser supports it; on iPhone the landscape hint covers the big-view case.
+  // Full screen. Where the browser supports the real fullscreen API (desktop,
+  // Android, iPad) we use it. iPhone Safari can't fullscreen an embedded module,
+  // so there we fall back to a CSS "fill the whole screen" mode that covers the
+  // page — the button works on every device, and rotating to landscape gives the
+  // full movie-size view.
   const fsBtn = document.getElementById('scormFsBtn');
   const fsFrame = document.getElementById('scormFrame');
-  if (fsBtn && fsFrame && (document.fullscreenEnabled || fsFrame.requestFullscreen || fsFrame.webkitRequestFullscreen)) {
+  const fsShell = fsFrame ? fsFrame.closest('.scorm-shell') : null;
+  if (fsBtn && fsFrame && fsShell) {
     fsBtn.hidden = false;
+    const nativeGo = fsFrame.requestFullscreen || fsFrame.webkitRequestFullscreen;
+    const nativeOK = !!(document.fullscreenEnabled && nativeGo);
+    const exitPseudo = () => {
+      fsShell.classList.remove('pseudo-fs');
+      document.body.classList.remove('pseudo-fs-lock');
+      document.removeEventListener('keydown', onPseudoEsc);
+    };
+    function onPseudoEsc(e) { if (e.key === 'Escape') exitPseudo(); }
+    const enterPseudo = () => {
+      fsShell.classList.add('pseudo-fs');
+      document.body.classList.add('pseudo-fs-lock');
+      if (!fsShell.querySelector('.pseudo-fs-exit')) {
+        const x = document.createElement('button');
+        x.type = 'button'; x.className = 'pseudo-fs-exit'; x.textContent = '✕ Close';
+        x.addEventListener('click', exitPseudo);
+        fsShell.appendChild(x);
+      }
+      document.addEventListener('keydown', onPseudoEsc);
+    };
     fsBtn.addEventListener('click', () => {
-      const go = fsFrame.requestFullscreen || fsFrame.webkitRequestFullscreen;
-      if (go) { try { go.call(fsFrame); } catch (_) { /* ignore */ } }
+      if (nativeOK) { try { nativeGo.call(fsFrame); } catch (_) { enterPseudo(); } }
+      else { enterPseudo(); }
     });
   }
 
