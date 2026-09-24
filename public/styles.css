@@ -892,4 +892,6 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .slide-chip .slide-hide { position: absolute; top: 6px; left: 6px; width: 18px; height: 18px; }
 .slide-chip.is-hidden { opacity: .5; border-style: dashed; }
 .slide-chip.is-hidden .slide-cap::after { content: ' · hidden'; color: #b23; font-weight: 700; }
+.slide-chip.is-missing { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b inset; }
+.slide-chip.is-missing .slide-thumb { background: #3a0f0f; }
 @media (max-width: 640px) { .slides-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }

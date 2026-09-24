@@ -265,6 +265,18 @@ test('slide inventory lists every slide with its title and type', async ({ playw
   expect(inv.slides.map((s) => s.title)).toEqual(['Facilitator Guidance', 'Intro Two', 'Real Content', 'The Video']);
   expect(inv.slides[3].type).toBe('video');
   expect(inv.slides[0].thumb).toContain('/rawmedia/media/item-001.jpg');
+  // Every media file is present in this fixture.
+  expect(inv.missingCount).toBe(0);
+  expect(inv.slides.every((s) => s.missing === false)).toBe(true);
+
+  // A package whose video file wasn't included reports that slide as missing.
+  const noVid = { ...SLIDESHOW_FILES };
+  delete noVid['media/item-004.mp4'];
+  const pkg2 = await uploadFiles(api, noVid, 'SlidesMissingVid');
+  const inv2 = await (await api.get(`/api/admin/scorm/${pkg2}/slides`)).json();
+  expect(inv2.missingCount).toBe(1);
+  expect(inv2.slides[3].missing).toBe(true);
+  expect(inv2.slides[0].missing).toBe(false);
 
   // A third-party package (no manifest.js) reports slideshow:false.
   const other = await upload(api, OTHER_HTML, 'SlidesInvOther');

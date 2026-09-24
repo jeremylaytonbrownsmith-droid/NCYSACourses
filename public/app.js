@@ -2600,13 +2600,15 @@ async function viewCourseAdmin(flash) {
         try { hiddenNow = JSON.parse(hiddenInput.value || '[]'); } catch { hiddenNow = []; }
         const hset = new Set(hiddenNow);
         const grid = data.slides.map((s) => `
-          <label class="slide-chip${hset.has(s.n) ? ' is-hidden' : ''}" data-n="${s.n}">
+          <label class="slide-chip${hset.has(s.n) ? ' is-hidden' : ''}${s.missing ? ' is-missing' : ''}" data-n="${s.n}">
             <input type="checkbox" class="slide-hide" data-n="${s.n}" ${hset.has(s.n) ? '' : 'checked'} />
-            <span class="slide-thumb">${s.thumb ? `<img loading="lazy" src="${esc(s.thumb)}" alt="" />` : '🎬'}</span>
-            <span class="slide-cap"><strong>${s.n}.</strong> ${esc(s.title)}${s.type === 'video' ? ' · 🎬 video' : ''}</span>
+            <span class="slide-thumb">${s.missing ? '⚠️' : (s.thumb ? `<img loading="lazy" src="${esc(s.thumb)}" alt="" />` : '🎬')}</span>
+            <span class="slide-cap"><strong>${s.n}.</strong> ${esc(s.title)}${s.type === 'video' ? ' · 🎬 video' : ''}${s.missing ? ' · <span style="color:#c0392b;font-weight:700">file missing</span>' : ''}</span>
           </label>`).join('');
+        const miss = data.missingCount || 0;
         panel.innerHTML = `
           <p class="form-hint" style="margin:6px 0">Untick a slide to <strong>hide</strong> it from learners. Nothing is deleted — you can tick it back any time. Then click <strong>Save lesson</strong>.</p>
+          ${miss ? `<p class="form-hint" style="margin:6px 0;color:#c0392b"><strong>⚠️ ${miss} slide${miss === 1 ? '' : 's'} ${miss === 1 ? 'is' : 'are'} missing ${miss === 1 ? 'its' : 'their'} file</strong> (marked below). That media isn’t on the server — re-upload the module (with those files) to fix it. Hiding a missing slide is a quick way to get the module working while you sort out the file.</p>` : ''}
           <div class="slides-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
             <button type="button" class="btn btn-ghost btn-sm" id="slidesAll">Show all</button>
             <span id="slidesCount" class="meta"></span>

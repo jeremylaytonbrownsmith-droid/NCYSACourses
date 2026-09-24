@@ -756,7 +756,15 @@ function injectVideoError(html) {
   v.addEventListener('error',function(){
     var s=(v.currentSrc||v.getAttribute('src')||'');
     var name=s?(s.split('/').pop().split('?')[0]):'the video clip';
-    show('This video didn\\u2019t load ('+name+'). It may be missing from the module or in a format this device can\\u2019t play. Try again, or let the administrator know.');
+    if(!s){show('This video slide has no clip attached. The module is missing its video file.');return;}
+    var sameOrigin=true;try{sameOrigin=(new URL(s,location.href).origin===location.origin);}catch(e){}
+    if(!sameOrigin){show('This video didn\\u2019t load ('+name+'). If it\\u2019s hosted externally it may be unavailable right now \\u2014 try again, or let the administrator know.');return;}
+    // Same-origin clip: probe it so we can say definitively whether the file is
+    // missing (needs re-uploading) or present but in an unplayable format.
+    fetch(s,{method:'HEAD'}).then(function(r){
+      if(!r.ok){show('This video isn\\u2019t on the server ('+name+', error '+r.status+'). It needs to be re-uploaded with the module.');}
+      else{show('This video is on the server but this device can\\u2019t play its format ('+name+'). It should be a standard H.264/AAC .mp4.');}
+    }).catch(function(){show('This video couldn\\u2019t be loaded ('+name+'). Check the connection, or let the administrator know.');});
   },true);
   v.addEventListener('loadeddata',hide);v.addEventListener('playing',hide);
 })();</script>`;
@@ -2454,15 +2462,25 @@ app.get('/api/admin/scorm/:pkg/slides', requireEditor, (req, res) => {
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
   const man = readSlideManifest(base);
   if (!man) return res.json({ packageId: pkg, slideshow: false, slides: [] });
-  const slides = man.items.map((t, i) => ({
-    n: i + 1,
-    type: t === 'v' ? 'video' : 'image',
-    title: (man.titles && man.titles[i] != null && String(man.titles[i]).trim()) ? String(man.titles[i]) : `Slide ${i + 1}`,
-    // Original file, shown through the raw admin route so the preview ignores any
-    // hiding currently in effect (admins always see the true, full deck).
-    thumb: t === 'v' ? null : `/api/admin/scorm/${encodeURIComponent(pkg)}/rawmedia/media/item-${String(i + 1).padStart(3, '0')}.jpg`,
-  }));
-  res.json({ packageId: pkg, slideshow: true, count: slides.length, slides });
+  const slides = man.items.map((t, i) => {
+    const pad = String(i + 1).padStart(3, '0');
+    const rel = 'media/item-' + pad + (t === 'v' ? '.mp4' : '.jpg');
+    // Whether the slide's media file is actually on disk — surfaces "file
+    // missing" right in Manage slides, so a broken clip (e.g. a video that
+    // didn't upload) is obvious without playing through the whole module.
+    let missing = true;
+    try { const f = path.resolve(base, rel); missing = !(f.startsWith(base + path.sep) && fs.existsSync(f) && fs.statSync(f).isFile()); } catch { missing = true; }
+    return {
+      n: i + 1,
+      type: t === 'v' ? 'video' : 'image',
+      title: (man.titles && man.titles[i] != null && String(man.titles[i]).trim()) ? String(man.titles[i]) : `Slide ${i + 1}`,
+      missing,
+      // Original file, shown through the raw admin route so the preview ignores any
+      // hiding currently in effect (admins always see the true, full deck).
+      thumb: t === 'v' ? null : `/api/admin/scorm/${encodeURIComponent(pkg)}/rawmedia/${rel}`,
+    };
+  });
+  res.json({ packageId: pkg, slideshow: true, count: slides.length, missingCount: slides.filter((s) => s.missing).length, slides });
 });
 
 // Serve a package file straight from disk with NO trimmed-deck remap, for the
