@@ -178,6 +178,17 @@ test('the per-slide review gate is injected into our player, not third-party pac
   expect(servedOther).not.toContain('GMR per-slide review gate');
 });
 
+test('the video load diagnostic is injected into our player, not third-party packages', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await upload(api, MINI_PLAYER, 'VidDiag');
+  const served = await (await api.get(`/scorm/${pkg}/index.html`)).text();
+  expect(served).toContain('GMR video load diagnostic');
+  const other = await upload(api, OTHER_HTML, 'VidDiagOther');
+  const servedOther = await (await api.get(`/scorm/${other}/index.html`)).text();
+  expect(servedOther).not.toContain('GMR video load diagnostic');
+});
+
 test('the per-slide time is taken from the module’s "Time on each slide" setting', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });

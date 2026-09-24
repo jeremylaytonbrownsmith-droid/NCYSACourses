@@ -735,6 +735,35 @@ function injectSlideGate(html, slideSec) {
   return html + script;
 }
 
+// Video load diagnostic for OUR slideshow player only. When a video slide's clip
+// fails to load (missing file, or a format the device can't play), the <video>
+// element normally just shows black with no explanation. This surfaces a clear
+// on-slide message naming the file, so a broken clip is obvious to the learner
+// and diagnosable by the admin instead of silently "not playing". Purely
+// additive — it never touches the player's own playback logic. Scoped by the
+// player's #video + #viewer ids so third-party packages are untouched.
+function injectVideoError(html) {
+  if (!/id=["']video["']/.test(html) || !/id=["']viewer["']/.test(html)) return html;
+  const script = `<script>/* GMR video load diagnostic */(function(){
+  var v=document.getElementById('video'),viewer=document.getElementById('viewer');
+  if(!v||!viewer)return;
+  var box=null;
+  function anchor(){return document.getElementById('stage')||viewer;}
+  function show(msg){var a=anchor();if(getComputedStyle(a).position==='static')a.style.position='relative';
+    if(!box){box=document.createElement('div');box.setAttribute('role','alert');box.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:82%;background:rgba(14,23,38,.96);color:#eef3fa;font:600 14px/1.45 system-ui,Arial,sans-serif;padding:14px 16px;border-radius:10px;text-align:center;z-index:60';a.appendChild(box);}
+    box.textContent=msg;box.style.display='block';}
+  function hide(){if(box)box.style.display='none';}
+  v.addEventListener('error',function(){
+    var s=(v.currentSrc||v.getAttribute('src')||'');
+    var name=s?(s.split('/').pop().split('?')[0]):'the video clip';
+    show('This video didn\\u2019t load ('+name+'). It may be missing from the module or in a format this device can\\u2019t play. Try again, or let the administrator know.');
+  },true);
+  v.addEventListener('loadeddata',hide);v.addEventListener('playing',hide);
+})();</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, script + '</body>');
+  return html + script;
+}
+
 // Find the per-slide review time configured for the module served from this
 // package folder. A package can be attached to more than one lesson; we use the
 // first lesson that points at it. Falls back to the platform default when no
@@ -867,6 +896,7 @@ app.get('/scorm/:pkg/*', (req, res) => {
         }
         html = injectPlayerMobileFix(html);
         html = injectSlideGate(html, slideGateForPackage(pkg));
+        html = injectVideoError(html);
         return res.type('html').send(html);
       }
       return res.sendFile(file);

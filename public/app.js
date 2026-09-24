@@ -2058,7 +2058,7 @@ async function viewCourseAdmin(flash) {
     const ans = prompt(
       `Slide timer — how many SECONDS a learner must stay on each slide before "Next" turns on, ` +
       `for all ${scorm.length} module(s) in "${c.title}".\n\n` +
-      `Use 0 to turn it off, or 30 / 45 / 60 / 90. Slides with a video automatically wait at least 60s. ` +
+      `Use 0 to turn it off, or 15 / 30 / 45 / 60 / 90. Slides with a video automatically wait at least 60s. ` +
       `(Only affects our own slideshow modules; third-party packages ignore it.)`,
       String(cur));
     if (ans == null) return;
@@ -2489,7 +2489,7 @@ async function viewCourseAdmin(flash) {
         </label>
         ${(() => { const g = l && l.slideGateSeconds != null ? Number(l.slideGateSeconds) : 30; return `<label>Time on each slide before “Next”
           <select name="slideGateSeconds">
-            ${[[0, 'Off — no per-slide wait'], [30, '30 seconds'], [45, '45 seconds'], [60, '60 seconds'], [90, '90 seconds']].map(([v, t]) => `<option value="${v}" ${g === v ? 'selected' : ''}>${t}</option>`).join('')}
+            ${[[0, 'Off — no per-slide wait'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '60 seconds'], [90, '90 seconds']].map(([v, t]) => `<option value="${v}" ${g === v ? 'selected' : ''}>${t}</option>`).join('')}
           </select>
         </label>`; })()}
         <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
