@@ -2537,6 +2537,12 @@ async function viewCourseAdmin(flash) {
         <p class="form-hint" style="margin-top:2px">Reuse a package that's already on the server (no re-upload) — handy for rebuilding a course from modules you uploaded before.</p>
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
+        <input type="hidden" name="hiddenSlides" value="${l && Array.isArray(l.hiddenSlides) ? esc(JSON.stringify(l.hiddenSlides)) : '[]'}" />
+        <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
+          <button type="button" class="btn btn-ghost btn-sm" id="manageSlides">Manage slides</button>
+          <span id="slidesSummary" class="meta">${l && Array.isArray(l.hiddenSlides) && l.hiddenSlides.length ? `${l.hiddenSlides.length} slide(s) hidden` : ''}</span>
+        </div>
+        <div id="slidesPanel" class="slides-panel" hidden></div>
         <label>Minimum time on this module (minutes)
           <input name="minMinutes" type="number" min="0" step="0.5" value="${l && l.minSeconds != null ? (l.minSeconds / 60) : 0}" />
         </label>
@@ -2634,6 +2640,54 @@ async function viewCourseAdmin(flash) {
           } finally { useBtn.disabled = false; }
         });
       }
+      // Manage slides: tick which slides to hide. Non-destructive — the files
+      // stay on the server; the learner just never sees the hidden slides.
+      const manageBtn = document.getElementById('manageSlides');
+      if (manageBtn) manageBtn.addEventListener('click', async () => {
+        const panel = document.getElementById('slidesPanel');
+        const hiddenInput = form.querySelector('[name=hiddenSlides]');
+        if (!panel.hidden) { panel.hidden = true; manageBtn.textContent = 'Manage slides'; return; }
+        const pkg = form.querySelector('[name=packageId]').value;
+        if (!pkg) { document.getElementById('scormStatus').textContent = 'Upload or attach a package first.'; return; }
+        panel.hidden = false; manageBtn.textContent = 'Hide slide list';
+        panel.innerHTML = '<p class="meta">Loading slides…</p>';
+        let data;
+        try { data = await api(`/api/admin/scorm/${encodeURIComponent(pkg)}/slides`); }
+        catch (err) { panel.innerHTML = `<p class="meta">Couldn't load slides: ${esc(err.message || '')}</p>`; return; }
+        if (!data.slideshow) {
+          panel.innerHTML = '<p class="meta">This module isn’t one of our slideshow players, so slides can’t be hidden here. (Third-party packages like Rise are managed in their own software.)</p>';
+          return;
+        }
+        let hiddenNow = [];
+        try { hiddenNow = JSON.parse(hiddenInput.value || '[]'); } catch { hiddenNow = []; }
+        const hset = new Set(hiddenNow);
+        const grid = data.slides.map((s) => `
+          <label class="slide-chip${hset.has(s.n) ? ' is-hidden' : ''}" data-n="${s.n}">
+            <input type="checkbox" class="slide-hide" data-n="${s.n}" ${hset.has(s.n) ? '' : 'checked'} />
+            <span class="slide-thumb">${s.thumb ? `<img loading="lazy" src="${esc(s.thumb)}" alt="" />` : '🎬'}</span>
+            <span class="slide-cap"><strong>${s.n}.</strong> ${esc(s.title)}${s.type === 'video' ? ' · 🎬 video' : ''}</span>
+          </label>`).join('');
+        panel.innerHTML = `
+          <p class="form-hint" style="margin:6px 0">Untick a slide to <strong>hide</strong> it from learners. Nothing is deleted — you can tick it back any time. Then click <strong>Save lesson</strong>.</p>
+          <div class="slides-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <button type="button" class="btn btn-ghost btn-sm" id="slidesAll">Show all</button>
+            <span id="slidesCount" class="meta"></span>
+          </div>
+          <div class="slides-grid">${grid}</div>`;
+        const recount = () => {
+          const hides = Array.from(panel.querySelectorAll('.slide-hide')).filter((c) => !c.checked).map((c) => Number(c.dataset.n)).sort((a, b) => a - b);
+          hiddenInput.value = JSON.stringify(hides);
+          panel.querySelectorAll('.slide-chip').forEach((chip) => chip.classList.toggle('is-hidden', hides.includes(Number(chip.dataset.n))));
+          const summary = document.getElementById('slidesSummary');
+          if (summary) summary.textContent = hides.length ? `${hides.length} slide(s) hidden` : '';
+          const cnt = document.getElementById('slidesCount');
+          if (cnt) cnt.textContent = `${data.slides.length - hides.length} shown, ${hides.length} hidden`;
+        };
+        panel.querySelectorAll('.slide-hide').forEach((c) => c.addEventListener('change', recount));
+        const showAll = document.getElementById('slidesAll');
+        if (showAll) showAll.addEventListener('click', () => { panel.querySelectorAll('.slide-hide').forEach((c) => { c.checked = true; }); recount(); });
+        recount();
+      });
     };
     sel.addEventListener('change', render);
     render();
@@ -2654,6 +2708,7 @@ async function viewCourseAdmin(flash) {
         payload.minMinutes = fd.get('minMinutes');
         payload.expectedMinutes = fd.get('expectedMinutes');
         payload.slideGateSeconds = fd.get('slideGateSeconds');
+        try { payload.hiddenSlides = JSON.parse(fd.get('hiddenSlides') || '[]'); } catch { payload.hiddenSlides = []; }
         if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
       }
       if (type === 'quiz') {

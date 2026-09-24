@@ -43,6 +43,40 @@ async function upload(api, html, name) {
   return (await up.json()).packageId;
 }
 
+// Build a package with arbitrary files (used by the slide-hiding tests, which
+// need a real manifest.js + media on disk). Always includes a valid SCORM
+// imsmanifest.xml so the upload endpoint accepts it.
+function filesZip(files) {
+  const zip = new AdmZip();
+  zip.addFile('imsmanifest.xml', Buffer.from(`<?xml version="1.0"?>
+<manifest identifier="M" version="1.2"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2">
+  <organizations default="O"><organization identifier="O"><title>M</title></organization></organizations>
+  <resources><resource identifier="R" type="webcontent" adlcp:scormtype="sco" href="index.html"><file href="index.html"/></resource></resources>
+</manifest>`, 'utf8'));
+  for (const [p, body] of Object.entries(files)) zip.addFile(p, Buffer.from(body, 'utf8'));
+  return zip.toBuffer();
+}
+
+async function uploadFiles(api, files, name) {
+  const up = await api.post(`/api/admin/scorm?name=${name}`, {
+    headers: { 'content-type': 'application/zip' }, data: filesZip(files),
+  });
+  return (await up.json()).packageId;
+}
+
+// A faithful slideshow package: manifest.js globals + media/item-00N files whose
+// bytes identify the original slide, so a remap is provable.
+const SLIDESHOW_FILES = {
+  'index.html': '<!doctype html><html><body><div id="viewer"><span id="counter">1 / 4</span><button id="nextBtn">Next</button></div><script src="manifest.js"></script></body></html>',
+  'manifest.js': 'var ITEMS=["i","i","i","v"];var TITLES=["Facilitator Guidance","Intro Two","Real Content","The Video"];var FPS=[0,0,0,30];',
+  'media/item-001.jpg': 'ORIGINAL-1',
+  'media/item-002.jpg': 'ORIGINAL-2',
+  'media/item-003.jpg': 'ORIGINAL-3',
+  'media/item-004.mp4': 'ORIGINAL-4',
+};
+
 test('the phone toolbar fix is injected into our player launch HTML', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
@@ -208,4 +242,63 @@ test('Next is held per slide (30s / 60s video), keyboard blocked, no re-gate on 
   await expect(page.locator('#counter')).toHaveText('1 / 3');
   await expect(next).toBeEnabled();
   await ctx.close();
+});
+
+test('slide inventory lists every slide with its title and type', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await uploadFiles(api, SLIDESHOW_FILES, 'SlidesInv');
+  const inv = await (await api.get(`/api/admin/scorm/${pkg}/slides`)).json();
+  expect(inv.slideshow).toBe(true);
+  expect(inv.count).toBe(4);
+  expect(inv.slides.map((s) => s.title)).toEqual(['Facilitator Guidance', 'Intro Two', 'Real Content', 'The Video']);
+  expect(inv.slides[3].type).toBe('video');
+  expect(inv.slides[0].thumb).toContain('/rawmedia/media/item-001.jpg');
+
+  // A third-party package (no manifest.js) reports slideshow:false.
+  const other = await upload(api, OTHER_HTML, 'SlidesInvOther');
+  const invOther = await (await api.get(`/api/admin/scorm/${other}/slides`)).json();
+  expect(invOther.slideshow).toBe(false);
+});
+
+test('hiding slides trims the served manifest and remaps media to the originals', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await uploadFiles(api, SLIDESHOW_FILES, 'SlidesHide');
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Hide', audience: 'coaches' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'M', packageId: pkg, hiddenSlides: [1, 2] } });
+
+  // manifest.js now describes only the two visible slides, in order.
+  const man = await (await api.get(`/scorm/${pkg}/manifest.js`)).text();
+  expect(man).toContain('var ITEMS=["i","v"]');
+  expect(man).toContain('var TITLES=["Real Content","The Video"]');
+  expect(man).toContain('var FPS=[0,30]');
+
+  // The player asks for item-001/002 (positional in the trimmed deck); it must
+  // receive the ORIGINAL slide 3 and 4 bytes.
+  expect(await (await api.get(`/scorm/${pkg}/media/item-001.jpg`)).text()).toBe('ORIGINAL-3');
+  expect(await (await api.get(`/scorm/${pkg}/media/item-002.mp4`)).text()).toBe('ORIGINAL-4');
+
+  // The admin raw route always shows the true originals (ignores hiding).
+  expect(await (await api.get(`/api/admin/scorm/${pkg}/rawmedia/media/item-001.jpg`)).text()).toBe('ORIGINAL-1');
+});
+
+test('a module with no hidden slides is served completely untouched', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await uploadFiles(api, SLIDESHOW_FILES, 'SlidesNone');
+  const man = await (await api.get(`/scorm/${pkg}/manifest.js`)).text();
+  expect(man).toContain('var ITEMS=["i","i","i","v"]');
+  expect(await (await api.get(`/scorm/${pkg}/media/item-001.jpg`)).text()).toBe('ORIGINAL-1');
+});
+
+test('a partial (minutes-only) save keeps the hidden slides', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await uploadFiles(api, SLIDESHOW_FILES, 'SlidesKeep');
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'HideKeep', audience: 'coaches' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'M', packageId: pkg, hiddenSlides: [1, 2, 3] } })).json()).lesson.id;
+  await api.put(`/api/admin/courses/${courseId}/lessons/${lessonId}`, { data: { type: 'scorm', title: 'M', packageId: pkg, launchFile: 'index.html', minMinutes: 3 } });
+  const man = await (await api.get(`/scorm/${pkg}/manifest.js`)).text();
+  expect(man).toContain('var ITEMS=["v"]'); // only slide 4 remains
 });

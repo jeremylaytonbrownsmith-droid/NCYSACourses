@@ -752,14 +752,108 @@ function slideGateForPackage(pkg) {
   return DEFAULT_SLIDE_GATE_SECONDS;
 }
 
+// The slides hidden for the module served from this package (original 1-based
+// numbers). First lesson pointing at the package wins; [] when none.
+function hiddenSlidesForPackage(pkg) {
+  try {
+    for (const c of allCourses()) {
+      for (const l of (c.lessons || [])) {
+        if (l && l.type === 'scorm' && l.packageId === pkg && Array.isArray(l.hiddenSlides) && l.hiddenSlides.length) {
+          return l.hiddenSlides;
+        }
+      }
+    }
+  } catch (e) { /* none */ }
+  return [];
+}
+
+// Read a package's manifest.js and pull out its ITEMS ("i"/"v" per slide) and
+// TITLES arrays. Returns null when the file is missing or ITEMS can't be parsed
+// (so a non-slideshow package is never touched). Also returns the raw text and
+// every top-level `var NAME=[...]` array literal it could JSON-parse, so we can
+// trim per-slide arrays generically without knowing all their names.
+function readSlideManifest(base) {
+  const file = path.join(base, 'manifest.js');
+  if (!fs.existsSync(file)) return null;
+  let text;
+  try { text = fs.readFileSync(file, 'utf8'); } catch { return null; }
+  const arrays = {}; // name -> { value:[], litStart, litEnd } (offsets of the [...] literal)
+  const re = /(?:var|const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(\[[\s\S]*?\])\s*;/g;
+  let m;
+  while ((m = re.exec(text))) {
+    const litStart = m.index + m[0].indexOf(m[2]);
+    try { arrays[m[1]] = { value: JSON.parse(m[2]), litStart, litEnd: litStart + m[2].length }; }
+    catch { /* not a plain JSON array (skip) */ }
+  }
+  if (!arrays.ITEMS || !Array.isArray(arrays.ITEMS.value)) return null;
+  return { text, arrays, items: arrays.ITEMS.value, titles: arrays.TITLES ? arrays.TITLES.value : null };
+}
+
+// Rewrite manifest.js so the player sees only the visible slides, in order.
+// Every top-level array whose length equals the original slide count is treated
+// as per-slide (ITEMS, TITLES, FPS, …) and trimmed by the same mask; other
+// declarations are left exactly as they were.
+function rewriteManifestForHidden(man, hiddenSet) {
+  const L = man.items.length;
+  const keep = []; // 0-based positions to keep
+  for (let p = 0; p < L; p++) if (!hiddenSet.has(p + 1)) keep.push(p);
+  if (!keep.length) return man.text; // never hide everything — serve as-is
+  // Replace matching array literals from the end so earlier offsets stay valid.
+  const edits = Object.values(man.arrays)
+    .filter((a) => Array.isArray(a.value) && a.value.length === L)
+    .sort((a, b) => b.litStart - a.litStart);
+  let out = man.text;
+  for (const a of edits) {
+    const trimmed = keep.map((p) => a.value[p]);
+    out = out.slice(0, a.litStart) + JSON.stringify(trimmed) + out.slice(a.litEnd);
+  }
+  return out;
+}
+
+// Map a media request against the visible deck back to the original file.
+// The player asks for media/item-<newIndex> (positional in the trimmed deck);
+// we serve the original slide's file. Returns the rewritten relative path, or
+// null when the request isn't an item-N media path.
+function remapMediaRel(rel, keep) {
+  const m = /^media\/item-(\d+)(\D[\s\S]*)?$/i.exec(rel);
+  if (!m) return null;
+  const newIdx = parseInt(m[1], 10); // 1-based position in the trimmed deck
+  if (!Number.isInteger(newIdx) || newIdx < 1 || newIdx > keep.length) return null;
+  const orig = keep[newIdx - 1] + 1; // 1-based original slide number
+  const pad = String(orig).padStart(Math.max(3, m[1].length), '0');
+  return 'media/item-' + pad + (m[2] || '');
+}
+
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
 app.get('/scorm/:pkg/*', (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   let rel = String(req.params[0] || 'index.html').replace(/\\/g, '/').replace(/^\/+/, '');
   if (!rel) rel = 'index.html';
+  // Slides an admin has hidden for this module (original 1-based numbers). When
+  // set, the player is served a trimmed deck: manifest.js is rewritten to the
+  // visible slides and media/item-NNN requests are remapped to the originals.
+  // Nothing on disk changes, so this is fully reversible and never breaks the
+  // package. Empty for every third-party or unedited module.
+  const hidden = hiddenSlidesForPackage(pkg);
+  const hiddenSet = new Set(hidden);
   for (const root of [SCORM_DIR, BUNDLED_SCORM_DIR]) {
     const base = path.resolve(root, pkg); // absolute base so containment holds for relative SCORM_DIR
+    // Trimmed-deck handling for our slideshow player (only when slides are hidden
+    // and this really is our player, i.e. a parseable manifest.js).
+    if (hidden.length && fs.existsSync(base)) {
+      const man = readSlideManifest(base);
+      if (man) {
+        const keep = man.items.map((_, p) => p).filter((p) => !hiddenSet.has(p + 1));
+        if (keep.length) {
+          if (rel === 'manifest.js') {
+            return res.type('application/javascript').send(rewriteManifestForHidden(man, hiddenSet));
+          }
+          const remapped = remapMediaRel(rel, keep);
+          if (remapped) rel = remapped;
+        }
+      }
+    }
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
@@ -1771,7 +1865,14 @@ function buildLesson(body) {
     // behavior modules had before this became configurable.
     let slideGateSeconds = DEFAULT_SLIDE_GATE_SECONDS;
     if (body.slideGateSeconds != null) slideGateSeconds = Math.min(600, Math.max(0, Math.round(Number(body.slideGateSeconds)) || 0));
-    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, expectedSeconds, slideGateSeconds };
+    // Slides to hide from our slideshow player (original 1-based slide numbers).
+    // Non-destructive: the files stay on disk; the player is served a trimmed
+    // deck (see the /scorm serve path). Sanitized to unique positive integers.
+    let hiddenSlides = [];
+    if (Array.isArray(body.hiddenSlides)) {
+      hiddenSlides = [...new Set(body.hiddenSlides.map((n) => Math.round(Number(n))).filter((n) => Number.isInteger(n) && n >= 1))].sort((a, b) => a - b).slice(0, 2000);
+    }
+    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, expectedSeconds, slideGateSeconds, hiddenSlides };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -1966,6 +2067,10 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   // Fly-through length) mustn't silently reset it.
   if (body.type === 'scorm' && body.slideGateSeconds == null && existing.slideGateSeconds != null) {
     body.slideGateSeconds = existing.slideGateSeconds;
+  }
+  // Same for hidden slides — a partial save mustn't un-hide slides.
+  if (body.type === 'scorm' && !Array.isArray(body.hiddenSlides) && Array.isArray(existing.hiddenSlides)) {
+    body.hiddenSlides = existing.hiddenSlides;
   }
   course.lessons[idx] = buildLesson(body);
   save();
@@ -2385,6 +2490,39 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
     nonMedia: files.filter((f) => !/^media\//i.test(f.path)).map((f) => f.path).slice(0, 40),
     files: files.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
   });
+});
+
+// Slide inventory for the "Manage slides" editor: every slide in our slideshow
+// player, by original number, with its title and whether it's an image or video.
+// Returns slideshow:false for a package that isn't our player (no parseable
+// manifest.js) so the UI can explain hiding isn't available for it.
+app.get('/api/admin/scorm/:pkg/slides', requireEditor, (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
+  const man = readSlideManifest(base);
+  if (!man) return res.json({ packageId: pkg, slideshow: false, slides: [] });
+  const slides = man.items.map((t, i) => ({
+    n: i + 1,
+    type: t === 'v' ? 'video' : 'image',
+    title: (man.titles && man.titles[i] != null && String(man.titles[i]).trim()) ? String(man.titles[i]) : `Slide ${i + 1}`,
+    // Original file, shown through the raw admin route so the preview ignores any
+    // hiding currently in effect (admins always see the true, full deck).
+    thumb: t === 'v' ? null : `/api/admin/scorm/${encodeURIComponent(pkg)}/rawmedia/media/item-${String(i + 1).padStart(3, '0')}.jpg`,
+  }));
+  res.json({ packageId: pkg, slideshow: true, count: slides.length, slides });
+});
+
+// Serve a package file straight from disk with NO trimmed-deck remap, for the
+// Manage-slides thumbnails — admins must always see the real, original slides.
+app.get('/api/admin/scorm/:pkg/rawmedia/*', requireEditor, (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const rel = String(req.params[0] || '').replace(/\\/g, '/').replace(/^\/+/, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  const file = path.resolve(base, rel);
+  if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return res.status(404).end();
+  res.sendFile(file);
 });
 app.post('/api/admin/scorm/cleanup', requireEditor, (req, res) => {
   const mode = (req.body && req.body.mode) === 'all' ? 'all' : 'orphans';

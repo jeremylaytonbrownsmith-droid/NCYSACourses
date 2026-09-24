@@ -880,3 +880,16 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   .flow .ft { font-size: 18px; } .flow .fs { font-size: 13px; } .flow .wlabel { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .lp-badge .dot, .flow .fnode { animation: none !important; } }
+
+/* Manage-slides panel in the Course Designer: a thumbnail grid where an admin
+   ticks which slides learners see. Hidden slides dim to make the state obvious. */
+.slides-panel { border: 1px solid var(--line, #d7deea); border-radius: 10px; padding: 10px 12px; margin-top: 6px; background: rgba(0,0,0,.02); }
+.slides-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.slide-chip { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line, #d7deea); border-radius: 8px; padding: 8px; cursor: pointer; background: #fff; position: relative; }
+.slide-chip .slide-thumb { display: flex; align-items: center; justify-content: center; height: 84px; background: #0e1726; border-radius: 6px; overflow: hidden; font-size: 26px; }
+.slide-chip .slide-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.slide-chip .slide-cap { font-size: 12px; line-height: 1.3; color: var(--ink, #1b2430); }
+.slide-chip .slide-hide { position: absolute; top: 6px; left: 6px; width: 18px; height: 18px; }
+.slide-chip.is-hidden { opacity: .5; border-style: dashed; }
+.slide-chip.is-hidden .slide-cap::after { content: ' · hidden'; color: #b23; font-weight: 700; }
+@media (max-width: 640px) { .slides-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
