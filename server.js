@@ -910,6 +910,16 @@ app.get('/scorm/:pkg/*', (req, res) => {
       return res.sendFile(file);
     }
   }
+  // Video fallback → Bunny CDN. Once a video is offloaded to Bunny its local
+  // copy is deleted and the package gets a .cdn marker that makes the player
+  // load the video straight from Bunny. If that marker is lost (e.g. the app's
+  // disk was reset on a redeploy while the videos live safely in Bunny), the
+  // player asks us for the now-deleted local file. Rather than 404, redirect to
+  // the Bunny copy so the video plays with no re-upload. Only for real video
+  // requests, and only when Bunny is configured.
+  if (bunnyEnabled() && VIDEO_EXT_RE.test(rel)) {
+    return res.redirect(302, `https://${BUNNY.cdn.replace(/\/+$/, '')}/${pkg}/${rel}`);
+  }
   // The launch page missing usually means the package files aren't on disk
   // (e.g. uploaded to ephemeral storage, then lost on a redeploy). Show a clear
   // message inside the iframe instead of a blank black player, so it's obvious
