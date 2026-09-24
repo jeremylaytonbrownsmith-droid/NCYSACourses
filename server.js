@@ -629,6 +629,22 @@ function videoMime(rel) {
   if (/\.m4v$/i.test(rel)) return 'video/x-m4v';
   return 'video/mp4';
 }
+// Does a file exist in Bunny storage? A tiny Range GET (bytes=0-0) so we don't
+// pull the whole video just to check. Used by the slide inventory so a video
+// that was offloaded to Bunny (its local copy deleted) isn't falsely flagged as
+// "missing" — only a video that's truly gone from Bunny is. Returns false when
+// Bunny is off or unreachable.
+async function bunnyHas(pkg, rel) {
+  if (!bunnyEnabled()) return false;
+  const url = `https://${BUNNY.host.replace(/\/+$/, '')}/${BUNNY.zone}/${pkg}/${rel}`;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(url, { headers: { AccessKey: BUNNY.key, Range: 'bytes=0-0' }, signal: ac.signal });
+    clearTimeout(timer);
+    return r.ok || r.status === 206;
+  } catch (e) { clearTimeout(timer); return false; }
+}
 // Stream a video straight from Bunny STORAGE through us (same-origin), using the
 // storage Access Key. This is the reliable path when a package's local video was
 // dropped after offload and the CDN pull-zone delivery isn't serving it: the file
@@ -2509,7 +2525,7 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
 // player, by original number, with its title and whether it's an image or video.
 // Returns slideshow:false for a package that isn't our player (no parseable
 // manifest.js) so the UI can explain hiding isn't available for it.
-app.get('/api/admin/scorm/:pkg/slides', requireEditor, (req, res) => {
+app.get('/api/admin/scorm/:pkg/slides', requireEditor, async (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
@@ -2518,21 +2534,28 @@ app.get('/api/admin/scorm/:pkg/slides', requireEditor, (req, res) => {
   const slides = man.items.map((t, i) => {
     const pad = String(i + 1).padStart(3, '0');
     const rel = 'media/item-' + pad + (t === 'v' ? '.mp4' : '.jpg');
-    // Whether the slide's media file is actually on disk — surfaces "file
-    // missing" right in Manage slides, so a broken clip (e.g. a video that
-    // didn't upload) is obvious without playing through the whole module.
-    let missing = true;
-    try { const f = path.resolve(base, rel); missing = !(f.startsWith(base + path.sep) && fs.existsSync(f) && fs.statSync(f).isFile()); } catch { missing = true; }
+    // Is the media on the local disk?
+    let onDisk = false;
+    try { const f = path.resolve(base, rel); onDisk = f.startsWith(base + path.sep) && fs.existsSync(f) && fs.statSync(f).isFile(); } catch { onDisk = false; }
     return {
       n: i + 1,
       type: t === 'v' ? 'video' : 'image',
       title: (man.titles && man.titles[i] != null && String(man.titles[i]).trim()) ? String(man.titles[i]) : `Slide ${i + 1}`,
-      missing,
+      rel,
+      onDisk,
+      onBunny: false, // filled in below for videos that aren't on disk
       // Original file, shown through the raw admin route so the preview ignores any
       // hiding currently in effect (admins always see the true, full deck).
       thumb: t === 'v' ? null : `/api/admin/scorm/${encodeURIComponent(pkg)}/rawmedia/${rel}`,
     };
   });
+  // Videos are offloaded to Bunny and deleted locally, so "not on disk" doesn't
+  // mean missing. For each video that's not on disk, check Bunny before flagging
+  // it — only a video that's in neither place is truly missing (needs re-upload).
+  await Promise.all(slides
+    .filter((s) => s.type === 'video' && !s.onDisk)
+    .map(async (s) => { s.onBunny = await bunnyHas(pkg, s.rel); }));
+  for (const s of slides) { s.missing = !(s.onDisk || s.onBunny); delete s.rel; }
   res.json({ packageId: pkg, slideshow: true, count: slides.length, missingCount: slides.filter((s) => s.missing).length, slides });
 });
 
