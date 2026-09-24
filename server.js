@@ -621,6 +621,42 @@ async function bunnyPut(remotePath, filePath) {
   });
   if (!res.ok) throw new Error(`Bunny PUT ${res.status} for ${remotePath}`);
 }
+// Best-guess video MIME from the file extension, so the streamed response carries
+// a real video type even if Bunny storage returns application/octet-stream.
+function videoMime(rel) {
+  if (/\.webm$/i.test(rel)) return 'video/webm';
+  if (/\.mov$/i.test(rel)) return 'video/quicktime';
+  if (/\.m4v$/i.test(rel)) return 'video/x-m4v';
+  return 'video/mp4';
+}
+// Stream a video straight from Bunny STORAGE through us (same-origin), using the
+// storage Access Key. This is the reliable path when a package's local video was
+// dropped after offload and the CDN pull-zone delivery isn't serving it: the file
+// is in storage (that's where the offload put it), so we fetch and relay it,
+// forwarding Range so the browser can seek. Sends the response itself: the video
+// on success, 404 if Bunny doesn't have it, 502 if Bunny is unreachable.
+async function pipeBunnyVideo(req, res, pkg, rel) {
+  const url = `https://${BUNNY.host.replace(/\/+$/, '')}/${BUNNY.zone}/${pkg}/${rel}`;
+  const headers = { AccessKey: BUNNY.key };
+  if (req.headers.range) headers.Range = req.headers.range;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 20000);
+  let r;
+  try { r = await fetch(url, { headers, signal: ac.signal }); }
+  catch (e) { clearTimeout(timer); if (!res.headersSent) res.status(502).end(); return; }
+  clearTimeout(timer);
+  if (!(r.ok || r.status === 206)) { if (!res.headersSent) res.status(r.status === 404 ? 404 : 502).end(); return; }
+  res.status(r.status);
+  const ct = r.headers.get('content-type') || '';
+  res.setHeader('Content-Type', /^(video|audio)\//i.test(ct) ? ct : videoMime(rel));
+  for (const h of ['content-length', 'content-range', 'etag', 'last-modified']) {
+    const v = r.headers.get(h); if (v) res.setHeader(h, v);
+  }
+  res.setHeader('Accept-Ranges', r.headers.get('accept-ranges') || 'bytes');
+  if (req.method === 'HEAD' || !r.body) { res.end(); return; }
+  try { require('stream').Readable.fromWeb(r.body).on('error', () => { try { res.destroy(); } catch (e) {} }).pipe(res); }
+  catch (e) { if (!res.headersSent) res.status(502).end(); }
+}
 // Video file extensions we offload — MUST match what the CDN shim rewrites
 // (below), or a package with e.g. .mov videos would be rewritten to a CDN URL
 // that was never uploaded. Kept in one place so the two never drift apart.
@@ -863,7 +899,7 @@ function remapMediaRel(rel, keep) {
 
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
-app.get('/scorm/:pkg/*', (req, res) => {
+app.get('/scorm/:pkg/*', async (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   let rel = String(req.params[0] || 'index.html').replace(/\\/g, '/').replace(/^\/+/, '');
   if (!rel) rel = 'index.html';
@@ -910,15 +946,16 @@ app.get('/scorm/:pkg/*', (req, res) => {
       return res.sendFile(file);
     }
   }
-  // Video fallback → Bunny CDN. Once a video is offloaded to Bunny its local
-  // copy is deleted and the package gets a .cdn marker that makes the player
-  // load the video straight from Bunny. If that marker is lost (e.g. the app's
-  // disk was reset on a redeploy while the videos live safely in Bunny), the
-  // player asks us for the now-deleted local file. Rather than 404, redirect to
-  // the Bunny copy so the video plays with no re-upload. Only for real video
-  // requests, and only when Bunny is configured.
+  // Video fallback → stream from Bunny storage. Once a video is offloaded to
+  // Bunny its local copy is deleted; the package normally gets a .cdn marker so
+  // the player loads it from the Bunny CDN. If that marker is lost (the app's
+  // disk was reset on a redeploy) or the CDN pull-zone isn't delivering, the
+  // player asks us for the now-deleted local file. The video is still in Bunny
+  // storage, so we stream it back ourselves (same-origin, Range-aware) instead
+  // of 404-ing. No re-upload needed. Only for real video requests, only when
+  // Bunny is configured.
   if (bunnyEnabled() && VIDEO_EXT_RE.test(rel)) {
-    return res.redirect(302, `https://${BUNNY.cdn.replace(/\/+$/, '')}/${pkg}/${rel}`);
+    return pipeBunnyVideo(req, res, pkg, rel);
   }
   // The launch page missing usually means the package files aren't on disk
   // (e.g. uploaded to ephemeral storage, then lost on a redeploy). Show a clear
