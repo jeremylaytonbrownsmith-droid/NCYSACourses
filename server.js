@@ -696,6 +696,40 @@ function injectPlayerMobileFix(html) {
   return html + style;
 }
 
+// Per-slide review gate for OUR slideshow player only. Holds the Next control
+// (and the keyboard/swipe "next" paths) for a minimum time on each slide so a
+// learner has to actually look at it: 30 seconds on a normal slide, 60 on a
+// video slide. A slide already waited on is not re-gated when revisited, the
+// last slide is left alone, and a live countdown shows why Next is disabled.
+// Durations can be overridden with window.GMR_GATE_SLIDE / GMR_GATE_VIDEO
+// (used by tests). Scoped by the player's own ids so third-party packages are
+// never touched.
+function injectSlideGate(html) {
+  if (!/id=["']nextBtn["']/.test(html) || !/id=["']counter["']/.test(html) || !/id=["']viewer["']/.test(html)) return html;
+  const script = `<script>/* GMR per-slide review gate */(function(){
+  var SL=(+window.GMR_GATE_SLIDE||30),VID=(+window.GMR_GATE_VIDEO||60);
+  var nextBtn=document.getElementById('nextBtn'),counter=document.getElementById('counter'),viewer=document.getElementById('viewer');
+  if(!nextBtn||!counter||!viewer)return;
+  var done={},locked=false,endAt=0,iv=null;
+  var lbl=document.createElement('span');lbl.style.cssText='margin-left:10px;font-size:13px;color:#9fb4d6;font-weight:700;white-space:nowrap';
+  nextBtn.parentNode.insertBefore(lbl,nextBtn);
+  function nums(){var p=counter.textContent.split('/');return {c:parseInt(p[0],10)||1,t:parseInt(p[1],10)||1};}
+  function isVideo(){return viewer.classList.contains('has-video');}
+  function clr(){if(iv){clearInterval(iv);iv=null;}}
+  function paint(){var r=Math.max(0,Math.ceil((endAt-Date.now())/1000));if(r<=0){unlock();return;}var m=Math.floor(r/60),s=r%60;lbl.textContent='You can continue in '+(m?m+':'+(s<10?'0':'')+s:r+'s');}
+  function lock(){locked=true;nextBtn.disabled=true;nextBtn.style.opacity='.45';endAt=Date.now()+(isVideo()?VID:SL)*1000;paint();clr();iv=setInterval(paint,250);}
+  function unlock(){locked=false;clr();lbl.textContent='';nextBtn.disabled=false;nextBtn.style.opacity='';done[nums().c]=true;}
+  function onSlide(){var n=nums();if(n.c>=n.t){locked=false;clr();lbl.textContent='';return;}if(done[n.c]){locked=false;clr();lbl.textContent='';nextBtn.disabled=false;nextBtn.style.opacity='';return;}setTimeout(lock,0);}
+  document.addEventListener('keydown',function(e){if(!locked)return;var k=e.key,f=(k==='PageDown')||((k==='ArrowRight'||k===' '||k==='Spacebar')&&!isVideo());if(f){e.preventDefault();e.stopImmediatePropagation();}},true);
+  var sx=0;document.addEventListener('touchstart',function(e){if(e.changedTouches.length)sx=e.changedTouches[0].clientX;},true);
+  document.addEventListener('touchend',function(e){if(!locked||!e.changedTouches.length)return;if(e.changedTouches[0].clientX-sx<-40){e.preventDefault();e.stopImmediatePropagation();}},true);
+  new MutationObserver(onSlide).observe(counter,{childList:true,characterData:true,subtree:true});
+  onSlide();
+})();</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, script + '</body>');
+  return html + script;
+}
+
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
 app.get('/scorm/:pkg/*', (req, res) => {
@@ -716,6 +750,7 @@ app.get('/scorm/:pkg/*', (req, res) => {
           html = injectCdnShim(html, fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim());
         }
         html = injectPlayerMobileFix(html);
+        html = injectSlideGate(html);
         return res.type('html').send(html);
       }
       return res.sendFile(file);

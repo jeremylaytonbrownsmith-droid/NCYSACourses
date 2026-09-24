@@ -76,14 +76,23 @@ test('Full screen falls back to a CSS fill-screen mode where the fullscreen API 
   await ctx.addInitScript(() => { try { Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => false }); } catch (e) {} });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/`);
-  // Register + enroll through the shared cookie jar, then load the lesson fresh.
+  // Register + enroll through the shared cookie jar, then confirm the session is
+  // live before navigating (avoids a race where the cookie is not yet applied and
+  // the lesson route bounces to home).
   await page.request.post(`${BASE}/api/register`, { data: { firstName: 'FS', lastName: 'Test', email: `fs${Date.now()}@example.com` } });
   await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
-  await page.goto(`${BASE}/#/course/${courseId}/lesson/${lessonId}`);
-  await page.reload();
-
+  await expect.poll(async () => {
+    const me = await (await page.request.get(`${BASE}/api/me`)).json();
+    return me.user ? me.user.role : null;
+  }, { timeout: 8000 }).not.toBeNull();
   const fsBtn = page.locator('#scormFsBtn');
-  await expect(fsBtn).toBeVisible({ timeout: 15000 });
+  let opened = false;
+  for (let i = 0; i < 3 && !opened; i++) {
+    await page.goto(`${BASE}/#/course/${courseId}/lesson/${lessonId}`, { waitUntil: 'load' });
+    await page.reload({ waitUntil: 'load' });
+    opened = await fsBtn.waitFor({ state: 'visible', timeout: 7000 }).then(() => true).catch(() => false);
+  }
+  expect(opened).toBe(true);
   await fsBtn.click();
   // The module shell expands to cover the viewport, with a Close button.
   const shell = page.locator('.scorm-shell.pseudo-fs');
@@ -96,5 +105,74 @@ test('Full screen falls back to a CSS fill-screen mode where the fullscreen API 
   expect(box.height).toBeGreaterThanOrEqual(800);
   await page.locator('.pseudo-fs-exit').click();
   await expect(page.locator('.scorm-shell.pseudo-fs')).toHaveCount(0);
+  await ctx.close();
+});
+
+// A faithful mini-player: same element ids and slide-change contract as our real
+// slideshow player (counter "X / N", #viewer.has-video for video slides), so the
+// injected per-slide gate hooks into it exactly as it would the real thing.
+const MINI_PLAYER = `<!doctype html><html><head><title>Mini</title></head><body>
+  <div id="viewer" class="viewer">
+    <img id="slide"><video id="video" style="display:none"></video>
+    <div id="toolbar" class="toolbar">
+      <button id="menuBtn">menu</button>
+      <button id="prevBtn">Prev</button>
+      <span id="counter">1 / 3</span>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+  <script>
+    var cur=0,TOTAL=3,VID=1;
+    var counter=document.getElementById('counter'),viewer=document.getElementById('viewer'),nextBtn=document.getElementById('nextBtn'),prevBtn=document.getElementById('prevBtn');
+    function render(){counter.textContent=(cur+1)+' / '+TOTAL;if(cur===VID)viewer.classList.add('has-video');else viewer.classList.remove('has-video');prevBtn.disabled=(cur===0);nextBtn.disabled=(cur===TOTAL-1);}
+    function next(){if(cur<TOTAL-1){cur++;render();}}
+    function prev(){if(cur>0){cur--;render();}}
+    nextBtn.addEventListener('click',next);prevBtn.addEventListener('click',prev);
+    document.addEventListener('keydown',function(e){if(e.key==='PageDown'||e.key==='ArrowRight')next();if(e.key==='PageUp'||e.key==='ArrowLeft')prev();});
+    render();
+  <\/script>
+</body></html>`;
+
+test('the per-slide review gate is injected into our player, not third-party packages', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await upload(api, MINI_PLAYER, 'GatePkg');
+  const served = await (await api.get(`/scorm/${pkg}/index.html`)).text();
+  expect(served).toContain('GMR per-slide review gate');
+  const other = await upload(api, OTHER_HTML, 'GateOtherPkg');
+  const servedOther = await (await api.get(`/scorm/${other}/index.html`)).text();
+  expect(servedOther).not.toContain('GMR per-slide review gate');
+});
+
+test('Next is held per slide (30s / 60s video), keyboard blocked, no re-gate on revisit', async ({ playwright, browser }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await upload(api, MINI_PLAYER, 'GateBehave');
+
+  const ctx = await browser.newContext();
+  // Shorten the gate for the test: 1s per slide, 2s on video.
+  await ctx.addInitScript(() => { window.GMR_GATE_SLIDE = 1; window.GMR_GATE_VIDEO = 2; });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/scorm/${pkg}/index.html`);
+
+  const next = page.locator('#nextBtn');
+  // Slide 1: gated -> disabled with countdown, then enabled after ~1s.
+  await expect(next).toBeDisabled();
+  await expect(page.locator('#counter')).toHaveText('1 / 3');
+  await expect(next).toBeEnabled({ timeout: 4000 });
+
+  // Keyboard "next" is blocked while a fresh slide is gated.
+  await next.click(); // -> slide 2 (video), re-gated
+  await expect(page.locator('#counter')).toHaveText('2 / 3');
+  await expect(next).toBeDisabled();
+  await page.keyboard.press('PageDown');            // should be blocked while gated
+  await expect(page.locator('#counter')).toHaveText('2 / 3');
+  // Video slide waits longer (2s here); it eventually unlocks.
+  await expect(next).toBeEnabled({ timeout: 5000 });
+
+  // Go back to slide 1 (already waited) -> Next is immediately available, no re-wait.
+  await page.locator('#prevBtn').click();
+  await expect(page.locator('#counter')).toHaveText('1 / 3');
+  await expect(next).toBeEnabled();
   await ctx.close();
 });
