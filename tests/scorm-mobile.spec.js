@@ -144,6 +144,39 @@ test('the per-slide review gate is injected into our player, not third-party pac
   expect(servedOther).not.toContain('GMR per-slide review gate');
 });
 
+test('the per-slide time is taken from the module’s "Time on each slide" setting', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+
+  // A module set to 45s per slide bakes 45 (and 60 for video) into the gate.
+  const pkg45 = await upload(api, MINI_PLAYER, 'Gate45');
+  const c1 = (await (await api.post('/api/admin/courses', { data: { title: 'Gate 45', audience: 'coaches' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${c1}/lessons`, { data: { type: 'scorm', title: 'M', packageId: pkg45, slideGateSeconds: 45 } });
+  const served45 = await (await api.get(`/scorm/${pkg45}/index.html`)).text();
+  expect(served45).toContain('GMR per-slide review gate');
+  expect(served45).toContain('window.GMR_GATE_SLIDE||45');
+  expect(served45).toContain('window.GMR_GATE_VIDEO||60');
+
+  // A module set to Off (0) gets no gate injected at all.
+  const pkgOff = await upload(api, MINI_PLAYER, 'GateOff');
+  const c2 = (await (await api.post('/api/admin/courses', { data: { title: 'Gate Off', audience: 'coaches' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${c2}/lessons`, { data: { type: 'scorm', title: 'M', packageId: pkgOff, slideGateSeconds: 0 } });
+  const servedOff = await (await api.get(`/scorm/${pkgOff}/index.html`)).text();
+  expect(servedOff).not.toContain('GMR per-slide review gate');
+});
+
+test('a quick Module-minutes save keeps the module’s slide timer', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const pkg = await upload(api, MINI_PLAYER, 'GateKeep');
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Keep', audience: 'coaches' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'M', packageId: pkg, slideGateSeconds: 90 } })).json()).lesson.id;
+  // A partial save that only sends minMinutes must not reset the slide timer.
+  await api.put(`/api/admin/courses/${courseId}/lessons/${lessonId}`, { data: { type: 'scorm', title: 'M', packageId: pkg, launchFile: 'index.html', minMinutes: 5 } });
+  const served = await (await api.get(`/scorm/${pkg}/index.html`)).text();
+  expect(served).toContain('window.GMR_GATE_SLIDE||90');
+});
+
 test('Next is held per slide (30s / 60s video), keyboard blocked, no re-gate on revisit', async ({ playwright, browser }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });

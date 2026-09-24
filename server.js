@@ -701,13 +701,18 @@ function injectPlayerMobileFix(html) {
 // learner has to actually look at it: 30 seconds on a normal slide, 60 on a
 // video slide. A slide already waited on is not re-gated when revisited, the
 // last slide is left alone, and a live countdown shows why Next is disabled.
-// Durations can be overridden with window.GMR_GATE_SLIDE / GMR_GATE_VIDEO
-// (used by tests). Scoped by the player's own ids so third-party packages are
-// never touched.
-function injectSlideGate(html) {
+// The per-slide time is configured per module ("Time on each slide" in the
+// Course Designer) and passed in as slideSec: 0 = off, otherwise the seconds a
+// normal slide is held; video slides wait at least 60s. Tests can still override
+// with window.GMR_GATE_SLIDE / GMR_GATE_VIDEO. Scoped by the player's own ids so
+// third-party packages are never touched.
+function injectSlideGate(html, slideSec) {
   if (!/id=["']nextBtn["']/.test(html) || !/id=["']counter["']/.test(html) || !/id=["']viewer["']/.test(html)) return html;
+  const sl = slideSec == null ? DEFAULT_SLIDE_GATE_SECONDS : Math.min(600, Math.max(0, Math.round(Number(slideSec)) || 0));
+  const vid = sl > 0 ? Math.max(sl, 60) : 0;
+  if (sl <= 0) return html; // gate turned off for this module
   const script = `<script>/* GMR per-slide review gate */(function(){
-  var SL=(+window.GMR_GATE_SLIDE||30),VID=(+window.GMR_GATE_VIDEO||60);
+  var SL=(+window.GMR_GATE_SLIDE||${sl}),VID=(+window.GMR_GATE_VIDEO||${vid});
   var nextBtn=document.getElementById('nextBtn'),counter=document.getElementById('counter'),viewer=document.getElementById('viewer');
   if(!nextBtn||!counter||!viewer)return;
   var done={},locked=false,endAt=0,iv=null;
@@ -730,6 +735,23 @@ function injectSlideGate(html) {
   return html + script;
 }
 
+// Find the per-slide review time configured for the module served from this
+// package folder. A package can be attached to more than one lesson; we use the
+// first lesson that points at it. Falls back to the platform default when no
+// lesson has set a value (so already-uploaded modules behave as before).
+function slideGateForPackage(pkg) {
+  try {
+    for (const c of allCourses()) {
+      for (const l of (c.lessons || [])) {
+        if (l && l.type === 'scorm' && l.packageId === pkg && l.slideGateSeconds != null) {
+          return l.slideGateSeconds;
+        }
+      }
+    }
+  } catch (e) { /* fall through to default */ }
+  return DEFAULT_SLIDE_GATE_SECONDS;
+}
+
 // Serve an uploaded package's files at /scorm/<packageId>/<path>, same-origin,
 // with strict path containment. Falls back to the bundled samples in public/.
 app.get('/scorm/:pkg/*', (req, res) => {
@@ -750,7 +772,7 @@ app.get('/scorm/:pkg/*', (req, res) => {
           html = injectCdnShim(html, fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim());
         }
         html = injectPlayerMobileFix(html);
-        html = injectSlideGate(html);
+        html = injectSlideGate(html, slideGateForPackage(pkg));
         return res.type('html').send(html);
       }
       return res.sendFile(file);
@@ -1204,6 +1226,7 @@ const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
 const DEFAULT_SCORM_MIN_SECONDS = 0; // no time gate by default — the module's own "complete every element" requirement is the anti-skip
+const DEFAULT_SLIDE_GATE_SECONDS = 30; // per-slide review time for our slideshow player when a module doesn't set its own (matches the platform-wide behavior before it became configurable)
 // Escalating anti-skip: reaching the end of a module in under FLYTHROUGH_FRACTION
 // of its expected length is a "fly-through" — the module resets and its required
 // time climbs this ladder on each repeat offense (2, 6, then 10 minutes).
@@ -1740,7 +1763,15 @@ function buildLesson(body) {
     let expectedSeconds = 0;
     if (body.expectedMinutes != null) expectedSeconds = Math.max(0, Math.round(Number(body.expectedMinutes) * 60)) || 0;
     else if (body.expectedSeconds != null) expectedSeconds = Math.max(0, Math.round(Number(body.expectedSeconds))) || 0;
-    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, expectedSeconds };
+    // Per-slide review time (seconds) for our slideshow player: how long a learner
+    // must stay on each slide before "Next" enables. Set via the "Time on each
+    // slide" dropdown in the Course Designer (0 = off, otherwise 30/45/60/90).
+    // Video slides automatically wait at least 60s. Only affects our own player;
+    // third-party packages ignore it. Defaults to 30 to match the platform-wide
+    // behavior modules had before this became configurable.
+    let slideGateSeconds = DEFAULT_SLIDE_GATE_SECONDS;
+    if (body.slideGateSeconds != null) slideGateSeconds = Math.min(600, Math.max(0, Math.round(Number(body.slideGateSeconds)) || 0));
+    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, expectedSeconds, slideGateSeconds };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -1930,6 +1961,11 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   const body = { ...req.body, id: req.params.lessonId };
   if (body.type === 'scorm' && body.expectedMinutes == null && body.expectedSeconds == null && existing.expectedSeconds != null) {
     body.expectedSeconds = existing.expectedSeconds;
+  }
+  // Same for the per-slide review time: a partial save (Module-minutes,
+  // Fly-through length) mustn't silently reset it.
+  if (body.type === 'scorm' && body.slideGateSeconds == null && existing.slideGateSeconds != null) {
+    body.slideGateSeconds = existing.slideGateSeconds;
   }
   course.lessons[idx] = buildLesson(body);
   save();

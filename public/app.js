@@ -1980,6 +1980,7 @@ async function viewCourseAdmin(flash) {
                   <div class="more-panel">
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-expected" data-course="${c.id}">Fly-through length</button>` : ''}
+                    ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-slidegate" data-course="${c.id}">Slide timer</button>` : ''}
                     <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
                     <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                     <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
@@ -2108,6 +2109,29 @@ async function viewCourseAdmin(flash) {
       } catch { /* keep going */ }
     }
     viewCourseAdmin(`Set ${mins} minute(s) fly-through length on ${ok} of ${scorm.length} module(s).`);
+  }));
+  document.querySelectorAll('.mod-slidegate').forEach((b) => b.addEventListener('click', async () => {
+    const c = list.find((x) => x.id === b.dataset.course);
+    const scorm = c.lessons.filter((l) => l.type === 'scorm');
+    const cur = scorm[0] && scorm[0].slideGateSeconds != null ? Number(scorm[0].slideGateSeconds) : 30;
+    const ans = prompt(
+      `Slide timer — how many SECONDS a learner must stay on each slide before "Next" turns on, ` +
+      `for all ${scorm.length} module(s) in "${c.title}".\n\n` +
+      `Use 0 to turn it off, or 30 / 45 / 60 / 90. Slides with a video automatically wait at least 60s. ` +
+      `(Only affects our own slideshow modules; third-party packages ignore it.)`,
+      String(cur));
+    if (ans == null) return;
+    let secs = Math.max(0, Math.round(Number(ans)));
+    if (Number.isNaN(secs)) { msg('Enter a number of seconds (0, 30, 45, 60 or 90).', true); return; }
+    b.disabled = true; b.textContent = 'Saving…';
+    let ok = 0;
+    for (const l of scorm) {
+      try {
+        await api(`/api/admin/courses/${c.id}/lessons/${l.id}`, { method: 'PUT', body: { type: 'scorm', title: l.title, html: l.html || '', packageId: l.packageId, launchFile: l.launchFile || 'index.html', minMinutes: (l.minSeconds || 0) / 60, expectedMinutes: (l.expectedSeconds || 0) / 60, slideGateSeconds: secs } });
+        ok++;
+      } catch { /* keep going */ }
+    }
+    viewCourseAdmin(`Set the slide timer to ${secs}s on ${ok} of ${scorm.length} module(s).`);
   }));
   document.querySelectorAll('.add-lesson').forEach((b) => b.addEventListener('click', () => {
     document.querySelector(`.panel-slot[data-course="${b.dataset.course}"]`).innerHTML = lessonForm(b.dataset.course, null);
@@ -2519,7 +2543,12 @@ async function viewCourseAdmin(flash) {
         <label>Expected length of this module (minutes)
           <input name="expectedMinutes" type="number" min="0" step="0.5" value="${l && l.expectedSeconds ? (l.expectedSeconds / 60) : 0}" />
         </label>
-        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Fly-through catch:</strong> set the <em>expected length</em> to the module’s real running time; if a learner reaches the end in under half of it, they’re bounced back through and the minimum climbs to 2, then 6, then 10 minutes. Leave it at <strong>0</strong> to skip fly-through detection (e.g. a short intro). Add one lesson per module, in order.</p>`;
+        ${(() => { const g = l && l.slideGateSeconds != null ? Number(l.slideGateSeconds) : 30; return `<label>Time on each slide before “Next”
+          <select name="slideGateSeconds">
+            ${[[0, 'Off — no per-slide wait'], [30, '30 seconds'], [45, '45 seconds'], [60, '60 seconds'], [90, '90 seconds']].map(([v, t]) => `<option value="${v}" ${g === v ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>`; })()}
+        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Fly-through catch:</strong> set the <em>expected length</em> to the module’s real running time; if a learner reaches the end in under half of it, they’re bounced back through and the minimum climbs to 2, then 6, then 10 minutes. Leave it at <strong>0</strong> to skip fly-through detection (e.g. a short intro). <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
     }
     return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
@@ -2624,6 +2653,7 @@ async function viewCourseAdmin(flash) {
         payload.launchFile = fd.get('launchFile') || 'index.html';
         payload.minMinutes = fd.get('minMinutes');
         payload.expectedMinutes = fd.get('expectedMinutes');
+        payload.slideGateSeconds = fd.get('slideGateSeconds');
         if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
       }
       if (type === 'quiz') {
