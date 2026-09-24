@@ -930,14 +930,20 @@ app.get('/scorm/:pkg/*', async (req, res) => {
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-      // For a launch HTML page we may rewrite it on the way out: inject the CDN
-      // video shim (if this package's videos are on Bunny) and a small phone
-      // layout fix for our slideshow player's toolbar. Non-HTML is served as-is.
+      // For a launch HTML page we may rewrite it on the way out: a small phone
+      // layout fix, the slide gate, and the video diagnostic. Non-HTML is served
+      // as-is.
+      //
+      // NOTE: we intentionally no longer inject the CDN shim (which rewrote video
+      // <src> to the Bunny CDN pull-zone host). That pull-zone delivery proved
+      // unreliable, and rewriting client-side sent the browser straight to the
+      // broken CDN URL — bypassing our server, so our storage fallback could
+      // never help. By leaving video src same-origin, the request comes to us and
+      // pipeBunnyVideo streams it from Bunny storage (see the serve fallback
+      // below). Re-enable the shim only once a Bunny pull zone is confirmed
+      // delivering, to offload video bandwidth from the app.
       if (/\.html?$/i.test(rel)) {
         let html = fs.readFileSync(file, 'utf8');
-        if (fs.existsSync(path.join(base, '.cdn'))) {
-          html = injectCdnShim(html, fs.readFileSync(path.join(base, '.cdn'), 'utf8').trim());
-        }
         html = injectPlayerMobileFix(html);
         html = injectSlideGate(html, slideGateForPackage(pkg));
         html = injectVideoError(html);

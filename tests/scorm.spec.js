@@ -94,19 +94,18 @@ test('scorm time gate holds completion until the minimum time is met', async ({ 
   expect(res.certId).toBeTruthy();
 });
 
-test('CDN video shim is injected only for packages marked CDN-backed', async ({ request }) => {
+test('the client-side CDN shim is no longer injected (videos stay same-origin, streamed from Bunny storage)', async ({ request }) => {
   // The webServer serves packages from .test-data/scorm (shared filesystem).
+  // Even with a legacy .cdn marker present, the launch HTML must NOT rewrite
+  // video src to the Bunny CDN host: that pull-zone delivery proved unreliable,
+  // and rewriting client-side bypassed our server. Videos are kept same-origin
+  // so the request reaches us and is streamed from Bunny storage instead.
   const dir = path.join(__dirname, '..', '.test-data', 'scorm');
   fs.mkdirSync(path.join(dir, 'cdn-yes'), { recursive: true });
-  fs.mkdirSync(path.join(dir, 'cdn-no'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'cdn-yes', 'index.html'), '<!doctype html><head></head><body>m</body>');
   fs.writeFileSync(path.join(dir, 'cdn-yes', '.cdn'), 'https://ncysa-modules.b-cdn.net/cdn-yes/');
-  fs.writeFileSync(path.join(dir, 'cdn-no', 'index.html'), '<!doctype html><head></head><body>m</body>');
 
   const yes = await (await request.get(`${BASE}/scorm/cdn-yes/index.html`)).text();
-  expect(yes).toContain('HTMLMediaElement');                     // shim present
-  expect(yes).toContain('ncysa-modules.b-cdn.net/cdn-yes');      // points at the CDN base
-
-  const no = await (await request.get(`${BASE}/scorm/cdn-no/index.html`)).text();
-  expect(no).not.toContain('HTMLMediaElement');                  // no shim without the marker
+  expect(yes).not.toContain('HTMLMediaElement');                 // shim NOT injected
+  expect(yes).not.toContain('ncysa-modules.b-cdn.net/cdn-yes');  // no client-side CDN rewrite
 });
