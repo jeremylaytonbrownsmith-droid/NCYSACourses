@@ -656,12 +656,20 @@ async function pipeBunnyVideo(req, res, pkg, rel) {
   const headers = { AccessKey: BUNNY.key };
   if (req.headers.range) headers.Range = req.headers.range;
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 20000);
+  // If the viewer navigates away / closes the tab mid-video, abort the upstream
+  // fetch so we don't keep pulling bytes from Bunny into a dead socket — that
+  // orphaned download is what grows memory under real use.
+  const onClose = () => { try { ac.abort(); } catch (e) {} };
+  res.on('close', onClose);
+  // A timeout for ESTABLISHING the connection only — cleared once headers arrive,
+  // so a long video isn't cut off mid-stream (a 20s cap on the whole body would
+  // kill any clip that takes more than 20s to send).
+  const connectTimer = setTimeout(() => ac.abort(), 20000);
   let r;
   try { r = await fetch(url, { headers, signal: ac.signal }); }
-  catch (e) { clearTimeout(timer); if (!res.headersSent) res.status(502).end(); return; }
-  clearTimeout(timer);
-  if (!(r.ok || r.status === 206)) { if (!res.headersSent) res.status(r.status === 404 ? 404 : 502).end(); return; }
+  catch (e) { clearTimeout(connectTimer); res.off('close', onClose); if (!res.headersSent) res.status(502).end(); return; }
+  clearTimeout(connectTimer);
+  if (!(r.ok || r.status === 206)) { res.off('close', onClose); if (!res.headersSent) res.status(r.status === 404 ? 404 : 502).end(); return; }
   res.status(r.status);
   const ct = r.headers.get('content-type') || '';
   res.setHeader('Content-Type', /^(video|audio)\//i.test(ct) ? ct : videoMime(rel));
@@ -669,9 +677,15 @@ async function pipeBunnyVideo(req, res, pkg, rel) {
     const v = r.headers.get(h); if (v) res.setHeader(h, v);
   }
   res.setHeader('Accept-Ranges', r.headers.get('accept-ranges') || 'bytes');
-  if (req.method === 'HEAD' || !r.body) { res.end(); return; }
-  try { require('stream').Readable.fromWeb(r.body).on('error', () => { try { res.destroy(); } catch (e) {} }).pipe(res); }
-  catch (e) { if (!res.headersSent) res.status(502).end(); }
+  if (req.method === 'HEAD' || !r.body) { res.off('close', onClose); res.end(); return; }
+  // Stream with backpressure; abort upstream and tear down on any error or when
+  // the client disconnects, so nothing is left buffering.
+  try {
+    const stream = require('stream').Readable.fromWeb(r.body);
+    stream.on('error', () => { try { ac.abort(); } catch (e) {} try { res.destroy(); } catch (e) {} });
+    res.on('close', () => { try { stream.destroy(); } catch (e) {} });
+    stream.pipe(res);
+  } catch (e) { try { ac.abort(); } catch (x) {} if (!res.headersSent) res.status(502).end(); }
 }
 // Video file extensions we offload — MUST match what the CDN shim rewrites
 // (below), or a package with e.g. .mov videos would be rewritten to a CDN URL
