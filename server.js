@@ -731,9 +731,14 @@ async function offloadVideosToBunny(pkg, dest) {
 // any <video>/<source> already in the page, and watches (MutationObserver) for
 // ones added later — reloading the <video> when its source is rewritten. Runs
 // before the module's own scripts so the video loads from Bunny, not from us.
-function injectCdnShim(html, cdnBase) {
-  const body = '(function(){var C=' + JSON.stringify(cdnBase) + ';' +
-    'function fix(u){try{if(typeof u==="string"&&!/^https?:/i.test(u)&&/\\.(mp4|m4v|webm|mov)(\\?|$)/i.test(u))return C+u.replace(/^\\.?\\//,"");}catch(e){}return u;}' +
+// `itemMap` (optional) maps a NEW slide number to its ORIGINAL number for a
+// module with hidden slides: the trimmed player asks for media/item-<new>, but
+// Bunny stores the file under item-<original>, so the shim rewrites the number
+// before building the CDN URL. Empty/absent for an unedited module (identity).
+function injectCdnShim(html, cdnBase, itemMap) {
+  const body = '(function(){var C=' + JSON.stringify(cdnBase) + ',M=' + JSON.stringify(itemMap || {}) + ';' +
+    'function num(rel){return rel.replace(/(^|\\/)item-(\\d+)/i,function(m,pre,n){var o=M[String(parseInt(n,10))];if(!o)return m;var p=String(o);while(p.length<n.length)p="0"+p;return pre+"item-"+p;});}' +
+    'function fix(u){try{if(typeof u==="string"&&!/^https?:/i.test(u)&&/\\.(mp4|m4v|webm|mov)(\\?|$)/i.test(u))return C+num(u.replace(/^\\.?\\//,""));}catch(e){}return u;}' +
     'try{var p=HTMLMediaElement.prototype,d=Object.getOwnPropertyDescriptor(p,"src");if(d&&d.set)Object.defineProperty(p,"src",{configurable:true,get:function(){return d.get.call(this);},set:function(v){d.set.call(this,fix(v));}});}catch(e){}' +
     'try{var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){try{if(n==="src"){var t=this.tagName;if(t==="SOURCE"||t==="VIDEO"||t==="AUDIO")v=fix(v);}}catch(e){}return sa.call(this,n,v);};}catch(e){}' +
     'function sweep(r){try{var e=r.querySelectorAll?r.querySelectorAll("video[src],source[src]"):[];for(var i=0;i<e.length;i++){var el=e[i],s=el.getAttribute("src"),f=fix(s);if(f!==s){el.setAttribute("src",f);var v=el.tagName==="SOURCE"?el.parentNode:el;if(v&&v.load){try{v.load();}catch(x){}}}}}catch(x){}}' +
@@ -960,20 +965,27 @@ app.get('/scorm/:pkg/*', async (req, res) => {
     const file = path.resolve(base, rel);
     if (file !== base && !file.startsWith(base + path.sep)) return res.status(400).end(); // traversal
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-      // For a launch HTML page we may rewrite it on the way out: a small phone
-      // layout fix, the slide gate, and the video diagnostic. Non-HTML is served
-      // as-is.
-      //
-      // NOTE: we intentionally no longer inject the CDN shim (which rewrote video
-      // <src> to the Bunny CDN pull-zone host). That pull-zone delivery proved
-      // unreliable, and rewriting client-side sent the browser straight to the
-      // broken CDN URL — bypassing our server, so our storage fallback could
-      // never help. By leaving video src same-origin, the request comes to us and
-      // pipeBunnyVideo streams it from Bunny storage (see the serve fallback
-      // below). Re-enable the shim only once a Bunny pull zone is confirmed
-      // delivering, to offload video bandwidth from the app.
+      // For a launch HTML page we rewrite it on the way out: the CDN shim (so
+      // videos load straight from Bunny's CDN, not through us — this is what keeps
+      // video off the app's memory/bandwidth), plus a phone layout fix, the slide
+      // gate, and the video diagnostic. Non-HTML is served as-is.
       if (/\.html?$/i.test(rel)) {
         let html = fs.readFileSync(file, 'utf8');
+        const cdnFile = path.join(base, '.cdn');
+        if (fs.existsSync(cdnFile)) {
+          // When slides are hidden the deck is renumbered, but Bunny keeps the
+          // videos under their ORIGINAL numbers — so hand the shim a new→original
+          // map (empty for an unedited module) so its CDN URLs hit real files.
+          let itemMap = {};
+          if (hidden.length) {
+            const man = readSlideManifest(base);
+            if (man) {
+              const keep = man.items.map((_, p) => p).filter((p) => !hiddenSet.has(p + 1));
+              keep.forEach((origIdx, i) => { if (origIdx !== i) itemMap[i + 1] = origIdx + 1; });
+            }
+          }
+          html = injectCdnShim(html, fs.readFileSync(cdnFile, 'utf8').trim(), itemMap);
+        }
         html = injectPlayerMobileFix(html);
         html = injectSlideGate(html, slideGateForPackage(pkg));
         html = injectVideoError(html);

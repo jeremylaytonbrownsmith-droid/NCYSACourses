@@ -94,18 +94,39 @@ test('scorm time gate holds completion until the minimum time is met', async ({ 
   expect(res.certId).toBeTruthy();
 });
 
-test('the client-side CDN shim is no longer injected (videos stay same-origin, streamed from Bunny storage)', async ({ request }) => {
+test('CDN video shim is injected for CDN-backed packages (identity map when nothing hidden)', async ({ request }) => {
   // The webServer serves packages from .test-data/scorm (shared filesystem).
-  // Even with a legacy .cdn marker present, the launch HTML must NOT rewrite
-  // video src to the Bunny CDN host: that pull-zone delivery proved unreliable,
-  // and rewriting client-side bypassed our server. Videos are kept same-origin
-  // so the request reaches us and is streamed from Bunny storage instead.
   const dir = path.join(__dirname, '..', '.test-data', 'scorm');
   fs.mkdirSync(path.join(dir, 'cdn-yes'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'cdn-no'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'cdn-yes', 'index.html'), '<!doctype html><head></head><body>m</body>');
   fs.writeFileSync(path.join(dir, 'cdn-yes', '.cdn'), 'https://ncysa-modules.b-cdn.net/cdn-yes/');
+  fs.writeFileSync(path.join(dir, 'cdn-no', 'index.html'), '<!doctype html><head></head><body>m</body>');
 
   const yes = await (await request.get(`${BASE}/scorm/cdn-yes/index.html`)).text();
-  expect(yes).not.toContain('HTMLMediaElement');                 // shim NOT injected
-  expect(yes).not.toContain('ncysa-modules.b-cdn.net/cdn-yes');  // no client-side CDN rewrite
+  expect(yes).toContain('HTMLMediaElement');                     // shim present
+  expect(yes).toContain('ncysa-modules.b-cdn.net/cdn-yes');      // points at the CDN base
+  expect(yes).toContain('M={}');                                 // identity — nothing hidden
+
+  const no = await (await request.get(`${BASE}/scorm/cdn-no/index.html`)).text();
+  expect(no).not.toContain('HTMLMediaElement');                  // no shim without the marker
+});
+
+test('with hidden slides, the CDN shim maps new slide numbers back to the original Bunny files', async ({ request, playwright }) => {
+  // A CDN-backed package whose video is the 3rd slide; hide slides 1 and 2, so
+  // the player renumbers the video to slide 1 — but Bunny still has item-003.
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+  fs.mkdirSync(path.join(dir, 'cdn-hide'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'cdn-hide', 'index.html'), '<!doctype html><head></head><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'cdn-hide', 'manifest.js'), 'var ITEMS=["i","i","v"];var TITLES=["A","B","V"];');
+  fs.writeFileSync(path.join(dir, 'cdn-hide', '.cdn'), 'https://ncysa-modules.b-cdn.net/cdn-hide/');
+
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'CDN Hide', audience: 'coaches' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'scorm', title: 'M', packageId: 'cdn-hide', hiddenSlides: [1, 2] } });
+
+  const html = await (await request.get(`${BASE}/scorm/cdn-hide/index.html`)).text();
+  expect(html).toContain('HTMLMediaElement');   // shim present
+  expect(html).toContain('"1":3');              // new slide 1 → original file item-003
 });
