@@ -642,6 +642,11 @@ app.get('/:slug', (req, res, next) => {
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const SCORM_DIR = process.env.SCORM_DIR || path.join(DATA_DIR, 'scorm');
 const BUNDLED_SCORM_DIR = path.join(__dirname, 'public', 'scorm'); // e.g. the sample module
+// Images uploaded into lessons from the Course Designer. Like SCORM_DIR, point
+// this at the PERSISTENT disk in production so images survive redeploys.
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(DATA_DIR, 'uploads');
+// Serve uploaded lesson images (read-only).
+app.use('/uploads', express.static(UPLOADS_DIR, { fallthrough: true, maxAge: '7d' }));
 
 // Optional: offload module VIDEOS to a Bunny CDN (bunny.net) so they don't
 // stream through this server. The SCORM shell (HTML/JS/images) stays same-origin
@@ -2194,6 +2199,37 @@ app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req
   course.lessons.splice(i, 1);
   save();
   res.json({ ok: true });
+});
+
+// Upload an image for use inside a lesson (Course Designer). The raw image bytes
+// are POSTed with the file's content-type; we stream them to the uploads disk and
+// return a URL to drop into the lesson. Capped well below the SCORM limit.
+const IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg' };
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB
+app.post('/api/admin/upload-image', requireEditor, async (req, res) => {
+  const ctype = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  const ext = IMAGE_TYPES[ctype];
+  if (!ext) return res.status(400).json({ error: 'Please choose an image file (JPG, PNG, GIF, WEBP or SVG).' });
+  const declared = Number(req.headers['content-length'] || 0);
+  if (declared && declared > MAX_IMAGE_BYTES) return res.status(413).json({ error: `That image is over the ${(MAX_IMAGE_BYTES / 1e6).toFixed(0)} MB limit.` });
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const name = slugify(String(req.query.name || 'image').slice(0, 40) || 'image') + '-' + crypto.randomBytes(5).toString('hex') + '.' + ext;
+  const file = path.resolve(UPLOADS_DIR, name);
+  if (!file.startsWith(path.resolve(UPLOADS_DIR) + path.sep)) return res.status(400).json({ error: 'Bad filename.' });
+  try {
+    await new Promise((resolve, reject) => {
+      const ws = fs.createWriteStream(file);
+      let got = 0, tooBig = false;
+      req.on('data', (c) => { got += c.length; if (got > MAX_IMAGE_BYTES && !tooBig) { tooBig = true; req.destroy(); ws.destroy(); reject(Object.assign(new Error('too big'), { tooBig: true })); } });
+      req.on('error', reject); ws.on('error', reject); ws.on('finish', resolve);
+      req.pipe(ws);
+    });
+  } catch (e) {
+    try { fs.rmSync(file, { force: true }); } catch (_) {}
+    return res.status(e.tooBig ? 413 : 400).json({ error: e.tooBig ? 'That image is too large.' : 'Upload failed.' });
+  }
+  if (!fs.existsSync(file) || !fs.statSync(file).size) { try { fs.rmSync(file, { force: true }); } catch (_) {} return res.status(400).json({ error: 'No image received.' }); }
+  res.json({ url: '/uploads/' + name });
 });
 
 // Minimal HTML-entity decode for a manifest <title>.

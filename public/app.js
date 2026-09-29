@@ -2696,11 +2696,16 @@ function richTextField(name, labelText, html, minHeight) {
         <button type="button" class="rte-btn" data-cmd="justifyLeft" title="Align left">↤ Left</button>
         <button type="button" class="rte-btn" data-cmd="justifyCenter" title="Center">↔ Center</button>
         <span class="rte-sep"></span>
-        <button type="button" class="rte-btn" data-img="1" title="Insert an image by link">Image</button>
+        <button type="button" class="rte-btn" data-img="1" title="Upload an image (or drag one in / paste)">Image</button>
         <button type="button" class="rte-btn" data-hr="1" title="Divider line">— Divider</button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-callout="note" title="Insert a highlighted note box">💡 Note</button>
+        <button type="button" class="rte-btn" data-callout="important" title="Insert an ‘Important’ box">⚠ Important</button>
         <span class="rte-sep"></span>
         <button type="button" class="rte-btn" data-link="1" title="Add a link">Link</button>
         <button type="button" class="rte-btn" data-cmd="removeFormat" title="Clear formatting">✕ Clear</button>
+        <span class="rte-sep"></span>
+        <button type="button" class="rte-btn" data-preview="1" title="Preview as a learner sees it">👁 Preview</button>
       </div>
       <div class="rte-area lesson-content" contenteditable="true" data-placeholder="Type the lesson here. Use the buttons above to add headings, bullet points, and links."
            style="min-height:${min}px">${html || ''}</div>
@@ -2709,12 +2714,86 @@ function richTextField(name, labelText, html, minHeight) {
   </div>`;
 }
 
+// Upload an image file's raw bytes to the server; returns its served URL.
+async function uploadImageFile(file) {
+  if (!file || !/^image\//.test(file.type)) throw new Error('Please choose an image file.');
+  if (file.size > 15 * 1024 * 1024) throw new Error('That image is over 15 MB.');
+  const base = (file.name || 'image').replace(/\.[^.]+$/, '');
+  const r = await fetch(`/api/admin/upload-image?name=${encodeURIComponent(base)}`, {
+    method: 'POST', headers: { 'Content-Type': file.type }, body: file,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Upload failed.');
+  return data.url;
+}
+// Insert an <img> into the contenteditable area at the cursor.
+function insertImageHtml(area, url, alt) {
+  const q = (s) => String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  area.focus();
+  try { document.execCommand('insertHTML', false, `<img src="${q(url)}" alt="${q(alt || '')}">`); }
+  catch (e) { area.insertAdjacentHTML('beforeend', `<img src="${q(url)}" alt="${q(alt || '')}">`); }
+}
+// Show the authored lesson content the way a learner will see it (reading theme).
+function showLessonPreview(html) {
+  const ov = document.createElement('div');
+  ov.className = 'preview-overlay';
+  ov.innerHTML = `<div class="preview-box">
+      <div class="preview-head"><span>Learner preview</span>
+        <button type="button" class="btn btn-ghost btn-sm preview-close">Close</button></div>
+      <div class="preview-body"><div class="lesson-content">${html && html.trim() ? html : '<p class="meta">Nothing to preview yet — add some content first.</p>'}</div></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onEsc); };
+  function onEsc(e) { if (e.key === 'Escape') close(); }
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('.preview-close').addEventListener('click', close);
+  document.addEventListener('keydown', onEsc);
+}
+// Open a file picker, upload the chosen image, and insert it.
+function pickAndInsertImage(area, sync) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', async () => {
+    const file = inp.files && inp.files[0];
+    inp.remove();
+    if (!file) return;
+    try {
+      toast('Uploading image…');
+      const url = await uploadImageFile(file);
+      insertImageHtml(area, url, '');
+      if (sync) sync();
+    } catch (e) { toast(e.message || 'Image upload failed.', true); }
+  });
+  inp.click();
+}
+
 function initRichText(root) {
   (root || document).querySelectorAll('.rte').forEach((rte) => {
     if (rte.dataset.ready) return;
     rte.dataset.ready = '1';
     const area = rte.querySelector('.rte-area');
     const out = rte.querySelector('.rte-html');
+    // Drag-and-drop / paste an image straight into the editor.
+    const handleFiles = async (files) => {
+      let any = false;
+      for (const f of files) {
+        if (!/^image\//.test(f.type)) continue;
+        try { const url = await uploadImageFile(f); insertImageHtml(area, url, ''); any = true; }
+        catch (e) { toast(e.message || 'Image upload failed.', true); }
+      }
+      if (any) sync();
+    };
+    area.addEventListener('dragover', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); area.classList.add('rte-dragover'); } });
+    area.addEventListener('dragleave', () => area.classList.remove('rte-dragover'));
+    area.addEventListener('drop', async (e) => {
+      const files = e.dataTransfer && Array.from(e.dataTransfer.files || []).filter((f) => /^image\//.test(f.type));
+      if (files && files.length) { e.preventDefault(); area.classList.remove('rte-dragover'); await handleFiles(files); }
+    });
+    area.addEventListener('paste', async (e) => {
+      const items = e.clipboardData && Array.from(e.clipboardData.items || []).filter((it) => it.kind === 'file' && /^image\//.test(it.type));
+      if (items && items.length) { e.preventDefault(); await handleFiles(items.map((it) => it.getAsFile()).filter(Boolean)); }
+    });
     try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) { /* ignore */ }
     // Normalize only the SAVED html (on a clone, so the live cursor is untouched):
     // browsers sometimes wrap lists/headings in a stray <p>, and leave empty <p>s.
@@ -2739,14 +2818,16 @@ function initRichText(root) {
             const url = prompt('Link address (e.g. https://ncysa.org):');
             if (url) document.execCommand('createLink', false, url.trim());
           } else if (b.dataset.img) {
-            const url = prompt('Image link — paste the web address of an image (e.g. from your website’s media library, ending in .jpg or .png):');
-            if (url) {
-              const alt = (prompt('Briefly describe the image (helps accessibility). Optional:') || '');
-              const q = (s) => s.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-              document.execCommand('insertHTML', false, `<img src="${q(url.trim())}" alt="${q(alt)}">`);
-            }
+            pickAndInsertImage(area, sync);
           } else if (b.dataset.hr) {
             document.execCommand('insertHTML', false, '<hr>');
+          } else if (b.dataset.callout) {
+            const t = b.dataset.callout === 'important' ? 'important' : 'note';
+            const label = t === 'important' ? 'Important' : 'Note';
+            document.execCommand('insertHTML', false,
+              `<div class="callout callout-${t}"><p><strong>${label}:</strong> Type your ${label.toLowerCase()} here.</p></div><p><br></p>`);
+          } else if (b.dataset.preview) {
+            sync(); showLessonPreview(out.value);
           }
         } catch (e) { /* ignore unsupported command */ }
         sync();

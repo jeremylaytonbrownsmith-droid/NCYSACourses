@@ -248,6 +248,44 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .lesson-content th, .lesson-content td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; }
 .lesson-content th { background: var(--bg); }
 
+/* ---- Reading theme: make authored lessons feel designed (Tier 1) ---------- */
+.lesson-content { font-size: 1.05rem; line-height: 1.7; }
+.lesson-content > :first-child { margin-top: 0; }
+.lesson-content h2 { font-size: 1.7rem; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; margin: 32px 0 12px; color: var(--ink); }
+.lesson-content h3 { font-size: 1.28rem; line-height: 1.25; font-weight: 700; margin: 24px 0 8px; color: var(--ink); }
+.lesson-content p { margin: 0 0 16px; }
+.lesson-content img {
+  display: block; margin: 22px auto; width: 100%; max-width: 720px; height: auto;
+  border-radius: 14px; box-shadow: 0 10px 30px rgba(15, 23, 42, .12);
+}
+.lesson-content hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+.lesson-content blockquote {
+  border-left: 4px solid var(--gold); background: #fdf7e6; padding: 14px 18px;
+  border-radius: 0 10px 10px 0; margin: 20px 0; font-style: italic; color: var(--ink-body);
+}
+/* Callout / note boxes */
+.lesson-content .callout {
+  border-radius: 12px; padding: 14px 16px 14px 48px; margin: 20px 0; position: relative;
+  border: 1px solid var(--line); background: #f6f8fc; color: var(--ink-body); font-style: normal;
+}
+.lesson-content .callout > :first-child { margin-top: 0; }
+.lesson-content .callout > :last-child { margin-bottom: 0; }
+.lesson-content .callout::before { position: absolute; left: 16px; top: 13px; font-size: 1.1rem; line-height: 1.4; }
+.lesson-content .callout-note { background: #eff6ff; border-color: #bfdbfe; }
+.lesson-content .callout-note::before { content: "💡"; }
+.lesson-content .callout-note strong { color: #1d4ed8; }
+.lesson-content .callout-important { background: #fff7ed; border-color: #fed7aa; }
+.lesson-content .callout-important::before { content: "⚠️"; }
+.lesson-content .callout-important strong { color: #b45309; }
+/* Editor: highlight the drop target while dragging an image in */
+.rte-area.rte-dragover { outline: 2px dashed var(--accent, #6366f1); outline-offset: -4px; background: rgba(99, 102, 241, .05); }
+/* Live lesson preview overlay */
+.preview-overlay { position: fixed; inset: 0; z-index: 9998; background: rgba(9, 14, 25, .55); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+.preview-box { background: #fff; width: 100%; max-width: 820px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.35); overflow: hidden; }
+.preview-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 700; color: var(--ink); background: var(--bg); position: sticky; top: 0; }
+.preview-body { padding: 28px 32px 36px; }
+@media (max-width: 640px) { .preview-body { padding: 20px 18px 28px; } .preview-overlay { padding: 16px 8px; } }
+
 .lesson-actions { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .gate-note { font-size: 0.88rem; color: var(--ink-soft); }
 .gate-note.err { color: var(--danger); font-weight: 600; }
