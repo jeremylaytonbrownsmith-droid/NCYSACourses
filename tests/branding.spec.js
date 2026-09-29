@@ -11,7 +11,8 @@ test('the product/OMG domain serves GetMatchReady title + preview (never NCYSA)'
   expect(html).not.toMatch(/<title>[^<]*NCYSA/i);
   expect(html).toContain('property="og:site_name" content="GetMatchReady"');
   expect(html).toContain('property="og:title" content="GetMatchReady');
-  expect(html).toContain('property="og:image" content="http://getmatchready.app/icons/gmr-512.png"');
+  expect(html).toContain('property="og:image" content="http://getmatchready.app/media/getmatchready-og.png"');
+  expect(html).toContain('name="twitter:card" content="summary_large_image"');
 });
 
 test('the NCYSA site serves NCYSA Learn title + preview', async ({ request }) => {

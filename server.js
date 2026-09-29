@@ -386,14 +386,16 @@ function brandMetaForHost(host) {
     return {
       title: 'GetMatchReady — Education & Training Platform',
       desc: 'Deliver, track, and certify online training courses.',
-      image: '/icons/gmr-512.png', siteName: 'GetMatchReady',
+      image: '/media/getmatchready-og.png', imageW: 2400, imageH: 1260, large: true,
+      siteName: 'GetMatchReady',
     };
   }
   // Default (NCYSA site: ncysalearn.app, ncysa-learn.onrender.com, etc.)
   return {
     title: 'NCYSA Learn — Education & Training Platform',
     desc: 'Coach and referee education and training for North Carolina soccer.',
-    image: '/icons/ncysa-512.png', siteName: 'NCYSA Learn',
+    image: '/icons/ncysa-512.png', imageW: 512, imageH: 512, large: false,
+    siteName: 'NCYSA Learn',
   };
 }
 function sendIndexHtml(req, res) {
@@ -412,8 +414,10 @@ function sendIndexHtml(req, res) {
     `<meta property="og:title" content="${esc(m.title)}">`,
     `<meta property="og:description" content="${esc(m.desc)}">`,
     `<meta property="og:image" content="${esc(base + m.image)}">`,
+    `<meta property="og:image:width" content="${m.imageW}">`,
+    `<meta property="og:image:height" content="${m.imageH}">`,
     `<meta property="og:url" content="${esc(base + req.originalUrl)}">`,
-    `<meta name="twitter:card" content="summary">`,
+    `<meta name="twitter:card" content="${m.large ? 'summary_large_image' : 'summary'}">`,
     `<meta name="twitter:title" content="${esc(m.title)}">`,
     `<meta name="twitter:description" content="${esc(m.desc)}">`,
     `<meta name="twitter:image" content="${esc(base + m.image)}">`,
