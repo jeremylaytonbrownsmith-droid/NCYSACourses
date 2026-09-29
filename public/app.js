@@ -2938,7 +2938,10 @@ async function brandForHash(hash) {
     if (c && c.audience === 'referees') return { ...NCSRA_BRAND, logo: c.coLogoUrl || NCSRA_LOGO };
     return null;
   }
-  if (/^#\/referees$/.test(hash)) return Object.values(map).find((b) => b.audience === 'referees') || NCSRA_BRAND;
+  // The plain referees page wears the CURRENT org's referee brand — NCSRA on the
+  // NCYSA site, OMG on the OMG (getmatchready.app) site — never just the first
+  // referee brand it happens to find (which leaked NCSRA branding onto OMG).
+  if (/^#\/referees$/.test(hash)) return (await refereeBrandForOrg(activeOrg)) || (activeOrg === DEFAULT_ORG ? NCSRA_BRAND : null);
   // On a partner's own domain (e.g. getmatchready.app), every remaining page —
   // register, sign in, home — still wears that org's brand, never NCYSA.
   const domainOrg = DOMAIN_ORG[location.hostname];
