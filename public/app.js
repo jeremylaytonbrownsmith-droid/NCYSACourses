@@ -701,7 +701,7 @@ async function viewReferees() {
       <div class="card notice-card" style="margin-top:26px">
         <h3>Official referee resources</h3>
         <ul class="resource-links">
-          <li><a href="https://www.ussoccer.com/referee-program" target="_blank" rel="noopener">U.S. Soccer Referee Program</a></li>
+          ${isNC ? '<li><a href="https://www.ussoccer.com/referee-program" target="_blank" rel="noopener">U.S. Soccer Referee Program</a></li>' : ''}
           <li><a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB — Laws of the Game</a></li>
         </ul>
       </div>
