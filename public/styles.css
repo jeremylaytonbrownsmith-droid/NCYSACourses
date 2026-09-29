@@ -380,7 +380,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .notif time { font-size: 0.78rem; color: var(--ink-soft); }
 .notif p { font-size: 0.92rem; color: var(--ink-body); margin-top: 6px; }
 
-.admin-wrap { max-width: 1020px; margin: 36px auto; padding: 0 20px; }
+.admin-wrap { max-width: 1320px; margin: 36px auto; padding: 0 20px; }
 .admin-wrap h1 { margin-bottom: 4px; }
 .admin-grid { display: grid; gap: 22px; margin-top: 24px; }
 .admin-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; overflow-x: auto; }
@@ -395,7 +395,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .catalog-group:first-of-type { margin-top: 10px; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .admin-table th { color: var(--ink-soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
 /* On phones a wide records table would be clipped, so each row becomes a stacked
    card with "Label: value" pairs (via data-label) and nothing scrolls off. */
