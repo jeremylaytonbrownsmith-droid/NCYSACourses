@@ -375,6 +375,55 @@ app.get(['/manifest.webmanifest', '/manifest.json'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.send(JSON.stringify(manifest));
 });
+// Per-domain page title + link-preview (Open Graph / iMessage / social) tags.
+// The SPA ships one index.html with a static <title>, so every domain shared the
+// same "NCYSA Learn" preview. iMessage/social scrapers don't run our JS, so the
+// fix must be server-side: swap the title and inject preview tags based on the
+// Host — GetMatchReady on the product/OMG domain, NCYSA Learn on the NCYSA site.
+function brandMetaForHost(host) {
+  const h = String(host || '').toLowerCase().split(':')[0];
+  if (h === 'getmatchready.app' || h === 'www.getmatchready.app') {
+    return {
+      title: 'GetMatchReady — Education & Training Platform',
+      desc: 'Deliver, track, and certify online training courses.',
+      image: '/icons/gmr-512.png', siteName: 'GetMatchReady',
+    };
+  }
+  // Default (NCYSA site: ncysalearn.app, ncysa-learn.onrender.com, etc.)
+  return {
+    title: 'NCYSA Learn — Education & Training Platform',
+    desc: 'Coach and referee education and training for North Carolina soccer.',
+    image: '/icons/ncysa-512.png', siteName: 'NCYSA Learn',
+  };
+}
+function sendIndexHtml(req, res) {
+  const file = path.join(__dirname, 'public', 'index.html');
+  let html;
+  try { html = fs.readFileSync(file, 'utf8'); } catch { return res.sendFile(file); }
+  const m = brandMetaForHost(req.headers.host);
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
+  const base = `${proto}://${String(req.headers.host || '').split(',')[0]}`;
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(m.title)}</title>`);
+  const tags = [
+    `<meta name="description" content="${esc(m.desc)}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="${esc(m.siteName)}">`,
+    `<meta property="og:title" content="${esc(m.title)}">`,
+    `<meta property="og:description" content="${esc(m.desc)}">`,
+    `<meta property="og:image" content="${esc(base + m.image)}">`,
+    `<meta property="og:url" content="${esc(base + req.originalUrl)}">`,
+    `<meta name="twitter:card" content="summary">`,
+    `<meta name="twitter:title" content="${esc(m.title)}">`,
+    `<meta name="twitter:description" content="${esc(m.desc)}">`,
+    `<meta name="twitter:image" content="${esc(base + m.image)}">`,
+  ].join('');
+  html = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, tags + '</head>') : tags + html;
+  res.type('html').send(html);
+}
+// Serve the SPA shell with per-domain title/preview (before the static handler,
+// which would otherwise return the raw index.html for "/").
+app.get(['/', '/index.html'], sendIndexHtml);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // GetMatchReady partnership proposal — a standalone, password-gated page served
@@ -2616,9 +2665,9 @@ app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   res.json({ course });
 });
 
-// SPA fallback
+// SPA fallback — same per-domain title/preview as the front door.
 app.get(/^(?!\/api\/).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  sendIndexHtml(req, res);
 });
 
 const PORT = process.env.PORT || 3000;
