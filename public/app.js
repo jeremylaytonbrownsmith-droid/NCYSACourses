@@ -197,7 +197,7 @@ function renderNav() {
     <a class="navlink nav-referees" href="#/referees">Referees</a>
     <a class="navlink nav-help" href="#/help">Help</a>`}
     ${user ? `
-      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">NCYSA Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
+      ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">${ICON_BELL}${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
@@ -1691,7 +1691,7 @@ async function viewAdmin() {
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">
-        <h1>NCYSA Education Dashboard</h1>
+        <h1>Dashboard</h1>
         <div class="admin-head-actions">
           <a class="btn btn-ghost" href="#/staff-training">Staff Training</a>
           <a class="btn btn-primary" href="#/admin/courses">Manage courses</a>
