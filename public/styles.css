@@ -162,7 +162,7 @@ a:hover { text-decoration: underline; }
 .course-card .meta { font-size: 0.82rem; color: var(--ink-soft); }
 .course-card .desc { font-size: 0.9rem; color: var(--ink-soft); flex: 1; }
 .course-card .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.pill-done { background: #e7f6ee; color: var(--success-dark); font-weight: 700; font-size: 0.8rem; border-radius: 999px; padding: 4px 12px; }
+.pill-done { display: inline-block; white-space: nowrap; background: #e7f6ee; color: var(--success-dark); font-weight: 700; font-size: 0.8rem; border-radius: 999px; padding: 4px 12px; }
 
 .progress-track { background: var(--line); border-radius: 999px; height: 8px; overflow: hidden; }
 .progress-fill { background: var(--gold); height: 100%; border-radius: 999px; transition: width 0.4s ease; }
@@ -395,7 +395,16 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .catalog-group:first-of-type { margin-top: 10px; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.admin-table th, .admin-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+/* Only the long, unbreakable values (emails, certificate ids) may break mid-token;
+   headers and short labels like "Delete"/"MODULES" stay intact. */
+.admin-table td[data-label="Email"], .admin-table td[data-label="Certificate"] { overflow-wrap: anywhere; }
+/* Professional, understated destructive action: muted until hover. */
+.admin-table td .linkbtn.danger {
+  white-space: nowrap; font-size: 0.82rem; padding: 5px 11px; border-radius: 8px;
+  border: 1px solid transparent; transition: background .12s ease, border-color .12s ease;
+}
+.admin-table td .linkbtn.danger:hover { text-decoration: none; background: #fdecec; border-color: #f3c7c7; }
 .admin-table th { color: var(--ink-soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
 /* On phones a wide records table would be clipped, so each row becomes a stacked
    card with "Label: value" pairs (via data-label) and nothing scrolls off. */
