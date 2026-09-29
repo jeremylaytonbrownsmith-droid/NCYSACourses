@@ -1685,6 +1685,29 @@ async function viewNotifications() {
   }
 }
 
+// Build the dashboard course filter, grouped by organization (NCYSA / NCSRA /
+// OMG) with unpublished courses clearly flagged. Falls back to a flat list from
+// the enrollment records if the courses summary isn't present.
+function courseFilterGroups(d) {
+  const courses = Array.isArray(d.courses) ? d.courses : null;
+  if (!courses) {
+    return [...new Set((d.enrollments || []).map((c) => c.course).filter(Boolean))]
+      .map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+  const groupOf = (c) => c.orgId === 'omg' ? 'OMG'
+    : (c.audience === 'referees' ? 'NCSRA (Referees)' : 'NCYSA');
+  const order = ['NCYSA', 'NCSRA (Referees)', 'OMG'];
+  const groups = {};
+  for (const c of courses) { const g = groupOf(c); (groups[g] = groups[g] || []).push(c); }
+  const names = [...order.filter((g) => groups[g]), ...Object.keys(groups).filter((g) => !order.includes(g))];
+  return names.map((g) => {
+    const opts = groups[g]
+      .sort((a, b) => Number(a.published === false) - Number(b.published === false) || a.title.localeCompare(b.title))
+      .map((c) => `<option value="${esc(c.title)}">${esc(c.title)}${c.published ? '' : ' — unpublished'}</option>`).join('');
+    return `<optgroup label="${esc(g)}">${opts}</optgroup>`;
+  }).join('');
+}
+
 async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
@@ -1710,7 +1733,7 @@ async function viewAdmin() {
             <input id="fltSearch" placeholder="Search name or email…" />
             <select id="fltCourse">
               <option value="">All courses</option>
-              ${[...new Set((d.enrollments || []).map((c) => c.course).filter(Boolean))].map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+              ${courseFilterGroups(d)}
             </select>
             <select id="fltStatus">
               <option value="">All statuses</option>

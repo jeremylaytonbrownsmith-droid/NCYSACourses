@@ -1896,6 +1896,14 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     partnerWebhooks: (db.webhookLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     partnerUploads: (db.uploadLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     learnerCount: db.users.filter((u) => u.role === 'learner').length,
+    // Every course (incl. unpublished) so the dashboard can group the course
+    // filter by organization and flag drafts.
+    courses: allCourses().map((c) => ({
+      id: c.id, title: c.title,
+      orgId: c.orgId || DEFAULT_ORG,
+      audience: c.audience || 'everyone',
+      published: isPublished(c),
+    })).sort((a, b) => a.title.localeCompare(b.title)),
   });
 });
 
