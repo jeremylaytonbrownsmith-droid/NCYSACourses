@@ -124,7 +124,7 @@ test('full learner journey through the coaching license course', async ({ page }
   await page.screenshot({ path: `${SNAP}/11-learner-notification.png` });
 
   // --- 9b. A non-admin cannot reach the dashboard ----------------------------
-  await expect(page.locator('.topnav')).not.toContainText('NCYSA Dashboard'); // no link for learners
+  await expect(page.locator('.topnav .nav-dashboard')).toHaveCount(0); // no dashboard link for learners
   await page.goto('/#/admin'); // direct navigation is still blocked server-side
   await expect(page.locator('#app')).toContainText('staff', { ignoreCase: true });
   await expect(page.locator('.admin-table')).toHaveCount(0);
@@ -141,7 +141,7 @@ test('full learner journey through the coaching license course', async ({ page }
   await expect(page.locator('#formError')).toContainText('Incorrect'); // wrong password rejected
   await page.fill('#password', 'ncysa-staff-2026');
   await page.click('button:has-text("Sign in")');
-  await page.click('text=NCYSA Dashboard');
+  await page.click('.nav-dashboard');
 
   const record = page.locator('.admin-table tr', { hasText: 'Jordan Ellis' });
   await expect(record).toContainText('9/9');          // module progress column

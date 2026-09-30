@@ -1460,7 +1460,7 @@ async function showCourseComplete(course, certId, score, returnUrl) {
       <h1>Congratulations!</h1>
       <p>You have completed <strong>${esc(course.title)}</strong>${score != null ? ` with a final exam score of <strong>${score}%</strong>` : ''}.</p>
       <div>
-        <span class="notice-sent">A completion notice has been sent to you and to NCYSA</span>
+        <span class="notice-sent">A completion notice has been sent to you and to ${esc(course.orgId && course.orgId !== 'ncysa' ? String(course.orgId).toUpperCase() : 'NCYSA')}</span>
       </div>
       ${course.completionNote ? `<p class="lead" style="max-width:600px;margin:14px auto 0">${esc(course.completionNote)}</p>` : ''}
       <p style="margin-top:14px">
