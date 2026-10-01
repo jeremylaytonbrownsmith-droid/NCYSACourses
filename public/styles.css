@@ -42,6 +42,8 @@ a:hover { text-decoration: underline; }
   display: flex; align-items: center; gap: 16px; flex-wrap: nowrap;
   padding: 0 24px; height: 64px;
 }
+/* The product landing empties the nav; don't reserve a white strip for it. */
+.topnav:empty { display: none; }
 .topnav .logo {
   display: flex; align-items: center; gap: 10px; min-width: 0;
   font-weight: 800; font-size: 1.15rem; color: var(--brand-dark);
@@ -825,11 +827,12 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
    Product landing page (getmatchready.app front door)
    ============================================================ */
 .lp { --lp-navy: #17224f; --lp-accent: #6366f1; --lp-accent2: #7c3aed; color: #1a2036; overflow-x: hidden; }
-.lp-head { position: relative; z-index: 3; display: flex; align-items: center; gap: 16px; padding: 18px 24px; max-width: 1100px; margin: 0 auto; }
-.lp-mark { font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--lp-navy); }
+/* Dark, full-width header that blends into the hero (no white gap at the top). */
+.lp-head { position: relative; z-index: 3; display: flex; align-items: center; gap: 16px; padding: 18px max(24px, calc((100% - 1100px) / 2)); background: #0c1330; }
+.lp-mark { font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; color: #fff; }
 .lp-mark span { color: var(--lp-accent); }
 .lp-head .lp-spacer { flex: 1; }
-.lp-head a { font-weight: 600; color: var(--lp-navy); font-size: .95rem; }
+.lp-head a { font-weight: 600; color: #fff; font-size: .95rem; }
 
 /* Hero — dark, with slow-drifting glow blobs and a faint tech grid */
 .lp-hero { position: relative; overflow: hidden; background: #0c1330; color: #fff; text-align: center; padding: 70px 22px 88px; }
