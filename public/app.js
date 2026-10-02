@@ -1249,7 +1249,69 @@ function renderScormLesson(pane, course, lesson, lp) {
 //  * Heartbeats report accrued seconds to the server, which owns the gate.
 //  * "Complete & continue" stays disabled until the server confirms the
 //    requirement (58s of a 60s video) is satisfied.
+// A Vimeo/YouTube link → the EMBEDDABLE player URL (+ kind). Null for anything else
+// (e.g. a direct .mp4), so the normal self-hosted player handles those.
+function videoEmbedUrl(u) {
+  if (!u || typeof u !== 'string') return null;
+  let m = u.match(/(?:player\.)?vimeo\.com\/(?:video\/)?(\d+)(?:\/([0-9a-z]+))?/i);
+  if (m) return { kind: 'vimeo', id: m[1], src: 'https://player.vimeo.com/video/' + m[1] + (m[2] ? '?h=' + m[2] : '') };
+  m = u.match(/(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?[^#]*\bv=)|youtu\.be\/)([\w-]{6,})/i);
+  if (m) return { kind: 'youtube', id: m[1], src: 'https://www.youtube.com/embed/' + m[1] };
+  return null;
+}
+
+// Native Vimeo/YouTube video lesson: a clean inline player (no Captivate wrapper).
+// The watch gate credits real playback via the Vimeo Player API when available, with
+// a time-on-lesson fallback so a learner is never stranded if the API can't load.
+function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
+  const required = Math.max(5, lesson.minWatchSeconds || Math.floor((lesson.durationSeconds || 60) * 0.9) || 30);
+  const q = embed.kind === 'youtube' ? 'rel=0&modestbranding=1' : 'title=0&byline=0&portrait=0';
+  const src = embed.src + (embed.src.indexOf('?') > -1 ? '&' : '?') + q;
+  pane.innerHTML = `
+    ${lessonHeader(lesson, course)}
+    ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}
+    <div class="embed-shell" style="position:relative;width:100%;max-width:960px;margin:0 auto;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden">
+      <iframe id="embedVideo" src="${esc(src)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${esc(lesson.title)}" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>
+    </div>
+    <div class="watch-meter">
+      <span>Watch requirement:</span>
+      <div class="progress-track"><div class="progress-fill" id="watchFill" style="width:0%"></div></div>
+      <span id="watchLabel">0s / ${required}s</span>
+    </div>
+    <div class="lesson-actions">
+      ${lp.completed
+        ? `<span class="pill-done">✓ Completed</span><button class="btn btn-primary" id="nextBtn">Next lesson →</button>`
+        : `<button class="btn btn-accent btn-lg" id="completeBtn" disabled>Complete &amp; continue →</button>
+           <span class="gate-note" id="gateNote">Watch the video to unlock this button.</span>`}
+    </div>`;
+  document.getElementById('nextBtn')?.addEventListener('click', () => {
+    const idx = course.lessons.findIndex((l) => l.id === lesson.id);
+    const next = course.lessons[idx + 1];
+    location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
+  });
+  const completeBtn = document.getElementById('completeBtn');
+  if (!completeBtn) return; // already completed
+  const fill = document.getElementById('watchFill'), label = document.getElementById('watchLabel'), note = document.getElementById('gateNote');
+  let watched = 0, unlocked = false;
+  function unlock() { if (unlocked) return; unlocked = true; completeBtn.disabled = false; if (fill) fill.style.width = '100%'; if (label) label.textContent = 'Requirement met ✓'; if (note) note.textContent = 'You can continue.'; }
+  function tick(sec) { watched = Math.max(watched, sec); if (fill) fill.style.width = Math.min(100, (watched / required) * 100) + '%'; if (label && !unlocked) label.textContent = Math.floor(watched) + 's / ' + required + 's'; if (watched >= required) unlock(); }
+  const start = Date.now();
+  const iv = setInterval(() => { tick((Date.now() - start) / 1000); if (unlocked) clearInterval(iv); }, 500);
+  // Real watch tracking for Vimeo when the Player API loads (credits actual playback
+  // + unlocks on end); the dwell timer above is the safe fallback for any host.
+  if (embed.kind === 'vimeo') {
+    const boot = () => { try { const p = new window.Vimeo.Player(document.getElementById('embedVideo')); p.on('timeupdate', (d) => { if (d && d.seconds) tick(d.seconds); }); p.on('ended', unlock); } catch (e) { /* fallback handles it */ } };
+    if (window.Vimeo && window.Vimeo.Player) boot();
+    else { const s = document.createElement('script'); s.src = 'https://player.vimeo.com/api/player.js'; s.onload = boot; s.onerror = () => {}; document.head.appendChild(s); }
+  }
+  completeBtn.addEventListener('click', () => completeLesson(course, lesson).catch((e) => toast(e.message, true)));
+}
+
 function renderVideoLesson(pane, course, lesson, lp) {
+  // A Vimeo/YouTube link plays through the native embedded player instead of our
+  // self-hosted <video> (which only handles direct .mp4/.webm files).
+  const embed = videoEmbedUrl(lesson.videoUrl);
+  if (embed) return renderEmbedVideoLesson(pane, course, lesson, lp, embed);
   // Requirement adapts to the video's real length once the player reports it
   // (see the loadedmetadata handler); this is just the pre-load fallback.
   let required = lesson.minWatchSeconds || Math.max(1, Math.floor((lesson.durationSeconds || 60) * 0.97));
@@ -2516,8 +2578,8 @@ async function viewCourseAdmin(flash) {
   function typeFields(type, l) {
     if (type === 'video') return `
       ${richTextField('html', 'Intro text (optional — shows above)', l ? l.html : '', 90)}
-      <label>Video URL (MP4)<input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://…/video.mp4" /></label>
-      <label>Video URL (WebM, optional — improves playback compatibility)<input name="videoUrlWebm" value="${l ? esc(l.videoUrlWebm || '') : ''}" placeholder="https://…/video.webm" /></label>
+      <label>Video URL — a <strong>Vimeo/YouTube link</strong> (plays inline), or a direct <strong>.mp4</strong><input name="videoUrl" value="${l ? esc(l.videoUrl || '') : ''}" placeholder="https://vimeo.com/123456789  or  https://…/video.mp4" /></label>
+      <label>Video URL (WebM, optional — only for a direct .mp4 above)<input name="videoUrlWebm" value="${l ? esc(l.videoUrlWebm || '') : ''}" placeholder="https://…/video.webm" /></label>
       <div class="form-row">
         <label>Duration (seconds)<input name="durationSeconds" type="number" value="${l ? l.durationSeconds : 60}" /></label>
         <label>Must-watch (seconds)<input name="minWatchSeconds" type="number" value="${l ? l.minWatchSeconds : ''}" placeholder="auto = duration − 2" /></label>

@@ -215,6 +215,25 @@ test('peek "files" verdict classifies by real video signals, not incidental toke
   expect(d.videoStatus.detail).toMatch(/refused to connect|Where can this be embedded/i);
 });
 
+test('a video lesson with a Vimeo link renders an inline embedded player (native, no Captivate)', async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Native Vimeo Course', audience: 'referees' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'video', title: 'Throw-In Clip', videoUrl: 'https://vimeo.com/1200487589', html: '<p>Watch the clip.</p>' } })).json()).lesson.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  await page.goto('/#/register');
+  await page.fill('#firstName', 'Em'); await page.fill('#lastName', 'Bed');
+  await page.fill('#email', `em.bed+${Date.now()}@example.com`);
+  await page.click('button:has-text("Create account")');
+  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+
+  await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
+  const ifr = page.locator('#embedVideo');
+  await expect(ifr).toHaveAttribute('src', /player\.vimeo\.com\/video\/1200487589/); // inline Vimeo player, not a self-hosted <video>
+  await expect(page.locator('#lessonVideo')).toHaveCount(0);                          // the MP4 player is not used
+});
+
 test('video wiring check confirms each video actually delivers from the CDN URL the player uses', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
