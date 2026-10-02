@@ -112,6 +112,18 @@ test('CDN video shim is injected for CDN-backed packages (identity map when noth
   expect(no).not.toContain('HTMLMediaElement');                  // no shim without the marker
 });
 
+test('served SCORM HTML gets the Vimeo/YouTube in-frame embed fix (watch-page link → player overlay)', async ({ request }) => {
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+  fs.mkdirSync(path.join(dir, 'vimeo-course'), { recursive: true });
+  // A Captivate-style page that opens the un-embeddable Vimeo WATCH page in the frame.
+  fs.writeFileSync(path.join(dir, 'vimeo-course', 'index.html'),
+    '<!doctype html><head></head><body><script>cp.openURL("https://vimeo.com/1200487589?fl=pl","_self")</script></body>');
+  const html = await (await request.get(`${BASE}/scorm/vimeo-course/index.html`)).text();
+  expect(html).toContain('gmr-vid-ov');                 // the overlay fix is injected
+  expect(html).toContain('player.vimeo.com/video/');    // converts watch URL → embeddable player
+  expect(html).toContain('youtube.com/embed/');         // handles YouTube too
+});
+
 test('with hidden slides, the CDN shim maps new slide numbers back to the original Bunny files', async ({ request, playwright }) => {
   // A CDN-backed package whose video is the 3rd slide; hide slides 1 and 2, so
   // the player renumbers the video to slide 1 — but Bunny still has item-003.

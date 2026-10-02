@@ -915,6 +915,45 @@ function injectVideoError(html) {
   return html + script;
 }
 
+// Play Vimeo/YouTube in-frame instead of navigating to the un-embeddable watch page.
+// Captivate's "open URL" video widget points at the WATCH page (e.g. vimeo.com/<id>
+// opened in "_self"). That page blocks itself from loading in any site's frame
+// (X-Frame-Options on the main site), so inside our lesson iframe it shows "Vimeo
+// refused to connect" — regardless of the video's embed privacy. The fix: intercept
+// the navigation (both Captivate's cp.openURL and window.open), convert the watch URL
+// to the EMBEDDABLE player URL (player.vimeo.com/video/<id>, youtube.com/embed/<id>),
+// and show it in an overlay with a close button — so the learner stays in the course.
+// Purely additive and host-scoped: it only acts on vimeo/youtube links, so our own
+// slideshow player and any other package are untouched.
+function injectVideoEmbedFix(html) {
+  const script = `<script>/* GMR: play Vimeo/YouTube in-frame instead of the un-embeddable watch page */(function(){
+  function toEmbed(u){try{if(typeof u!=='string')return null;
+    if(/player\\.vimeo\\.com\\/video\\//i.test(u)||/youtube(?:-nocookie)?\\.com\\/embed\\//i.test(u))return u;
+    var m=u.match(/vimeo\\.com\\/(\\d+)(?:\\/([0-9a-z]+))?/i);
+    if(m)return 'https://player.vimeo.com/video/'+m[1]+(m[2]?'?h='+m[2]:'');
+    m=u.match(/(?:youtube\\.com\\/watch\\?[^#]*\\bv=|youtu\\.be\\/)([\\w-]{6,})/i);
+    if(m)return 'https://www.youtube.com/embed/'+m[1];
+    return null;}catch(e){return null;}}
+  function overlay(url){var ex=document.getElementById('gmr-vid-ov');if(ex)ex.parentNode.removeChild(ex);
+    var o=document.createElement('div');o.id='gmr-vid-ov';
+    o.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center';
+    var box=document.createElement('div');box.style.cssText='position:relative;width:min(92vw,1100px);aspect-ratio:16/9;max-height:84vh';
+    var f=document.createElement('iframe');f.src=url+(url.indexOf('?')>-1?'&':'?')+'autoplay=1';
+    f.setAttribute('allow','autoplay; fullscreen; picture-in-picture');f.setAttribute('allowfullscreen','');
+    f.style.cssText='width:100%;height:100%;border:0;border-radius:8px;background:#000';
+    var c=document.createElement('button');c.type='button';c.textContent='\\u2715 Close';
+    c.style.cssText='position:absolute;top:-42px;right:0;background:#fff;color:#111;border:0;border-radius:6px;padding:8px 14px;font:600 14px system-ui,Arial,sans-serif;cursor:pointer';
+    function close(){if(o.parentNode)o.parentNode.removeChild(o);}
+    c.onclick=close;o.addEventListener('click',function(e){if(e.target===o)close();});
+    box.appendChild(c);box.appendChild(f);o.appendChild(box);(document.body||document.documentElement).appendChild(o);}
+  function handle(u){var e=toEmbed(u);if(e){overlay(e);return true;}return false;}
+  try{var wo=window.open;window.open=function(u){if(handle(u))return {closed:false,close:function(){},focus:function(){},blur:function(){}};return wo.apply(window,arguments);};}catch(e){}
+  var tries=0,iv=setInterval(function(){tries++;try{if(window.cp&&typeof cp.openURL==='function'&&!cp.__gmrVid){var o=cp.openURL;cp.openURL=function(u){if(handle(u))return;return o.apply(this,arguments);};cp.__gmrVid=true;clearInterval(iv);}}catch(e){}if(tries>150)clearInterval(iv);},100);
+})();</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, script + '</body>');
+  return html + script;
+}
+
 // Find the per-slide review time configured for the module served from this
 // package folder. A package can be attached to more than one lesson; we use the
 // first lesson that points at it. Falls back to the platform default when no
@@ -1061,6 +1100,7 @@ app.get('/scorm/:pkg/*', async (req, res) => {
         html = injectPlayerMobileFix(html);
         html = injectSlideGate(html, slideGateForPackage(pkg));
         html = injectVideoError(html);
+        html = injectVideoEmbedFix(html);
         return res.type('html').send(html);
       }
       return res.sendFile(file);
