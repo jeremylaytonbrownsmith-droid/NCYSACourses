@@ -130,3 +130,49 @@ test('with hidden slides, the CDN shim maps new slide numbers back to the origin
   expect(html).toContain('HTMLMediaElement');   // shim present
   expect(html).toContain('"1":3');              // new slide 1 → original file item-003
 });
+
+test('peek "files" verdict classifies by real video signals, not incidental token matches', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+
+  // (1) A slides/quiz module with NO real video — but with a `.video` CSS class and
+  //     engine code mentioning ".mp4"/"<video>". This is the EXACT false positive the
+  //     old verdict hit ("references video — fixable on our side"). It must now read
+  //     as "no video found", not a problem on our side.
+  fs.mkdirSync(path.join(dir, 'peek-novideo'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'peek-novideo', 'index.html'), '<!doctype html><body>quiz</body>');
+  fs.writeFileSync(path.join(dir, 'peek-novideo', 'style.css'), '.video{display:none}');
+  fs.writeFileSync(path.join(dir, 'peek-novideo', 'engine.js'), 'function play(){/* generic .mp4 <video> handling */}');
+  let d = await (await api.get('/api/admin/scorm/peek-novideo/files')).json();
+  expect(d.videoStatus.level).toBe('info');        // NOT "fixable on our side"
+  expect(d.playerKnowsVideo).toBe(false);
+  expect(d.videos.length).toBe(0);
+  expect(d.externalEmbeds.length).toBe(0);
+
+  // (2) Already offloaded to the CDN (.cdn marker, local video deleted) → working.
+  fs.mkdirSync(path.join(dir, 'peek-cdn'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'peek-cdn', 'index.html'), '<!doctype html><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'peek-cdn', '.cdn'), 'https://ncysa-modules.b-cdn.net/peek-cdn/');
+  d = await (await api.get('/api/admin/scorm/peek-cdn/files')).json();
+  expect(d.videoStatus.level).toBe('ok');
+  expect(d.cdnOffloaded).toBe(true);
+  expect(d.videoStatus.label).toMatch(/CDN/i);
+
+  // (3) A bundled .mp4 → streams automatically on upload.
+  fs.mkdirSync(path.join(dir, 'peek-bundled', 'media'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'peek-bundled', 'index.html'), '<!doctype html><body><video src="media/clip.mp4"></video></body>');
+  fs.writeFileSync(path.join(dir, 'peek-bundled', 'media', 'clip.mp4'), 'FAKEMP4DATA');
+  d = await (await api.get('/api/admin/scorm/peek-bundled/files')).json();
+  expect(d.videoStatus.level).toBe('ok');
+  expect(d.videos.length).toBe(1);
+  expect(d.videoStatus.label).toMatch(/bundled/i);
+
+  // (4) An external YouTube embed → plays from the source; nothing on our side.
+  fs.mkdirSync(path.join(dir, 'peek-embed'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'peek-embed', 'index.html'), '<!doctype html><body><iframe src="https://www.youtube.com/embed/abc123"></iframe></body>');
+  d = await (await api.get('/api/admin/scorm/peek-embed/files')).json();
+  expect(d.videoStatus.level).toBe('ok');
+  expect(d.externalEmbeds.length).toBeGreaterThan(0);
+  expect(d.videoStatus.label).toMatch(/embed/i);
+});

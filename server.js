@@ -2621,8 +2621,12 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
       if (refs.length >= 3) break;
     }
   }
-  // Does ANY player file (not the manifest inventory) show the player knows about
-  // video at all? Scan the non-manifest text files for video tokens.
+  // Raw token scan — kept for the detail view ONLY, never for the verdict. The old
+  // verdict was "does any player file contain '.mp4'/'video'/'<video'?", which fired
+  // on a `.video` CSS class or on a framework's engine code (Captivate's CPM.js,
+  // jQuery) that ships generic video handling whether or not the course uses video.
+  // That made it declare "references video — fixable on our side" on every slides
+  // and quiz module. We now classify by REAL signals instead (below).
   const playerText = files
     .filter((f) => /\.(html?|js|css|txt)$/i.test(f.path) && f.bytes < 3_000_000)
     .map((f) => { try { return { path: f.path, txt: fs.readFileSync(path.join(base, f.path), 'utf8') }; } catch { return null; } })
@@ -2631,13 +2635,53 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
   for (const tok of ['.mp4', 'video', '<video', 'item-014']) {
     tokenHits[tok] = playerText.filter((f) => f.txt.toLowerCase().includes(tok.toLowerCase())).map((f) => f.path);
   }
+  // A GENUINE external video reference: a YouTube/Vimeo embed, or an absolute http(s)
+  // URL ending in a video/stream extension. These load straight from the source (the
+  // browser plays them directly) — nothing on our side is needed. Scan content files
+  // only (never .css) and capture the matched snippet so a human can confirm it's a
+  // real reference, not boilerplate. A full URL with a video-extension path is not
+  // something engine code emits by accident, so this is a low-false-positive signal.
+  const EMBED_RE = /(?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|watch)|youtu\.be\/|player\.vimeo\.com\/|vimeo\.com\/\d)[^\s"'<>]*|https?:\/\/[^\s"'<>]+\.(?:mp4|m4v|webm|mov|m3u8)(?:[?#][^\s"'<>]*)?/i;
+  const externalEmbeds = [];
+  for (const f of playerText) {
+    if (/\.css$/i.test(f.path)) continue;
+    const m = f.txt.match(EMBED_RE);
+    if (m) externalEmbeds.push({ file: f.path, snippet: f.txt.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60) });
+    if (externalEmbeds.length >= 3) break;
+  }
+  const cdnOffloaded = files.some((f) => f.path === '.cdn'); // video already moved to Bunny
+  // Which bundled videos are in a format our mover offloads to the CDN automatically.
+  const autoStreamable = videos.filter((v) => /\.(mp4|m4v|webm|mov)$/i.test(v.path));
+  // Honest, specific verdict — no more "fixable on our side" on modules that are fine.
+  let videoStatus;
+  if (cdnOffloaded) {
+    videoStatus = { level: 'ok', label: 'Video is streaming from the CDN',
+      detail: 'This module’s video was already moved to Bunny and is served from the CDN. It’s working — the local copy is deleted by design, which is why no video file is listed below.' };
+  } else if (videos.length && autoStreamable.length === videos.length) {
+    videoStatus = { level: 'ok', label: 'Video is bundled in the package',
+      detail: 'The video file(s) are inside the package and will stream automatically when it’s uploaded. Nothing to fix on our side.' };
+  } else if (videos.length) {
+    videoStatus = { level: 'warn', label: 'Video is bundled, but in a format we don’t auto-stream yet',
+      detail: 'The package contains video our mover doesn’t offload automatically (e.g. .ogg, or an .m3u8 stream). It may still play, but to CDN-optimize it, tell Claude the exact format so it can be added.' };
+  } else if (externalEmbeds.length) {
+    videoStatus = { level: 'ok', label: 'Video is an external embed',
+      detail: 'The video is embedded from an outside source (YouTube/Vimeo/URL) and plays straight from there — nothing on our side is needed for it.' };
+  } else {
+    videoStatus = { level: 'info', label: 'No video found in this package',
+      detail: 'No bundled video file, no external embed, and no CDN marker. If this is a slides or quiz module, that’s normal. If it’s supposed to have a video, the export didn’t include it — re-export with the video embedded.' };
+  }
   res.json({
     packageId: pkg,
     fileCount: files.length,
     totalBytes: files.reduce((n, f) => n + f.bytes, 0),
     videos,
     refs,
-    playerKnowsVideo: Object.values(tokenHits).some((arr) => arr.length > 0),
+    externalEmbeds,
+    cdnOffloaded,
+    videoStatus,
+    // Legacy boolean, now derived from REAL signals (bundled file / CDN marker /
+    // external embed) rather than an incidental token match. Kept for compatibility.
+    playerKnowsVideo: !!(videos.length || cdnOffloaded || externalEmbeds.length),
     tokenHits,
     nonMedia: files.filter((f) => !/^media\//i.test(f.path)).map((f) => f.path).slice(0, 40),
     files: files.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
