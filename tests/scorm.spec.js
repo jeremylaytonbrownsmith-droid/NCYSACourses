@@ -174,7 +174,19 @@ test('peek "files" verdict classifies by real video signals, not incidental toke
   d = await (await api.get('/api/admin/scorm/peek-embed/files')).json();
   expect(d.videoStatus.level).toBe('ok');
   expect(d.externalEmbeds.length).toBeGreaterThan(0);
+  expect(d.externalEmbeds[0].platform).toBe('YouTube');
   expect(d.videoStatus.label).toMatch(/embed/i);
+
+  // (5) A Captivate-style Vimeo widget reference → detected as Vimeo, with the
+  //     domain-whitelist fix surfaced right in the verdict (the real-world case).
+  fs.mkdirSync(path.join(dir, 'peek-vimeo'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'peek-vimeo', 'index.html'), '<!doctype html><body>captivate</body>');
+  fs.writeFileSync(path.join(dir, 'peek-vimeo', 'CPM.js'), 'var cfg={source:"https://player.vimeo.com/video/123456789"};');
+  d = await (await api.get('/api/admin/scorm/peek-vimeo/files')).json();
+  expect(d.videoStatus.level).toBe('ok');
+  expect(d.externalEmbeds.some((e) => e.platform === 'Vimeo')).toBe(true);
+  expect(d.videoStatus.label).toMatch(/vimeo/i);
+  expect(d.videoStatus.detail).toMatch(/refused to connect|Where can this be embedded/i);
 });
 
 test('video wiring check confirms each video actually delivers from the CDN URL the player uses', async ({ playwright }) => {

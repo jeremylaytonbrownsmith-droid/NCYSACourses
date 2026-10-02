@@ -2679,23 +2679,29 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
     .map((f) => { try { return { path: f.path, txt: fs.readFileSync(path.join(base, f.path), 'utf8') }; } catch { return null; } })
     .filter(Boolean);
   const tokenHits = {};
-  for (const tok of ['.mp4', 'video', '<video', 'item-014']) {
+  for (const tok of ['.mp4', 'video', '<video', 'vimeo', 'youtube', 'item-014']) {
     tokenHits[tok] = playerText.filter((f) => f.txt.toLowerCase().includes(tok.toLowerCase())).map((f) => f.path);
   }
   // A GENUINE external video reference: a YouTube/Vimeo embed, or an absolute http(s)
   // URL ending in a video/stream extension. These load straight from the source (the
   // browser plays them directly) — nothing on our side is needed. Scan content files
   // only (never .css) and capture the matched snippet so a human can confirm it's a
-  // real reference, not boilerplate. A full URL with a video-extension path is not
-  // something engine code emits by accident, so this is a low-false-positive signal.
+  // real reference. We catch two forms: a full URL (strong signal), OR a bare
+  // "vimeo"/"youtube" mention — Captivate's YouTube/Vimeo widgets may store just an ID
+  // plus the platform name rather than a full URL, and we still want to surface that.
   const EMBED_RE = /(?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|watch)|youtu\.be\/|player\.vimeo\.com\/|vimeo\.com\/\d)[^\s"'<>]*|https?:\/\/[^\s"'<>]+\.(?:mp4|m4v|webm|mov|m3u8)(?:[?#][^\s"'<>]*)?/i;
+  const PLATFORM_RE = /(?:player\.|www\.)?vimeo\.com[^\s"'<>]*|(?:www\.)?(?:youtube(?:-nocookie)?\.com|youtu\.be)[^\s"'<>]*|\bvimeo\b|\byoutube\b/i;
   const externalEmbeds = [];
   for (const f of playerText) {
     if (/\.css$/i.test(f.path)) continue;
-    const m = f.txt.match(EMBED_RE);
-    if (m) externalEmbeds.push({ file: f.path, snippet: f.txt.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60) });
-    if (externalEmbeds.length >= 3) break;
+    const m = f.txt.match(EMBED_RE) || f.txt.match(PLATFORM_RE);
+    if (!m) continue;
+    const hay = m[0].toLowerCase();
+    const platform = /vimeo/.test(hay) ? 'Vimeo' : /youtu/.test(hay) ? 'YouTube' : 'URL';
+    externalEmbeds.push({ file: f.path, platform, match: m[0], snippet: f.txt.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60) });
+    if (externalEmbeds.length >= 4) break;
   }
+  const platforms = [...new Set(externalEmbeds.map((e) => e.platform).filter((p) => p !== 'URL'))];
   const cdnOffloaded = files.some((f) => f.path === '.cdn'); // video already moved to Bunny
   // Which bundled videos are in a format our mover offloads to the CDN automatically.
   const autoStreamable = videos.filter((v) => /\.(mp4|m4v|webm|mov)$/i.test(v.path));
@@ -2711,8 +2717,12 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
     videoStatus = { level: 'warn', label: 'Video is bundled, but in a format we don’t auto-stream yet',
       detail: 'The package contains video our mover doesn’t offload automatically (e.g. .ogg, or an .m3u8 stream). It may still play, but to CDN-optimize it, tell Claude the exact format so it can be added.' };
   } else if (externalEmbeds.length) {
-    videoStatus = { level: 'ok', label: 'Video is an external embed',
-      detail: 'The video is embedded from an outside source (YouTube/Vimeo/URL) and plays straight from there — nothing on our side is needed for it.' };
+    const who = platforms.length ? platforms.join(' / ') : 'an outside source';
+    const vimeoNote = platforms.includes('Vimeo')
+      ? ' ⚠️ Vimeo only allows embedding on domains the video owner approves. If it shows “Vimeo refused to connect,” add this site’s domain in Vimeo (video Privacy → “Where can this be embedded?”), or set it to Anywhere.'
+      : '';
+    videoStatus = { level: 'ok', label: `Video is an external embed (${who})`,
+      detail: `The video streams from ${who} and plays straight from there — nothing on our side is needed to host it.` + vimeoNote };
   } else {
     videoStatus = { level: 'info', label: 'No video found in this package',
       detail: 'No bundled video file, no external embed, and no CDN marker. If this is a slides or quiz module, that’s normal. If it’s supposed to have a video, the export didn’t include it — re-export with the video embedded.' };

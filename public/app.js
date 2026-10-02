@@ -2367,7 +2367,7 @@ async function viewCourseAdmin(flash) {
       const icon = vs.level === 'ok' ? '✅' : vs.level === 'warn' ? '⚠️' : 'ℹ️';
       const verdict = `${icon} <strong>${esc(vs.label)}</strong><br>${esc(vs.detail)}`;
       const embeds = (d.externalEmbeds && d.externalEmbeds.length)
-        ? d.externalEmbeds.map((x) => `<em>${esc(x.file)}</em>:<br><code style="white-space:pre-wrap;word-break:break-all">${esc(x.snippet)}</code>`).join('<br>')
+        ? d.externalEmbeds.map((x) => `<strong>${esc(x.platform || 'URL')}</strong> in <em>${esc(x.file)}</em>${x.match ? ` — <code style="word-break:break-all">${esc(x.match)}</code>` : ''}<br><code style="white-space:pre-wrap;word-break:break-all">${esc(x.snippet)}</code>`).join('<br>')
         : 'None found.';
       const hits = d.tokenHits ? Object.entries(d.tokenHits).map(([k, v]) => `“${esc(k)}”: ${v.length ? esc(v.join(', ')) : 'not found'}`).join('<br>') : '';
       document.getElementById('storageMsg').innerHTML =
