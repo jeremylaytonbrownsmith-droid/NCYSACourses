@@ -954,6 +954,21 @@ function injectVideoEmbedFix(html) {
   return html + script;
 }
 
+// Make sure the SCORM content sends its referrer to third-party video hosts. Vimeo
+// verifies the embedding domain from the Referer header; if a package ships a
+// restrictive <meta name="referrer" content="no-referrer"> (some Captivate/Rise
+// exports do) the player can't see our domain and shows "Because of its privacy
+// settings, this video cannot be played here" even when embedding is allowed. We
+// strip any restrictive referrer meta and set a permissive one at the top of <head>
+// so the player receives the full referrer. (The matching HTTP header is set on the
+// response too.) Host-agnostic and harmless to packages that don't embed video.
+function injectReferrerFix(html) {
+  html = html.replace(/<meta\b[^>]*\bname=["']referrer["'][^>]*>/gi, '');
+  const meta = '<meta name="referrer" content="no-referrer-when-downgrade">';
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + meta);
+  return meta + html;
+}
+
 // Find the per-slide review time configured for the module served from this
 // package folder. A package can be attached to more than one lesson; we use the
 // first lesson that points at it. Falls back to the platform default when no
@@ -1101,6 +1116,10 @@ app.get('/scorm/:pkg/*', async (req, res) => {
         html = injectSlideGate(html, slideGateForPackage(pkg));
         html = injectVideoError(html);
         html = injectVideoEmbedFix(html);
+        html = injectReferrerFix(html);
+        // Let an embedded Vimeo/YouTube player see our domain so it can verify the
+        // embed (overrides the stricter global Referrer-Policy for lesson content).
+        res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
         return res.type('html').send(html);
       }
       return res.sendFile(file);

@@ -124,6 +124,20 @@ test('served SCORM HTML gets the Vimeo/YouTube in-frame embed fix (watch-page li
   expect(html).toContain('youtube.com/embed/');         // handles YouTube too
 });
 
+test('served SCORM HTML sends a permissive referrer so Vimeo can verify the embed domain', async ({ request }) => {
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+  fs.mkdirSync(path.join(dir, 'referrer-course'), { recursive: true });
+  // A package that ships a restrictive no-referrer meta (which would hide our domain
+  // from Vimeo and trigger its "privacy settings" block).
+  fs.writeFileSync(path.join(dir, 'referrer-course', 'index.html'),
+    '<!doctype html><html><head><meta name="referrer" content="no-referrer"><title>t</title></head><body>m</body></html>');
+  const res = await request.get(`${BASE}/scorm/referrer-course/index.html`);
+  const html = await res.text();
+  expect(html).toContain('content="no-referrer-when-downgrade"');   // permissive meta injected
+  expect(html).not.toMatch(/content=["']no-referrer["']/);          // restrictive meta stripped
+  expect((res.headers()['referrer-policy'] || '')).toBe('no-referrer-when-downgrade'); // and the header
+});
+
 test('with hidden slides, the CDN shim maps new slide numbers back to the original Bunny files', async ({ request, playwright }) => {
   // A CDN-backed package whose video is the 3rd slide; hide slides 1 and 2, so
   // the player renumbers the video to slide 1 — but Bunny still has item-003.
