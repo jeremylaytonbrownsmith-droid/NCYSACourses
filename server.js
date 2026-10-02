@@ -328,15 +328,39 @@ function ensureCourse(courseObj) {
 // lesson will be added here once its questions are confirmed. Code-managed via
 // ensureCourse, so it ships on deploy and its content stays in sync from source.
 function setupLawChangesCourse() {
-  const slides = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    .map((n) => `<img src="/media/law-changes/slide-${n}.jpeg" alt="Laws of the Game Changes 2026/27 — slide ${n}" />`)
-    .join('\n');
+  const img = (n, alt) => `<img src="/media/law-changes/slide-${n}.jpeg" alt="${alt}" />`;
+  const h = (t) => `<h3 style="color:#16233f;border-bottom:3px solid #ce2b37;padding-bottom:6px;margin:28px 0 14px;font-size:1.2rem;letter-spacing:.01em">${t}</h3>`;
+  const slidesHtml = [
+    // Branded header band (OMG navy + red accent) in place of the plain title slide.
+    '<div style="background:#16233f;color:#fff;border-radius:14px;padding:26px 24px;margin:0 0 20px">',
+    '  <div style="color:#f3899b;font-weight:800;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase;margin-bottom:6px">OMG Referee Education</div>',
+    '  <h2 style="color:#fff;margin:0 0 6px;font-size:1.8rem;line-height:1.12">Laws of the Game Changes 2026/27</h2>',
+    '  <div style="color:#c9d4e8;font-size:.98rem">Practical advice for referees &middot; <strong style="color:#fff">Effective July 1, 2026</strong></div>',
+    '</div>',
+    '<p>The IFAB 2026/27 changes target match tempo and clearer referee decisions. Work through the slides below, watch the video example, then take the quiz.</p>',
+    h('What&rsquo;s changing &amp; when'),
+    img(2, 'What is changing and when it applies'),
+    img(3, 'What is changing at a glance — part 1'),
+    img(4, 'What is changing at a glance — part 2'),
+    h('Maintaining match tempo'),
+    img(5, 'Section: maintaining match tempo'),
+    img(6, 'Why IFAB made these changes'),
+    h('The throw-in &mdash; Law 15'),
+    img(7, 'Throw-in 5-second countdown: previous vs new'),
+    img(8, 'Throw-in 5-second protocol: how to apply it'),
+    '<div style="border-left:5px solid #ce2b37;background:#f6f1f1;padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0;color:#16233f">',
+    '  <strong>Key change (Law 15):</strong> the referee shows a <strong>visible 5-second countdown</strong> with a raised hand. If the throw-in isn&rsquo;t taken in time, it is <strong>switched to the opponents</strong> &mdash; a caution is given only for <strong>continued delay after the switch</strong>, not for the first delay.',
+    '</div>',
+    h('In practice'),
+    img(9, 'Video clip: the countdown in practice'),
+    '<p style="color:#51607a">Next up: watch the video example, then take the 5-question quiz.</p>',
+  ].join('\n');
   ensureCourse({
     id: 'omg-law-changes-2026-27',
     orgId: 'omg',
     title: '2026-2027 Law Changes',
     tagline: 'IFAB Laws of the Game changes for 2026/27 — practical advice for referees.',
-    description: 'The IFAB Laws of the Game changes for the 2026/27 season, effective July 1, 2026, with a practical video example.',
+    description: 'The IFAB Laws of the Game changes for the 2026/27 season, effective July 1, 2026, with a practical video example and a short quiz.',
     badge: 'Module',
     estMinutes: 20,
     heroEmoji: '⚽',
@@ -355,16 +379,80 @@ function setupLawChangesCourse() {
         id: 'law-changes-slides',
         type: 'text',
         title: 'Laws of the Game Changes 2026/27',
-        html: '<p>The IFAB Laws of the Game changes for 2026/27 — effective <strong>July 1, 2026</strong>. Review each slide, then watch the video example in the next lesson.</p>\n' + slides,
+        html: slidesHtml,
       },
       {
         id: 'law-changes-video',
         type: 'video',
         title: 'Law 15 — The Throw-In (video example)',
-        html: '<p>Watch the clip, then continue.</p>',
+        html: '<p>Watch the throw-in countdown in a real match, then continue to the quiz. Watch for: when the referee raises a hand to start the count, whether the thrower is in motion at five, and how the switch is signaled to both teams.</p>',
         videoUrl: 'https://vimeo.com/1200487589',
         durationSeconds: 45,
         minWatchSeconds: 20,
+      },
+      {
+        id: 'law-changes-quiz',
+        type: 'quiz',
+        title: 'Quiz — 2026/27 Law Changes',
+        html: '<p>Five questions on the 2026/27 changes. You need 80% to pass.</p>',
+        passPercent: 80,
+        questions: [
+          {
+            id: 'q1',
+            prompt: 'Law 15 (throw-in): the thrower delays past the referee’s visible 5-second countdown. What is the restart?',
+            options: [
+              'Caution (yellow card) the thrower and retake the throw-in',
+              'The throw-in is switched to the opponents',
+              'Indirect free kick to the opponents',
+              'Add time and allow the throw-in to be taken',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q2',
+            prompt: 'How does the referee manage the new throw-in time limit?',
+            options: [
+              'A silent 10-second mental count',
+              'A visible 5-second countdown with a raised hand',
+              'A single long whistle',
+              'No signal — fully referee discretion, as before',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q3',
+            prompt: 'On the throw-in, when is a caution (yellow card) actually shown?',
+            options: [
+              'Immediately, together with switching the throw-in',
+              'Only if excessive delay continues after the throw-in is switched',
+              'A caution is never shown on a throw-in',
+              'Only if the coach protests the decision',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q4',
+            prompt: 'Law 3 (substitutions): how quickly must the outgoing player leave the field?',
+            options: [
+              'Within 30 seconds',
+              'Within 10 seconds of the substitution being indicated',
+              'At the next stoppage in play',
+              'Within one minute',
+            ],
+            answer: 1,
+          },
+          {
+            id: 'q5',
+            prompt: 'Law 12 (DOGSO): when is a caution NOT required for denying an obvious goal-scoring opportunity?',
+            options: [
+              'When the offence is outside the penalty area',
+              'When advantage is played and a goal is scored',
+              'When the goalkeeper commits the offence',
+              'DOGSO is always cautioned',
+            ],
+            answer: 1,
+          },
+        ],
       },
     ],
   });

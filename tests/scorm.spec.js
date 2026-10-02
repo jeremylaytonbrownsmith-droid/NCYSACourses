@@ -245,11 +245,19 @@ test('the native Law Changes course is seeded for OMG with slides + a native Vim
   expect(c.coBrandName).toMatch(/OMG/);
   const slides = c.lessons.find((l) => l.id === 'law-changes-slides');
   expect(slides.type).toBe('text');
-  expect(slides.html).toContain('/media/law-changes/slide-1.jpeg');
+  expect(slides.html).toContain('OMG Referee Education');          // branded header band
+  expect(slides.html).toContain('/media/law-changes/slide-2.jpeg'); // slides start at 2 (1 = title → header)
   expect(slides.html).toContain('/media/law-changes/slide-9.jpeg');
   const vid = c.lessons.find((l) => l.id === 'law-changes-video');
   expect(vid.type).toBe('video');
   expect(vid.videoUrl).toContain('vimeo.com/1200487589');
+  // A 5-question quiz, throw-in question first, 80% to pass.
+  const quiz = c.lessons.find((l) => l.id === 'law-changes-quiz');
+  expect(quiz.type).toBe('quiz');
+  expect(quiz.questions.length).toBe(5);
+  expect(quiz.passPercent).toBe(80);
+  expect(quiz.questions[0].prompt).toMatch(/throw-in/i);
+  expect(quiz.questions[0].options[quiz.questions[0].answer]).toMatch(/switched to the opponents/i);
   // The slide images are actually served.
   const img = await request.get(`${BASE}/media/law-changes/slide-1.jpeg`);
   expect(img.status()).toBe(200);
