@@ -234,6 +234,27 @@ test('a video lesson with a Vimeo link renders an inline embedded player (native
   await expect(page.locator('#lessonVideo')).toHaveCount(0);                          // the MP4 player is not used
 });
 
+test('the native Law Changes course is seeded for OMG with slides + a native Vimeo video lesson', async ({ request, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const r = await api.get('/api/admin/courses/omg-law-changes-2026-27');
+  expect(r.ok()).toBeTruthy();
+  const c = (await r.json()).course;
+  expect(c.orgId).toBe('omg');
+  expect(c.published).toBe(true);
+  expect(c.coBrandName).toMatch(/OMG/);
+  const slides = c.lessons.find((l) => l.id === 'law-changes-slides');
+  expect(slides.type).toBe('text');
+  expect(slides.html).toContain('/media/law-changes/slide-1.jpeg');
+  expect(slides.html).toContain('/media/law-changes/slide-9.jpeg');
+  const vid = c.lessons.find((l) => l.id === 'law-changes-video');
+  expect(vid.type).toBe('video');
+  expect(vid.videoUrl).toContain('vimeo.com/1200487589');
+  // The slide images are actually served.
+  const img = await request.get(`${BASE}/media/law-changes/slide-1.jpeg`);
+  expect(img.status()).toBe(200);
+});
+
 test('an OMG referee course with no co-logo shows the OMG mark (not NCSRA) in the header and card', async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });

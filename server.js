@@ -322,6 +322,54 @@ function ensureCourse(courseObj) {
   if (changed) save();
 }
 
+// Native "2026-2027 Law Changes" course for the OMG portal — built in code (not from
+// a Captivate/SCORM upload): the 9 Laws-of-the-Game slides as a reading lesson, plus
+// the throw-in clip as a native Vimeo video lesson (no Captivate wrapper). A quiz
+// lesson will be added here once its questions are confirmed. Code-managed via
+// ensureCourse, so it ships on deploy and its content stays in sync from source.
+function setupLawChangesCourse() {
+  const slides = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    .map((n) => `<img src="/media/law-changes/slide-${n}.jpeg" alt="Laws of the Game Changes 2026/27 — slide ${n}" />`)
+    .join('\n');
+  ensureCourse({
+    id: 'omg-law-changes-2026-27',
+    orgId: 'omg',
+    title: '2026-2027 Law Changes',
+    tagline: 'IFAB Laws of the Game changes for 2026/27 — practical advice for referees.',
+    description: 'The IFAB Laws of the Game changes for the 2026/27 season, effective July 1, 2026, with a practical video example.',
+    badge: 'Module',
+    estMinutes: 20,
+    heroEmoji: '⚽',
+    audience: 'referees',
+    published: true,
+    coBrandName: 'OMG Referee Education',
+    coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group',
+    certTitle: '2027 Certificate of Recertification Training',
+    certPrefix: 'OMG',
+    certAccent: '#2f5a9e',
+    certAccent2: '#ce2b37',
+    completionRedirectUrl: '',
+    lessons: [
+      {
+        id: 'law-changes-slides',
+        type: 'text',
+        title: 'Laws of the Game Changes 2026/27',
+        html: '<p>The IFAB Laws of the Game changes for 2026/27 — effective <strong>July 1, 2026</strong>. Review each slide, then watch the video example in the next lesson.</p>\n' + slides,
+      },
+      {
+        id: 'law-changes-video',
+        type: 'video',
+        title: 'Law 15 — The Throw-In (video example)',
+        html: '<p>Watch the clip, then continue.</p>',
+        videoUrl: 'https://vimeo.com/1200487589',
+        durationSeconds: 45,
+        minWatchSeconds: 20,
+      },
+    ],
+  });
+}
+
 const app = express();
 app.use(express.json());
 // Baseline security headers on every response. Conservative so nothing breaks:
@@ -2939,7 +2987,7 @@ if (require.main === module) {
       try {
         seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
-        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); omgNewRefereeFirst(); omgCourseOrder();
+        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder();
       } catch (e) {
         console.error('[boot] a seed/migration failed (continuing to serve):', e && e.stack || e);
       }
