@@ -234,6 +234,23 @@ test('a video lesson with a Vimeo link renders an inline embedded player (native
   await expect(page.locator('#lessonVideo')).toHaveCount(0);                          // the MP4 player is not used
 });
 
+test('an OMG referee course with no co-logo shows the OMG mark (not NCSRA) in the header and card', async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'OMG No-Logo Course', audience: 'referees' } })).json()).course.id;
+  // OMG brand name set, but deliberately NO co-logo — the exact "Law Changes" case.
+  await api.put(`/api/admin/courses/${courseId}`, { data: { orgId: 'omg', coBrandName: 'OMG Referee Education' } });
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Intro', html: '<p>hi</p>' } });
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  await page.goto('/#/org/omg/referees');
+  const card = page.locator('.course-card', { hasText: 'OMG No-Logo Course' });
+  await expect(card).toBeVisible();
+  await expect(card.locator('.thumb-logo')).toHaveAttribute('src', /omg-logo\.png/);      // card falls back to OMG, not NCSRA
+  await expect(card.locator('.thumb-logo')).not.toHaveAttribute('src', /ncsra/i);
+  await expect(page.locator('.topnav .brandmark')).toHaveAttribute('src', /omg-logo\.png/); // header logo isn't empty/broken
+});
+
 test('video wiring check confirms each video actually delivers from the CDN URL the player uses', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });

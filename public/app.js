@@ -110,6 +110,13 @@ const ORG_BRANDS = {
     certAccent2: '#ce2b37', // OMG red (shield stripes)
   },
 };
+// The canonical referee logo for an organization, from its brand config — so a
+// course that didn't set its own co-logo still shows the right org mark (OMG's for
+// OMG) instead of defaulting to NCSRA. NCYSA/default referees use the NCSRA badge.
+function orgLogo(orgId) {
+  const b = ORG_BRANDS[orgId];
+  return (b && b.coLogoUrl) || NCSRA_LOGO;
+}
 // Custom domains that belong to a partner org. When the app is served from one
 // of these hostnames, the landing page opens that org's portal instead of the
 // NCYSA chooser — so the partner's URL shows only their branding, no NCYSA.
@@ -447,7 +454,7 @@ function courseCard(c) {
     <div class="course-card${comingSoon ? ' is-coming-soon' : ''}">
       <div class="thumb"><span class="badge">${esc(c.badge)}</span>${
         c.coLogoUrl ? `<img class="thumb-logo" src="${esc(c.coLogoUrl)}" alt="${esc(c.coBrandName || '')}" />`
-        : c.audience === 'referees' ? `<img class="thumb-logo" src="${NCSRA_LOGO}" alt="NCSRA" />`
+        : c.audience === 'referees' ? `<img class="thumb-logo" src="${esc(orgLogo(c.orgId || DEFAULT_ORG))}" alt="${esc(c.coBrandName || 'Referee')}" />`
         : logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
@@ -679,7 +686,7 @@ async function viewReferees() {
   const isNC = activeOrg === DEFAULT_ORG;
   // Each org's referee logo: its brand logo, else a referee course's logo, else
   // (for NC only) the bundled NCSRA badge.
-  const heroLogo = (brand && brand.logo) || refCourses.find((c) => c.coLogoUrl)?.coLogoUrl || (isNC ? NCSRA_LOGO : '');
+  const heroLogo = (brand && brand.logo) || refCourses.find((c) => c.coLogoUrl)?.coLogoUrl || orgLogo(activeOrg);
   const heading = isNC ? 'NCSRA Referee Education' : ((brand && brand.name) || 'Referee Education');
   const lead = isNC
     ? 'Certification and Laws of the Game training for North Carolina soccer referees.'
@@ -3127,7 +3134,7 @@ async function brandMap() {
   if (_brandMap) return _brandMap;
   _brandMap = {};
   for (const c of await publicCourses()) {
-    if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl, audience: c.audience, orgId: c.orgId || DEFAULT_ORG };
+    if (c.coBrandName) _brandMap[c.id] = { name: c.coBrandName, logo: c.coLogoUrl || orgLogo(c.orgId || DEFAULT_ORG), audience: c.audience, orgId: c.orgId || DEFAULT_ORG };
   }
   return _brandMap;
 }
