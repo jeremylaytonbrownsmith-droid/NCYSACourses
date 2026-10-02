@@ -2247,6 +2247,10 @@ async function viewCourseAdmin(flash) {
              <button class="btn btn-accent" id="migrateOne" data-pkg="${esc(firstPending)}">Move 1 module (test)</button>
              <button class="btn btn-ghost" id="migrateAll" style="margin-left:8px">Move all ${d.cdnPending}</button>`
              : `<p>All modules with video are already served from the CDN. ✅</p>`}
+           <p style="margin-top:10px">
+             <button class="btn btn-ghost" id="checkWiring">🔎 Check video wiring (all CDN modules)</button>
+             <span class="meta" style="margin-left:8px">Fetches every video from its real CDN URL to confirm it actually delivers — catches a black screen before a learner does.</span>
+           </p>
          </div>`
       : `<div class="cdn-box">
            <strong>☁️ Bunny CDN — not connected yet.</strong>
@@ -2303,6 +2307,36 @@ async function viewCourseAdmin(flash) {
       if (errs.length) summary += ` These could not move: ${errs.join('; ')}`;
       sMsg(summary, errs.length > 0);
       loadStorage();
+    });
+    document.getElementById('checkWiring')?.addEventListener('click', async (ev) => {
+      const btn = ev.target; btn.disabled = true;
+      const cdnPkgs = d.packages.filter((p) => p.cdn).map((p) => p.packageId);
+      const el = document.getElementById('storageMsg');
+      if (!cdnPkgs.length) { el.className = 'editor-msg'; el.textContent = 'No CDN-backed modules to check yet.'; btn.disabled = false; return; }
+      let okCount = 0; const broken = []; const skipped = [];
+      for (let i = 0; i < cdnPkgs.length; i++) {
+        btn.textContent = `Checking ${i + 1} of ${cdnPkgs.length}…`;
+        try {
+          const r = await api(`/api/admin/scorm/${cdnPkgs[i]}/wiring`);
+          if (!r.slideshow) { skipped.push(cdnPkgs[i]); continue; }
+          if (r.brokenCount > 0) broken.push({ pkg: cdnPkgs[i], videos: (r.videos || []).filter((v) => !v.hidden && !v.ok) });
+          else okCount++;
+        } catch (e) { broken.push({ pkg: cdnPkgs[i], error: e.message }); }
+      }
+      btn.disabled = false; btn.textContent = '🔎 Check video wiring (all CDN modules)';
+      if (!broken.length) {
+        el.className = 'editor-msg ok';
+        el.innerHTML = `✅ <strong>All good.</strong> Every video in ${okCount} CDN module(s) delivers from the CDN.` +
+          (skipped.length ? `<br><span class="meta">${skipped.length} non-slideshow module(s) skipped — open to verify: ${skipped.map(esc).join(', ')}</span>` : '');
+      } else {
+        el.className = 'editor-msg err';
+        el.innerHTML = `❌ <strong>${broken.length} module(s) have videos that don’t deliver from the CDN</strong> (these would show a black screen):<br><br>` +
+          broken.map((b) => b.error
+            ? `<strong>${esc(b.pkg)}</strong>: ${esc(b.error)}`
+            : `<strong>${esc(b.pkg)}</strong><br>` + (b.videos || []).map((v) => `&nbsp;&nbsp;slide ${v.slide} → <code style="word-break:break-all">${esc(v.url)}</code> (HTTP ${v.httpStatus || 'no response'})`).join('<br>')
+          ).join('<br><br>') +
+          `<br><br><span class="meta">${okCount} module(s) checked out fine.</span>`;
+      }
     });
     const sMsg = (t, err) => { const e = document.getElementById('storageMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
     document.getElementById('cleanOrphans').addEventListener('click', async () => {
@@ -2431,7 +2465,15 @@ async function viewCourseAdmin(flash) {
               const title = data.title || nameHint;
               await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
               okCount++; ok = true;
-              line(`✓ Module ${i + 1}: “${esc(title)}” added${data.cdn ? ' <span class="meta">(video → CDN)</span>' : ''}${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
+              line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
+              const v = data.video;
+              if (v) {
+                const ic = v.level === 'ok' ? '✅' : v.level === 'warn' ? '⚠️' : v.level === 'error' ? '❌' : 'ℹ️';
+                // Errors stand out (full colour); everything else is a quiet note.
+                line(v.level === 'error'
+                  ? `&nbsp;&nbsp;<span style="color:var(--danger)">${ic} ${esc(v.message)}</span>`
+                  : `&nbsp;&nbsp;${ic} <span class="meta">${esc(v.message)}</span>`);
+              }
             } catch (err) {
               lastErr = err.message;
               if (attempt === 1) line(`… retrying ${esc(f.name)}…`);
@@ -2564,7 +2606,12 @@ async function viewCourseAdmin(flash) {
           form.querySelector('[name=launchFile]').value = data.launchFile || 'index.html';
           const titleEl = form.querySelector('[name=title]');
           if (titleEl && !titleEl.value && data.title) titleEl.value = data.title;
-          status.innerHTML = `✓ Uploaded: <strong>${esc(data.title || data.packageId)}</strong>` + (data.warning ? ` — ⚠ ${esc(data.warning)}` : ' — now click “Save lesson”.');
+          const v = data.video;
+          const vLine = v
+            ? `<br>${v.level === 'ok' ? '✅' : v.level === 'warn' ? '⚠️' : v.level === 'error' ? '❌' : 'ℹ️'} ` +
+              (v.level === 'error' ? `<span style="color:var(--danger)">${esc(v.message)}</span>` : `<span class="meta">${esc(v.message)}</span>`)
+            : '';
+          status.innerHTML = `✓ Uploaded: <strong>${esc(data.title || data.packageId)}</strong>` + (data.warning ? ` — ⚠ ${esc(data.warning)}` : ' — now click “Save lesson”.') + vLine;
         } catch (err) {
           // A dropped connection (shaky Wi-Fi) surfaces as a fetch TypeError, not
           // an HTTP error — say so plainly instead of a cryptic "Upload failed".

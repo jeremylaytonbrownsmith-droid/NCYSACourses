@@ -703,6 +703,20 @@ async function bunnyHas(pkg, rel) {
     return r.ok || r.status === 206;
   } catch (e) { clearTimeout(timer); return false; }
 }
+// Is a video actually DELIVERABLE from the public CDN URL the player uses? Unlike
+// bunnyHas (which checks storage with the Access Key), this hits the exact public
+// CDN URL the browser would request — no key — so it tests the whole delivery path:
+// storage → pull zone → the precise filename. A tiny Range GET (bytes=0-0) so we
+// don't pull the whole video. Returns { ok, status } (status 0 on network error).
+async function cdnReachable(url) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(url, { headers: { Range: 'bytes=0-0' }, signal: ac.signal });
+    clearTimeout(timer);
+    return { ok: r.ok || r.status === 206, status: r.status };
+  } catch (e) { clearTimeout(timer); return { ok: false, status: 0, error: e.message }; }
+}
 // Stream a video straight from Bunny STORAGE through us (same-origin), using the
 // storage Access Key. This is the reliable path when a package's local video was
 // dropped after offload and the CDN pull-zone delivery isn't serving it: the file
@@ -2339,12 +2353,44 @@ async function ingestScormUpload(req, nameHint) {
     let cdn = { cdn: false };
     try { cdn = await offloadVideosToBunny(packageId, dest); }
     catch (e) { cdn = { cdn: false, error: e.message }; }
+    // Automatic video assurance on EVERY upload — so a broken course can't quietly
+    // go live (nobody has to remember to run a check), and a package with no video
+    // says so plainly. With 14 associations self-uploading, this is the safety net.
+    let videoReport;
+    try {
+      if (cdn.cdn) {
+        // Videos were offloaded — verify each one the player will request actually
+        // delivers from the CDN before we call the upload good.
+        const w = await cdnVideoWiring(packageId, dest);
+        if (w.slideshow && w.brokenCount) {
+          const bad = w.videos.filter((v) => !v.hidden && !v.ok);
+          videoReport = { level: 'error',
+            message: `${bad.length} video(s) were moved to the CDN but do NOT play back from it — this module would show a black screen. Affected: ` + bad.map((v) => `slide ${v.slide}`).join(', ') + '. Re-upload, or check the CDN pull zone.' };
+        } else {
+          videoReport = { level: 'ok', message: `${cdn.count} video(s) moved to the CDN and verified playable.` };
+        }
+      } else if (cdn.error) {
+        videoReport = { level: 'error', message: `Video upload to the CDN failed (${cdn.error}). The video stays on the server for now — re-upload once it’s resolved.` };
+      } else {
+        // No offload happened: either the package has a bundled video in a format we
+        // don't auto-stream, or it has no embedded video at all. Tell them which.
+        let hasVid = false;
+        (function walk(dir) { for (const n of fs.readdirSync(dir)) { const f = path.join(dir, n); if (fs.statSync(f).isDirectory()) walk(f); else if (/\.(mp4|m4v|webm|mov|ogg|m3u8)$/i.test(n)) hasVid = true; } })(dest);
+        if (hasVid) {
+          videoReport = bunnyEnabled()
+            ? { level: 'warn', message: 'An embedded video is present but in a format we don’t auto-stream yet (e.g. .ogg or an .m3u8 stream). It may still play — tell Claude the format to CDN-optimize it.' }
+            : { level: 'ok', message: 'An embedded video is present; it will play from the server (CDN streaming is off for this instance).' };
+        } else {
+          videoReport = { level: 'info', message: 'No embedded video found — any external links (YouTube/Vimeo) will play from their source. If this module was meant to have an embedded video, the export didn’t include it.' };
+        }
+      }
+    } catch (e) { videoReport = { level: 'info', message: 'Uploaded. (Automatic video check could not run: ' + e.message + ')' }; }
     // Launch file named in the manifest isn't where expected — flag it (as a
     // warning) rather than silently shipping a broken module.
     const warning = !fs.existsSync(path.join(dest, launchFile))
       ? `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.`
       : null;
-    return { packageId, launchFile, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, warning };
+    return { packageId, launchFile, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, videoReport, warning };
   } catch (e) {
     // A failed upload must not leave a half-written package folder or temp zip
     // behind — that would silently eat disk on every retry.
@@ -2445,6 +2491,7 @@ app.post('/api/v1/scorm', async (req, res) => {
     title,
     published: course.published,
     cdn: meta.cdn, cdnVideos: meta.cdnVideos,
+    video: meta.videoReport, // plain-English result of the automatic video check (level + message)
     launchBase: `${base}/launch`, // mint a signed JWT then launch at `${launchBase}?token=...`
     // Be explicit when a requested publish was held back by the switch. Neutral
     // wording — no contractual language in a machine response the partner logs.
@@ -2724,6 +2771,52 @@ app.get('/api/admin/scorm/:pkg/slides', requireEditor, async (req, res) => {
     .map(async (s) => { s.onBunny = await bunnyHas(pkg, s.rel); }));
   for (const s of slides) { s.missing = !(s.onDisk || s.onBunny); delete s.rel; }
   res.json({ packageId: pkg, slideshow: true, count: slides.length, missingCount: slides.filter((s) => s.missing).length, slides });
+});
+
+// Video wiring check: for a CDN-offloaded module, fetch EVERY video from the exact
+// public CDN URL the player would request, and report which ones actually deliver.
+// This tests the half of the pipeline a green "CDN" badge can't — storage → pull
+// zone → the precise filename — which is where a renumber/remap or pull-zone mistake
+// hides (the kind that once black-screened NCYSA/NCSRA videos). A video that's hidden
+// in this module isn't requested by the player, so a miss on it isn't a real break.
+// Shared by the manual endpoint AND the automatic post-upload check.
+async function cdnVideoWiring(pkg, base) {
+  const cdnFile = path.join(base, '.cdn');
+  if (!fs.existsSync(cdnFile)) {
+    return { cdn: false, slideshow: false, videos: [], brokenCount: 0,
+      status: { level: 'info', label: 'Not on the CDN — nothing to check',
+        detail: 'This module’s video isn’t offloaded to the CDN (or it has no video). The wiring check only applies to CDN-backed modules.' } };
+  }
+  const cdnBase = fs.readFileSync(cdnFile, 'utf8').trim().replace(/\/+$/, '') + '/';
+  const man = readSlideManifest(base);
+  if (!man) {
+    return { cdn: true, slideshow: false, videos: [], brokenCount: 0,
+      status: { level: 'info', label: 'On the CDN, but not a slideshow module',
+        detail: 'This isn’t our slideshow player, so the exact video URLs can’t be auto-derived. Open the module to confirm the video plays.' } };
+  }
+  const hidden = new Set(hiddenSlidesForPackage(pkg)); // original slide numbers hidden here
+  const videoSlides = man.items.map((t, i) => ({ n: i + 1, t })).filter((s) => s.t === 'v');
+  const videos = [];
+  for (const s of videoSlides) {
+    const rel = 'media/item-' + String(s.n).padStart(3, '0') + '.mp4';
+    const url = cdnBase + rel;
+    const probe = await cdnReachable(url);
+    videos.push({ slide: s.n, hidden: hidden.has(s.n), url, ok: probe.ok, httpStatus: probe.status });
+  }
+  const brokenVisible = videos.filter((v) => !v.hidden && !v.ok);
+  const liveCount = videos.filter((v) => !v.hidden).length;
+  const status = brokenVisible.length === 0
+    ? { level: 'ok', label: liveCount ? `All ${liveCount} video(s) deliver from the CDN ✅` : 'No videos the player would request',
+        detail: 'Every video this module plays was fetched from the CDN successfully.' }
+    : { level: 'error', label: `${brokenVisible.length} video(s) are NOT reachable from the CDN`,
+        detail: 'The player will show a black screen for these — they’re offloaded but the CDN isn’t delivering them. Check the pull zone and the filenames below.' };
+  return { cdn: true, slideshow: true, count: videos.length, brokenCount: brokenVisible.length, videos, status };
+}
+app.get('/api/admin/scorm/:pkg/wiring', requireEditor, async (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
+  res.json({ packageId: pkg, ...(await cdnVideoWiring(pkg, base)) });
 });
 
 // Serve a package file straight from disk with NO trimmed-deck remap, for the

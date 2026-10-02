@@ -176,3 +176,43 @@ test('peek "files" verdict classifies by real video signals, not incidental toke
   expect(d.externalEmbeds.length).toBeGreaterThan(0);
   expect(d.videoStatus.label).toMatch(/embed/i);
 });
+
+test('video wiring check confirms each video actually delivers from the CDN URL the player uses', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const dir = path.join(__dirname, '..', '.test-data', 'scorm');
+
+  // (A) CDN-backed slideshow whose video (slide 3) IS reachable: point .cdn at this
+  //     same test server and place the real media file, so the probe gets a 200/206.
+  fs.mkdirSync(path.join(dir, 'wire-ok', 'media'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'wire-ok', 'index.html'), '<!doctype html><head></head><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'wire-ok', 'manifest.js'), 'var ITEMS=["i","i","v"];var TITLES=["A","B","V"];');
+  fs.writeFileSync(path.join(dir, 'wire-ok', '.cdn'), `${BASE}/scorm/wire-ok/`);
+  fs.writeFileSync(path.join(dir, 'wire-ok', 'media', 'item-003.mp4'), 'FAKE-MP4-BYTES');
+  let r = await (await api.get('/api/admin/scorm/wire-ok/wiring')).json();
+  expect(r.slideshow).toBe(true);
+  expect(r.videos.length).toBe(1);
+  expect(r.videos[0].slide).toBe(3);
+  expect(r.videos[0].url).toContain('/scorm/wire-ok/media/item-003.mp4'); // the exact URL the player requests
+  expect(r.videos[0].ok).toBe(true);
+  expect(r.brokenCount).toBe(0);
+  expect(r.status.level).toBe('ok');
+
+  // (B) Same wiring, but the video file is MISSING from the CDN → player would 404.
+  fs.mkdirSync(path.join(dir, 'wire-broken'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'wire-broken', 'index.html'), '<!doctype html><head></head><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'wire-broken', 'manifest.js'), 'var ITEMS=["i","v"];var TITLES=["A","V"];');
+  fs.writeFileSync(path.join(dir, 'wire-broken', '.cdn'), `${BASE}/scorm/wire-broken/`);
+  r = await (await api.get('/api/admin/scorm/wire-broken/wiring')).json();
+  expect(r.brokenCount).toBe(1);
+  expect(r.videos[0].ok).toBe(false);
+  expect(r.status.level).toBe('error');
+
+  // (C) No .cdn marker → nothing to check (not an error).
+  fs.mkdirSync(path.join(dir, 'wire-nocdn'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'wire-nocdn', 'index.html'), '<!doctype html><head></head><body>m</body>');
+  fs.writeFileSync(path.join(dir, 'wire-nocdn', 'manifest.js'), 'var ITEMS=["i","v"];');
+  r = await (await api.get('/api/admin/scorm/wire-nocdn/wiring')).json();
+  expect(r.cdn).toBe(false);
+  expect(r.status.level).toBe('info');
+});
