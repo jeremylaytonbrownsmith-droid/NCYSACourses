@@ -995,19 +995,33 @@ function renderSlidesLesson(pane, course, lesson, lp) {
       if (swapped || !alive || !watchUrl) return; swapped = true;
       stageEl.innerHTML = '<div style="position:relative;aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
         + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
-        + '<button type="button" id="slideOpenVid" class="btn btn-accent">▶ Open the video (new tab)</button>'
-        + '<div id="slideWatchHint" style="font-size:.88rem;color:#9fb4d6;max-width:400px">Opens on Vimeo in a new tab. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
-      let away = watched, opened = false;
+        + '<button type="button" id="slideOpenVid" class="btn btn-accent">▶ Play the video</button>'
+        + '<div id="slideWatchHint" style="font-size:.88rem;color:#9fb4d6;max-width:420px">Opens in a player window. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
+      let acc = watched, opened = false;
       const hint = () => document.getElementById('slideWatchHint');
       const openBtn = document.getElementById('slideOpenVid');
+      // Pop a centered, video-sized player window (what Captivate does when it opens
+      // the link) rather than a background browser tab — so it feels like the video
+      // pops up and plays.
+      const openPlayer = () => {
+        const w = 1000, h = 620;
+        const sw = window.screen && screen.width ? screen.width : 1280;
+        const sh = window.screen && screen.height ? screen.height : 800;
+        const left = Math.max(0, Math.round((sw - w) / 2)), top = Math.max(0, Math.round((sh - h) / 2));
+        try { window.open(watchUrl, 'gmrVideo', 'noopener,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top); }
+        catch (e) { window.open(watchUrl, '_blank', 'noopener'); }
+        opened = true;
+      };
       openBtn && openBtn.addEventListener('click', () => {
-        opened = true; window.open(watchUrl, '_blank', 'noopener');
-        if (hint()) hint().textContent = 'Keep watching on the Vimeo tab — you can continue when the bar below fills.';
+        openPlayer();
+        if (hint()) hint().textContent = 'Playing in the video window — you can continue here when the bar below fills.';
       });
+      // Credit watch time once they've opened the player (the pop-up keeps our page
+      // visible, so we count elapsed seconds rather than time-on-hidden-tab).
       const g = setInterval(() => {
         if (!alive) { clearInterval(g); return; }
-        if (opened && document.hidden) { away += 1; tick(away); }
-        if (away >= required) {
+        if (opened) { acc += 1; tick(acc); }
+        if (acc >= required) {
           clearInterval(g); vunlock();
           if (hint()) hint().innerHTML = 'Done — you can continue. <a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" style="color:#9ec5ff">Re-watch</a>';
         }
@@ -1490,21 +1504,31 @@ function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
     if (!shell) { unlock(); return; }
     shell.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
       + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
-      + '<button type="button" id="openVid" class="btn btn-accent">▶ Open the video (new tab)</button>'
-      + '<div id="watchHint" style="font-size:.88rem;color:#9fb4d6;max-width:400px">Opens on Vimeo in a new tab. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
-    // Gate on real watch time: only count the seconds spent AWAY on the video tab (this
-    // tab hidden) after they open it — so Complete unlocks only once they've actually
-    // watched ~`required` seconds, not just clicked. The bar below shows progress.
-    let away = watched, opened = false;
+      + '<button type="button" id="openVid" class="btn btn-accent">▶ Play the video</button>'
+      + '<div id="watchHint" style="font-size:.88rem;color:#9fb4d6;max-width:420px">Opens in a player window. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
+    // Pop a centered, video-sized player window (what Captivate does when it opens the
+    // link) instead of a background browser tab, so it feels like the video pops up and
+    // plays. Credit watch time from when they open it (the pop-up keeps this page
+    // visible, so we count elapsed seconds rather than time-on-hidden-tab).
+    let acc = watched, opened = false;
     const hint = () => document.getElementById('watchHint');
     const openBtn = document.getElementById('openVid');
+    const openPlayer = () => {
+      const w = 1000, h = 620;
+      const sw = window.screen && screen.width ? screen.width : 1280;
+      const sh = window.screen && screen.height ? screen.height : 800;
+      const left = Math.max(0, Math.round((sw - w) / 2)), top = Math.max(0, Math.round((sh - h) / 2));
+      try { window.open(watchUrl, 'gmrVideo', 'noopener,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top); }
+      catch (e) { window.open(watchUrl, '_blank', 'noopener'); }
+      opened = true;
+    };
     openBtn && openBtn.addEventListener('click', () => {
-      opened = true; window.open(watchUrl, '_blank', 'noopener');
-      if (hint()) hint().textContent = 'Keep watching on the Vimeo tab — you can continue when the bar below fills.';
+      openPlayer();
+      if (hint()) hint().textContent = 'Playing in the video window — you can continue here when the bar below fills.';
     });
     const g = setInterval(() => {
-      if (opened && document.hidden) { away += 1; tick(away); }
-      if (away >= required) {
+      if (opened) { acc += 1; tick(acc); }
+      if (acc >= required) {
         clearInterval(g); unlock();
         if (hint()) hint().innerHTML = 'Done — you can continue. <a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" style="color:#9ec5ff">Re-watch</a>';
       }
