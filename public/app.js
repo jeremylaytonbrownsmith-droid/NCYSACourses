@@ -1370,12 +1370,37 @@ function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
   function tick(sec) { watched = Math.max(watched, sec); if (fill) fill.style.width = Math.min(100, (watched / required) * 100) + '%'; if (label && !unlocked) label.textContent = Math.floor(watched) + 's / ' + required + 's'; if (watched >= required) unlock(); }
   const start = Date.now();
   const iv = setInterval(() => { tick((Date.now() - start) / 1000); if (unlocked) clearInterval(iv); }, 500);
-  // Real watch tracking for Vimeo when the Player API loads (credits actual playback
-  // + unlocks on end); the dwell timer above is the safe fallback for any host.
+  // If the host blocks the embed (e.g. Vimeo "privacy settings cannot be played
+  // here"), swap the dead player for a clean "Watch the video" button that opens the
+  // clip in a new tab (the watch page plays even when embedding is blocked), and
+  // unlock Complete — so a blocked embed never strands the learner. If embedding is
+  // allowed, the inline player works normally and this never fires.
+  const watchUrl = embed.kind === 'vimeo' ? 'https://vimeo.com/' + embed.id
+    : embed.kind === 'youtube' ? 'https://www.youtube.com/watch?v=' + embed.id : null;
+  let swapped = false;
+  function fallbackToLink() {
+    if (swapped || !watchUrl) return; swapped = true;
+    const shell = document.querySelector('.embed-shell');
+    if (shell) {
+      shell.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
+        + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
+        + '<a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" class="btn btn-accent" style="text-decoration:none">▶ Open the video (new tab)</a>'
+        + '<div style="font-size:.85rem;color:#9fb4d6;max-width:380px">This clip streams from Vimeo. It opens in a new tab — watch it, then come back here and continue.</div></div>';
+    }
+    unlock(); // can't gate on a video the host won't embed
+  }
   if (embed.kind === 'vimeo') {
-    const boot = () => { try { const p = new window.Vimeo.Player(document.getElementById('embedVideo')); p.on('timeupdate', (d) => { if (d && d.seconds) tick(d.seconds); }); p.on('ended', unlock); } catch (e) { /* fallback handles it */ } };
+    const boot = () => {
+      try {
+        const p = new window.Vimeo.Player(document.getElementById('embedVideo'));
+        p.on('timeupdate', (d) => { if (d && d.seconds) tick(d.seconds); });
+        p.on('ended', unlock);
+        p.on('error', fallbackToLink);
+        p.ready().then(() => {}).catch(fallbackToLink); // privacy-blocked embeds reject here
+      } catch (e) { fallbackToLink(); }
+    };
     if (window.Vimeo && window.Vimeo.Player) boot();
-    else { const s = document.createElement('script'); s.src = 'https://player.vimeo.com/api/player.js'; s.onload = boot; s.onerror = () => {}; document.head.appendChild(s); }
+    else { const s = document.createElement('script'); s.src = 'https://player.vimeo.com/api/player.js'; s.onload = boot; s.onerror = fallbackToLink; document.head.appendChild(s); }
   }
   completeBtn.addEventListener('click', () => completeLesson(course, lesson).catch((e) => toast(e.message, true)));
 }
