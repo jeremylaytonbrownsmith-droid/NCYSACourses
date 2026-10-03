@@ -17,6 +17,8 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl } = require('./lib/integration');
+const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
+const { buildScormZip } = require('./lib/scormexport');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -2256,6 +2258,75 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
   db.courses.push(course);
   save();
   res.json({ course });
+});
+
+// Build a DRAFT course with AI from a topic and/or pasted source material. The AI
+// returns our native lesson model (reading lessons + a graded quiz); we create it
+// unpublished so a designer reviews and edits before it goes live. One server-side
+// ANTHROPIC_API_KEY covers everyone — users never handle keys.
+app.get('/api/admin/ai/status', requireEditor, (req, res) => {
+  res.json({ enabled: aiEnabled() });
+});
+app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
+  if (!aiEnabled()) return res.status(400).json({ error: 'AI course generation is not configured. Set ANTHROPIC_API_KEY in the environment, then redeploy.' });
+  const b = req.body || {};
+  let draft;
+  try {
+    draft = await generateCourseDraft({
+      topic: b.topic,
+      sourceText: b.sourceText,
+      audience: b.audience,
+      numLessons: b.numLessons,
+      numQuestions: b.numQuestions,
+      passPercent: b.passPercent,
+    });
+  } catch (e) {
+    return res.status(502).json({ error: e.message || 'AI course generation failed.' });
+  }
+  const db = load();
+  const title = String(b.title || draft.title || 'AI course').slice(0, 160);
+  const course = {
+    id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
+    title,
+    tagline: String(draft.tagline || ''),
+    description: String(draft.description || ''),
+    badge: String(b.badge || 'Course'),
+    audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
+    orgId: ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG,
+    estMinutes: Math.max(1, Number(b.estMinutes) || 20),
+    heroEmoji: String(b.heroEmoji || '⚽'),
+    completionRedirectUrl: '',
+    published: false, // AI output is always a draft for human review
+    generatedByAi: true,
+    createdBy: { id: req.user.id, name: req.user.name || '', email: req.user.email || '', role: req.user.role },
+    createdAt: new Date().toISOString(),
+    lessons: (draft.lessons || []).map((l) => buildLesson(l)),
+  };
+  db.courses.push(course);
+  save();
+  res.json({ course });
+});
+
+// Export a course as a portable SCORM 1.2 package (.zip) that plays in any LMS.
+app.get('/api/admin/courses/:courseId/export/scorm', requireEditor, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  // Read a local asset (slide image / inline <img>) for bundling, safely scoped
+  // to the public directory so a crafted path can never escape it.
+  const publicDir = path.join(__dirname, 'public');
+  const readPublicFile = (rel) => {
+    const full = path.resolve(publicDir, rel.replace(/^\/+/, ''));
+    if (full !== publicDir && !full.startsWith(publicDir + path.sep)) return null;
+    try { return fs.readFileSync(full); } catch (e) { return null; }
+  };
+  let out;
+  try { out = buildScormZip(course, { readPublicFile }); } catch (e) {
+    return res.status(500).json({ error: 'Could not build the SCORM package: ' + e.message });
+  }
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
+  res.send(out.buffer);
 });
 
 // Generate a signed launch link for a course — the same kind a partner (OMS)

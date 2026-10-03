@@ -2195,6 +2195,7 @@ async function viewCourseAdmin(flash) {
         <div class="admin-head-actions">
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
           <button class="btn btn-ghost" id="storageBtn">Module storage</button>
+          <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
           <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
         </div>
       </div>
@@ -2226,6 +2227,7 @@ async function viewCourseAdmin(flash) {
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-slidegate" data-course="${c.id}">Slide timer</button>` : ''}
                     <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
+                    <button class="btn btn-ghost btn-sm export-scorm" data-course="${c.id}" data-title="${esc(c.title)}">Export SCORM 1.2</button>
                     <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                     <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
                   </div>
@@ -2264,6 +2266,26 @@ async function viewCourseAdmin(flash) {
     document.getElementById('newCoursePanel').innerHTML = storagePanel();
     loadStorage();
   });
+  document.getElementById('aiBuildBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = aiBuildPanel();
+    bindAiBuild();
+  });
+  document.querySelectorAll('.export-scorm').forEach((b) => b.addEventListener('click', async () => {
+    const cid = b.dataset.course, label = b.dataset.title || 'course';
+    const orig = b.textContent; b.disabled = true; b.textContent = 'Building…';
+    try {
+      const res = await fetch(`/api/admin/courses/${cid}/export/scorm`);
+      if (!res.ok) { let m = 'Export failed'; try { m = (await res.json()).error || m; } catch (e) { /* ignore */ } throw new Error(m); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = (cid || 'course') + '-scorm12.zip';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('SCORM package downloaded for “' + label + '”.');
+    } catch (e) { toast(e.message, true); }
+    finally { b.disabled = false; b.textContent = orig; }
+  }));
   document.querySelectorAll('.move-course').forEach((b) => b.addEventListener('click', async () => {
     b.disabled = true;
     try { await api(`/api/admin/courses/${b.dataset.course}/move`, { method: 'POST', body: { dir: b.dataset.dir } }); viewCourseAdmin(); }
@@ -2384,6 +2406,84 @@ async function viewCourseAdmin(flash) {
       viewCourseAdmin(`Deleted “${title}”.`);
     } catch (err) { msg(err.message, true); }
   }));
+
+  function aiBuildPanel() {
+    return `<form class="editor-form" id="aiBuildForm">
+      <h3>✨ Build a course with AI</h3>
+      <p class="form-hint">Describe a topic or paste source material. AI drafts the reading lessons and a graded quiz in our format — saved as a <strong>private Draft</strong> you can edit before publishing. You can also export any course as SCORM afterward.</p>
+      <div id="aiUnavailable" class="editor-msg" hidden></div>
+      <label>Course title (optional)<input name="title" placeholder="Leave blank to let AI name it" /></label>
+      <label>Topic / instructions<input name="topic" placeholder="e.g. Heading safety guidelines for U12 coaches" /></label>
+      <label>Source material (optional — paste text to build from)
+        <textarea name="sourceText" rows="7" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
+      </label>
+      <div class="form-row">
+        <label>Audience
+          <select name="audience">
+            ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
+              .map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
+          </select>
+        </label>
+        <label>Portal
+          <select name="orgId">
+            <option value="ncysa">NCYSA</option>
+            <option value="omg">OMG</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
+        <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
+        <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-accent" type="submit" id="aiBuildSubmit">Generate draft</button>
+        <span class="form-hint" id="aiBuildStatus" style="margin-left:10px"></span>
+      </div>
+    </form>`;
+  }
+  async function bindAiBuild() {
+    // Surface up front whether the server has an AI key configured.
+    try {
+      const s = await api('/api/admin/ai/status');
+      if (!s.enabled) {
+        const w = document.getElementById('aiUnavailable');
+        if (w) { w.hidden = false; w.className = 'editor-msg err'; w.textContent = 'AI generation isn’t turned on yet. Set ANTHROPIC_API_KEY in the environment and redeploy, then this will work.'; }
+        const btn = document.getElementById('aiBuildSubmit'); if (btn) btn.disabled = true;
+      }
+    } catch (e) { /* non-fatal; the submit will report if unavailable */ }
+    const form = document.getElementById('aiBuildForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      const topic = (f.get('topic') || '').toString().trim();
+      const sourceText = (f.get('sourceText') || '').toString().trim();
+      if (!topic && !sourceText) { msg('Enter a topic or paste some source material.', true); return; }
+      const btn = document.getElementById('aiBuildSubmit');
+      const status = document.getElementById('aiBuildStatus');
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Generating…';
+      if (status) status.textContent = 'Writing lessons and quiz — this can take up to a minute…';
+      try {
+        const r = await api('/api/admin/courses/ai-build', {
+          method: 'POST',
+          body: {
+            title: f.get('title') || '',
+            topic, sourceText,
+            audience: f.get('audience') || 'everyone',
+            orgId: f.get('orgId') || 'ncysa',
+            numLessons: Number(f.get('numLessons')) || 4,
+            numQuestions: Number(f.get('numQuestions')) || 5,
+            passPercent: Number(f.get('passPercent')) || 80,
+          },
+        });
+        viewCourseAdmin(`AI drafted “${r.course.title}” (${r.course.lessons.length} lessons). Review and edit it below, then Publish when ready.`);
+      } catch (err) {
+        if (status) status.textContent = '';
+        msg(err.message, true);
+        btn.disabled = false; btn.textContent = orig;
+      }
+    });
+  }
 
   function courseForm(c) {
     return `<form class="editor-form" id="courseForm">

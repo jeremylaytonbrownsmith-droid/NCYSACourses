@@ -75,6 +75,28 @@ deploy. Called in the boot sequence (~line 2942, alongside `setupOmgCourse`,
    the dead player for a "▶ Open the video (new tab)" button and gates Complete behind ~30s of
    actually being on the video tab (document.hidden accrual) — so the course works today even
    while the embed is blocked. If the embed later works, it plays inline automatically.
+10. **AI Course Builder** (`lib/aicourse.js` + `POST /api/admin/courses/ai-build`,
+    `GET /api/admin/ai/status`): a designer enters a topic and/or pastes source material; the
+    server calls the Anthropic Messages API (forced `emit_course` tool → structured JSON in OUR
+    lesson model) and creates an **unpublished draft** course (reading `text` lessons + a graded
+    `quiz`). `normalizeDraft`/`sanitizeHtml` are pure + unit-tested; HTML is allow-listed (no
+    script/iframe/handlers; keeps `<div class="callout">`). **One server-side key**
+    `ANTHROPIC_API_KEY` covers everyone (users never see keys); model overridable via
+    `AI_COURSE_MODEL` (default `claude-sonnet-5-5`). UI: **"✨ Build with AI"** button in the
+    Course Designer header (`aiBuildPanel`/`bindAiBuild`), gated/greyed when no key is set.
+    Deliberately generates only text + quiz (reliable); images/video are added by a human after.
+11. **Portable SCORM 1.2 export** (`lib/scormexport.js` + `GET /api/admin/courses/:id/export/scorm`):
+    turns ANY native course into a standard SCORM 1.2 `.zip` (imsmanifest.xml + a self-contained
+    inline-styled `index.html` player + `scormAPI.js` wrapper + bundled `assets/` images) that
+    reports `cmi.core.lesson_status` + score to any LMS. Grades the quiz client-side (passed/
+    failed by pass %); reading-only courses complete on Finish. Image slides are bundled from
+    `public/` (path-scoped read); a video slide → "Watch the video" link; `scorm` lessons are
+    skipped (can't nest SCORM). UI: **"Export SCORM 1.2"** in each course's **More ▾** menu
+    (fetch → blob → download). This is the mirror of the SCORM we already host/track.
+    - **The "three sides in tandem" pitch**: AI author → drag-and-drop builder → LMS that
+      delivers/certifies AND exports SCORM. Built for people who aren't Captivate experts.
+    - Tests: `tests/aicourse-scorm.spec.js` (normalizeDraft/sanitize units, AI gating w/o key,
+      SCORM zip validity, image-slide bundling).
 
 ## THE ONE UNRESOLVED ITEM — read carefully, do NOT re-litigate
 The Law 15 video **`vimeo.com/1200487589`** will NOT embed on `getmatchready.app`:
@@ -83,17 +105,24 @@ Vimeo shows **"Because of its privacy settings, this video cannot be played here
 - The Vimeo **account** default is Public + Embed Anywhere, BUT that default **only applies
   to new uploads**; existing videos keep their **own per-video embed setting** (this clip was
   made for `*.omgtsys.com`). So the per-video setting likely still limits domains.
+- **UPDATE (confirmed by Michael):** the video is **owned by US Soccer**, uploaded to US
+  Soccer's own Vimeo account — NOT OMG's. Michael has **no** Settings/Privacy/Manage option on
+  it because OMG doesn't own it. It's domain-locked to OMG's known domains (that's why it plays
+  on `*.omgtsys.com` but not ours). So **neither we NOR OMG can change it — only US Soccer can.**
 - **There is NO in-app fix.** Do not try to make the embed play via code, and do not
   circumvent the block (ToS + wrong). The watch-gated fallback (#9) is the correct handling.
-- **The real fix is Michael's:** open THIS video in Vimeo → Settings → Privacy → "Where can
-  this video be embedded?" → set "Anywhere" or add `getmatchready.app`. Then it plays inline
-  automatically (we already render the inline player).
+- **The only path to inline play:** US Soccer adds our domains to THAT video's allowed-embed
+  list (or sets it to "anywhere"). Jeremy has told Michael we'll leave it as a "Watch now"
+  link-out, which isn't blocked. Treat this as settled unless Jeremy reopens it.
 - Note: the **Claude sandbox network blocks vimeo.com / player.vimeo.com** (egress allowlist),
   so you cannot test Vimeo from here — rely on Jeremy's browser screenshots.
 
 ## Pending / next steps
 - **Deploy to Render** (manual) to make the latest live — ALWAYS remind Jeremy.
-- Michael: confirm the per-video Vimeo embed setting (above).
+- **Set `ANTHROPIC_API_KEY` on Render** to turn on the AI Course Builder (optional
+  `AI_COURSE_MODEL`, default `claude-sonnet-5-5`). Until set, "✨ Build with AI" is greyed with a
+  clear message; SCORM export works regardless.
+- Vimeo/US Soccer video: settled as a link-out (see unresolved-item update above) unless reopened.
 - Optional: delete/unpublish the OLD Captivate SCORM "Law Changes" course (id
   `2026-2027-law-changes-...`) now that the native one exists.
 - OMG/OMS commercial terms with **Dick Triche** before first-state go-live: ~$8k setup /

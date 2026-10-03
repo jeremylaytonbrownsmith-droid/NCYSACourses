@@ -1,0 +1,105 @@
+// AI course generation (server-side, one API key) + portable SCORM 1.2 export.
+// The AI path's pure helpers are unit-tested directly (no network); the HTTP
+// endpoints are tested against the running server; the exporter is checked by
+// unzipping the real package the endpoint returns.
+const { test, expect } = require('@playwright/test');
+const AdmZip = require('adm-zip');
+const { normalizeDraft, sanitizeHtml } = require('../lib/aicourse');
+
+const BASE = 'http://localhost:3100';
+const DESIGNER = { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' };
+
+test('normalizeDraft turns raw AI output into valid text lessons + a graded quiz', () => {
+  const draft = normalizeDraft({
+    title: 'Throw-In Basics',
+    tagline: 'Quick guide',
+    lessons: [
+      { title: 'Rules', html: '<h3>Rules</h3><p>Two hands.</p><div class="callout">Both feet down.</div>' },
+      { title: 'Timing', html: '<p>Five seconds.</p>' },
+    ],
+    quiz: [
+      { prompt: 'How many hands?', options: ['One', 'Two'], answerIndex: 1 },
+      { prompt: 'Seconds allowed?', options: ['3', '5', '10'], answerIndex: 1 },
+    ],
+  }, { passPercent: 75 });
+  expect(draft.title).toBe('Throw-In Basics');
+  // 2 reading lessons + 1 quiz lesson
+  expect(draft.lessons.length).toBe(3);
+  expect(draft.lessons[0].type).toBe('text');
+  expect(draft.lessons[0].html).toContain('class="callout"');
+  const quiz = draft.lessons[2];
+  expect(quiz.type).toBe('quiz');
+  expect(quiz.passPercent).toBe(75);
+  expect(quiz.questions.length).toBe(2);
+  expect(quiz.questions[0].answer).toBe(1);
+});
+
+test('sanitizeHtml strips scripts/handlers but keeps the documented safe tags', () => {
+  const dirty = '<p onclick="x()">Hi <strong>there</strong></p><script>alert(1)</script><iframe src="evil"></iframe><div class="callout">note</div>';
+  const clean = sanitizeHtml(dirty);
+  expect(clean).not.toMatch(/script|iframe|onclick/i);
+  expect(clean).toContain('<strong>');
+  expect(clean).toContain('class="callout"');
+});
+
+test('AI status + build are gated on a configured key (no key → clear 400, never a crash)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const status = await (await api.get('/api/admin/ai/status')).json();
+  expect(typeof status.enabled).toBe('boolean');
+  if (!status.enabled) {
+    const res = await api.post('/api/admin/courses/ai-build', { data: { topic: 'Offside basics' } });
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toMatch(/ANTHROPIC_API_KEY|not configured/i);
+  }
+});
+
+test('a course exports as a valid SCORM 1.2 package (manifest + player + graded quiz)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Export Me Course', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Reading', html: '<h3>Welcome</h3><p>Study this.</p>' } });
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 80, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
+
+  const res = await api.get(`/api/admin/courses/${courseId}/export/scorm`);
+  expect(res.ok()).toBeTruthy();
+  expect(res.headers()['content-type']).toContain('zip');
+  const zip = new AdmZip(await res.body());
+  const names = zip.getEntries().map((e) => e.entryName);
+  expect(names).toContain('imsmanifest.xml');
+  expect(names).toContain('index.html');
+  expect(names).toContain('scormAPI.js');
+
+  const manifest = zip.readAsText('imsmanifest.xml');
+  expect(manifest).toContain('<schemaversion>1.2</schemaversion>');
+  expect(manifest).toContain('adlcp:scormtype="sco"');
+  expect(manifest).toContain('href="index.html"');
+
+  const index = zip.readAsText('index.html');
+  expect(index).toContain('scormAPI.js');
+  expect(index).toContain('cmi.core.lesson_status'); // reports completion/score to the host LMS
+  expect(index).toContain('Sky color?');            // the quiz travels in the package
+
+  const apiJs = zip.readAsText('scormAPI.js');
+  expect(apiJs).toMatch(/LMSInitialize/);
+  expect(apiJs).toMatch(/LMSFinish/);
+});
+
+test('exporting a course with image slides bundles the images into the package', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Slides Export', audience: 'referees' } })).json()).course.id;
+  // Reference a real public asset so the exporter can bundle it.
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: {
+    type: 'slides', title: 'Deck', slideSeconds: 0,
+    slides: [{ img: '/media/law-changes/slide-1.jpeg', alt: 'One' }],
+  } });
+  const res = await api.get(`/api/admin/courses/${courseId}/export/scorm`);
+  expect(res.ok()).toBeTruthy();
+  const zip = new AdmZip(await res.body());
+  const names = zip.getEntries().map((e) => e.entryName);
+  const asset = names.find((n) => n.startsWith('assets/'));
+  expect(asset).toBeTruthy();                 // the slide image was bundled
+  const index = zip.readAsText('index.html');
+  expect(index).toContain(asset);             // and the player points at the bundled copy
+});
