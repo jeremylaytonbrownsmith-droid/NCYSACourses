@@ -848,7 +848,7 @@ async function viewCourse(courseId, lessonId) {
   const lesson = course.lessons.find((l) => l.id === lessonId) || course.lessons[0];
   const lp = progress.lessons.find((l) => l.id === lesson.id);
 
-  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module' };
+  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', slides: 'Slides' };
   app.innerHTML = `
     ${course.instructions ? `<details class="course-intro" open>
       <summary>Start here — how this works</summary>
@@ -897,11 +897,12 @@ async function viewCourse(courseId, lessonId) {
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
   else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
+  else if (lesson.type === 'slides') renderSlidesLesson(pane, course, lesson, lp);
   else renderTextLesson(pane, course, lesson, lp);
 }
 
 function lessonHeader(lesson, course) {
-  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module' };
+  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module', slides: 'Slides' };
   const logo = course && course.coLogoUrl
     ? `<img class="lesson-cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || '')}" />`
     : '';
@@ -915,6 +916,71 @@ async function completeLesson(course, lesson) {
   const next = course.lessons[idx + 1];
   toast('✓ Lesson complete!');
   location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
+}
+
+// Native slideshow lesson: one slide image at a time, with a per-slide time gate
+// (default 15s) before "Next" unlocks — the same review discipline as the SCORM
+// player, but for a code-built course. A slide already viewed isn't re-gated, the
+// last slide completes the lesson, and a completed lesson is freely reviewable.
+function renderSlidesLesson(pane, course, lesson, lp) {
+  const slides = (Array.isArray(lesson.slides) ? lesson.slides : []).map((s) => (typeof s === 'string' ? { img: s } : s));
+  if (!slides.length) return renderTextLesson(pane, course, lesson, lp);
+  const per = Math.max(0, lesson.slideSeconds != null ? Number(lesson.slideSeconds) : 15);
+  let idx = 0; const seen = new Set();
+  if (lp.completed) for (let i = 0; i < slides.length; i++) seen.add(i); // review: no gating
+  pane.innerHTML = `
+    ${lessonHeader(lesson, course)}
+    ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
+    <div style="max-width:980px;margin:0 auto">
+      <div style="background:#0b1220;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(11,18,32,.18)">
+        <img id="slideImg" alt="" style="display:block;width:100%;height:auto" />
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 4px">
+        <button class="btn btn-ghost" id="slidePrev">← Prev</button>
+        <span id="slideCount" style="font-weight:700;color:#51607a"></span>
+        <button class="btn btn-accent" id="slideNav">Next →</button>
+      </div>
+      <div class="watch-meter">
+        <div class="progress-track"><div class="progress-fill" id="slideFill" style="width:0%"></div></div>
+        <span id="slideTimer" style="min-width:160px;text-align:right"></span>
+      </div>
+    </div>`;
+  const imgEl = document.getElementById('slideImg'), countEl = document.getElementById('slideCount'),
+    prevEl = document.getElementById('slidePrev'), navEl = document.getElementById('slideNav'),
+    fillEl = document.getElementById('slideFill'), timerEl = document.getElementById('slideTimer');
+  let iv = null;
+  const isLast = () => idx === slides.length - 1;
+  function unlock() { navEl.disabled = false; navEl.style.opacity = ''; fillEl.style.width = '100%'; timerEl.textContent = ''; }
+  function gate() {
+    clearInterval(iv);
+    navEl.textContent = isLast() ? 'Complete & continue →' : 'Next →';
+    if (per <= 0 || seen.has(idx)) { unlock(); return; }
+    let remain = per; navEl.disabled = true; navEl.style.opacity = '.5';
+    const tick = () => {
+      fillEl.style.width = (((per - remain) / per) * 100) + '%';
+      timerEl.textContent = 'You can continue in ' + remain + 's';
+      if (remain <= 0) { clearInterval(iv); seen.add(idx); unlock(); return; }
+      remain--;
+    };
+    tick(); iv = setInterval(tick, 1000);
+  }
+  function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    const s = slides[idx];
+    imgEl.src = s.img; imgEl.alt = s.alt || ('Slide ' + (idx + 1));
+    countEl.textContent = 'Slide ' + (idx + 1) + ' of ' + slides.length;
+    prevEl.disabled = idx === 0; prevEl.style.opacity = idx === 0 ? '.5' : '';
+    gate();
+    try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ }
+  }
+  prevEl.addEventListener('click', () => { if (idx > 0) show(idx - 1); });
+  navEl.addEventListener('click', () => {
+    if (navEl.disabled) return;
+    seen.add(idx);
+    if (isLast()) completeLesson(course, lesson).catch((e) => toast(e.message, true));
+    else show(idx + 1);
+  });
+  show(0);
 }
 
 function renderTextLesson(pane, course, lesson, lp) {

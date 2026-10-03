@@ -244,10 +244,11 @@ test('the native Law Changes course is seeded for OMG with slides + a native Vim
   expect(c.published).toBe(true);
   expect(c.coBrandName).toMatch(/OMG/);
   const slides = c.lessons.find((l) => l.id === 'law-changes-slides');
-  expect(slides.type).toBe('text');
-  expect(slides.html).toContain('OMG Referee Education');          // branded header band
-  expect(slides.html).toContain('/media/law-changes/slide-2.jpeg'); // slides start at 2 (1 = title → header)
-  expect(slides.html).toContain('/media/law-changes/slide-9.jpeg');
+  expect(slides.type).toBe('slides');          // native slideshow, one slide at a time
+  expect(slides.slideSeconds).toBe(15);        // 15-second gate per slide
+  expect(slides.slides.length).toBe(9);
+  expect(slides.slides[0].img).toContain('/media/law-changes/slide-1.jpeg');
+  expect(slides.slides[8].img).toContain('/media/law-changes/slide-9.jpeg');
   const vid = c.lessons.find((l) => l.id === 'law-changes-video');
   expect(vid.type).toBe('video');
   expect(vid.videoUrl).toContain('vimeo.com/1200487589');
@@ -261,6 +262,20 @@ test('the native Law Changes course is seeded for OMG with slides + a native Vim
   // The slide images are actually served.
   const img = await request.get(`${BASE}/media/law-changes/slide-1.jpeg`);
   expect(img.status()).toBe(200);
+});
+
+test('the Law Changes slideshow shows one slide at a time with Next gated', async ({ page, playwright }) => {
+  await page.goto('/#/register');
+  await page.fill('#firstName', 'Slide'); await page.fill('#lastName', 'Viewer');
+  await page.fill('#email', `slide.viewer+${Date.now()}@example.com`);
+  await page.click('button:has-text("Create account")');
+  await page.request.post(`${BASE}/api/courses/omg-law-changes-2026-27/enroll`);
+
+  await page.goto('/#/course/omg-law-changes-2026-27/lesson/law-changes-slides');
+  await expect(page.locator('#slideImg')).toBeVisible();                 // one image, not a scroll of nine
+  await expect(page.locator('#slideCount')).toHaveText('Slide 1 of 9');
+  await expect(page.locator('#slideImg')).toHaveAttribute('src', /slide-1\.jpeg/);
+  await expect(page.locator('#slideNav')).toBeDisabled();                // 15s gate holds Next
 });
 
 test('an OMG referee course with no co-logo shows the OMG mark (not NCSRA) in the header and card', async ({ page, playwright }) => {

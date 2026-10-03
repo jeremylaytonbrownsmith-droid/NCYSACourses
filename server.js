@@ -328,33 +328,20 @@ function ensureCourse(courseObj) {
 // lesson will be added here once its questions are confirmed. Code-managed via
 // ensureCourse, so it ships on deploy and its content stays in sync from source.
 function setupLawChangesCourse() {
-  const img = (n, alt) => `<img src="/media/law-changes/slide-${n}.jpeg" alt="${alt}" />`;
-  const h = (t) => `<h3 style="color:#16233f;border-bottom:3px solid #ce2b37;padding-bottom:6px;margin:28px 0 14px;font-size:1.2rem;letter-spacing:.01em">${t}</h3>`;
-  const slidesHtml = [
-    // Branded header band (OMG navy + red accent) in place of the plain title slide.
-    '<div style="background:#16233f;color:#fff;border-radius:14px;padding:26px 24px;margin:0 0 20px">',
-    '  <div style="color:#f3899b;font-weight:800;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase;margin-bottom:6px">OMG Referee Education</div>',
-    '  <h2 style="color:#fff;margin:0 0 6px;font-size:1.8rem;line-height:1.12">Laws of the Game Changes 2026/27</h2>',
-    '  <div style="color:#c9d4e8;font-size:.98rem">Practical advice for referees &middot; <strong style="color:#fff">Effective July 1, 2026</strong></div>',
-    '</div>',
-    '<p>The IFAB 2026/27 changes target match tempo and clearer referee decisions. Work through the slides below, watch the video example, then take the quiz.</p>',
-    h('What&rsquo;s changing &amp; when'),
-    img(2, 'What is changing and when it applies'),
-    img(3, 'What is changing at a glance — part 1'),
-    img(4, 'What is changing at a glance — part 2'),
-    h('Maintaining match tempo'),
-    img(5, 'Section: maintaining match tempo'),
-    img(6, 'Why IFAB made these changes'),
-    h('The throw-in &mdash; Law 15'),
-    img(7, 'Throw-in 5-second countdown: previous vs new'),
-    img(8, 'Throw-in 5-second protocol: how to apply it'),
-    '<div style="border-left:5px solid #ce2b37;background:#f6f1f1;padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0;color:#16233f">',
-    '  <strong>Key change (Law 15):</strong> the referee shows a <strong>visible 5-second countdown</strong> with a raised hand. If the throw-in isn&rsquo;t taken in time, it is <strong>switched to the opponents</strong> &mdash; a caution is given only for <strong>continued delay after the switch</strong>, not for the first delay.',
-    '</div>',
-    h('In practice'),
-    img(9, 'Video clip: the countdown in practice'),
-    '<p style="color:#51607a">Next up: watch the video example, then take the 5-question quiz.</p>',
-  ].join('\n');
+  // Each slide is shown one at a time with a 15-second review gate (see the native
+  // slideshow renderer in the SPA). Alt text labels each slide for accessibility.
+  const slideAlts = [
+    'Title — Laws of the Game Changes 2026/27',
+    'What is changing and when it applies',
+    'What is changing at a glance — part 1',
+    'What is changing at a glance — part 2',
+    'Section: maintaining match tempo',
+    'Why IFAB made these changes',
+    'Throw-in 5-second countdown: previous vs new',
+    'Throw-in 5-second protocol: how to apply it',
+    'Video clip: the countdown in practice',
+  ];
+  const lawSlides = slideAlts.map((alt, i) => ({ img: `/media/law-changes/slide-${i + 1}.jpeg`, alt }));
   ensureCourse({
     id: 'omg-law-changes-2026-27',
     orgId: 'omg',
@@ -377,9 +364,11 @@ function setupLawChangesCourse() {
     lessons: [
       {
         id: 'law-changes-slides',
-        type: 'text',
+        type: 'slides',
         title: 'Laws of the Game Changes 2026/27',
-        html: slidesHtml,
+        html: '<p>Work through each slide — you can continue after 15 seconds on each. Then watch the video example and take the quiz.</p>',
+        slideSeconds: 15,
+        slides: lawSlides,
       },
       {
         id: 'law-changes-video',
@@ -2165,9 +2154,17 @@ function slugify(s) {
 
 // Normalize a lesson payload from the editor into a stored lesson.
 function buildLesson(body) {
-  const type = ['text', 'video', 'quiz', 'scorm'].includes(body.type) ? body.type : 'text';
+  const type = ['text', 'video', 'quiz', 'scorm', 'slides'].includes(body.type) ? body.type : 'text';
   const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
   if (type === 'text') return { ...base, html: String(body.html || '') };
+  if (type === 'slides') {
+    // A native slideshow: one image per slide, with a per-slide review gate (seconds).
+    const slides = (Array.isArray(body.slides) ? body.slides : [])
+      .map((s) => (typeof s === 'string' ? { img: s } : { img: String(s.img || ''), alt: s.alt ? String(s.alt) : undefined }))
+      .filter((s) => s.img);
+    const slideSeconds = body.slideSeconds != null ? Math.min(600, Math.max(0, Math.round(Number(body.slideSeconds)) || 0)) : 15;
+    return { ...base, html: String(body.html || ''), slideSeconds, slides };
+  }
   if (type === 'video') {
     const duration = Math.max(1, Number(body.durationSeconds) || 60);
     return {
