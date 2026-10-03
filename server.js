@@ -2267,6 +2267,32 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
   res.json({ course });
 });
 
+// Branding presets so a course (AI-built or otherwise) comes out wearing the
+// right identity — logo, name, and certificate — chosen with one click instead of
+// defaulting to the NCSRA referee mark. Each sets the org it belongs to plus its
+// co-brand fields. 'ncysa' is the plain default (NCYSA gold/navy, no co-brand).
+const BRAND_PRESETS = {
+  ncysa: { orgId: 'ncysa' },
+  ncsra: {
+    orgId: 'ncysa',
+    coBrandName: 'NCSRA Referee Education',
+    coLogoUrl: '/media/ncsra-logo.png',
+    certOrg: 'North Carolina Soccer Referee Association',
+    certTitle: 'Certificate of Recertification Training',
+    certPrefix: 'NCSRA',
+  },
+  omg: {
+    orgId: 'omg',
+    coBrandName: 'OMG Referee Education',
+    coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group',
+    certTitle: '2027 Certificate of Recertification Training',
+    certPrefix: 'OMG',
+    certAccent: '#2f5a9e',
+    certAccent2: '#ce2b37',
+  },
+};
+
 // Build a DRAFT course with AI from a topic and/or pasted source material. The AI
 // returns our native lesson model (reading lessons + a graded quiz); we create it
 // unpublished so a designer reviews and edits before it goes live. One server-side
@@ -2295,6 +2321,11 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   }
   const db = load();
   const title = String(b.title || draft.title || 'AI course').slice(0, 160);
+  // Branding: a one-click preset chooses the identity. Fall back to the raw orgId
+  // (back-compat) or the default org when no brand/org is given.
+  const preset = BRAND_PRESETS[String(b.brand || '').toLowerCase()];
+  const orgId = preset ? preset.orgId
+    : (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG);
   const course = {
     id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
     title,
@@ -2302,10 +2333,12 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
     description: String(draft.description || ''),
     badge: String(b.badge || 'Course'),
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
-    orgId: ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG,
+    orgId,
     estMinutes: Math.max(1, Number(b.estMinutes) || 20),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: '',
+    // Co-brand fields from the chosen preset (logo, name, certificate identity).
+    ...(preset ? { coBrandName: preset.coBrandName, coLogoUrl: preset.coLogoUrl, certOrg: preset.certOrg, certTitle: preset.certTitle, certPrefix: preset.certPrefix, certAccent: preset.certAccent, certAccent2: preset.certAccent2 } : {}),
     published: false, // AI output is always a draft for human review
     generatedByAi: true,
     createdBy: { id: req.user.id, name: req.user.name || '', email: req.user.email || '', role: req.user.role },

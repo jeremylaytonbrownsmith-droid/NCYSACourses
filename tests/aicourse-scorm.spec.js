@@ -223,6 +223,24 @@ test('the Build-with-AI panel renders the modern studio UI', async ({ page, cont
   await expect(page.locator('#aiBuildSubmit')).toBeVisible();
 });
 
+test('AI Studio branding picker offers NCYSA/NCSRA/OMG and auto-matches the audience', async ({ page, context, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  await context.addCookies((await api.storageState()).cookies);
+  await page.goto('/#/admin/courses');
+  await page.click('#aiBuildBtn');
+  const brand = page.locator('#aiBuildForm select[name="brand"]');
+  await expect(brand).toBeVisible();
+  await expect(brand.locator('option')).toHaveCount(3);                     // NCYSA / NCSRA / OMG
+  const audience = page.locator('#aiBuildForm select[name="audience"]');
+  await brand.selectOption('ncsra');
+  await expect(audience).toHaveValue('referees');                          // referee brand → referees
+  await brand.selectOption('omg');
+  await expect(audience).toHaveValue('referees');
+  await brand.selectOption('ncysa');
+  await expect(audience).toHaveValue('coaches');                           // coaches brand → coaches
+});
+
 test('exporting a course with image slides bundles the images into the package', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: DESIGNER });

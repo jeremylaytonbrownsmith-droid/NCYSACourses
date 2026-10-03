@@ -2456,10 +2456,11 @@ async function viewCourseAdmin(flash) {
                 .map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
             </select>
           </label>
-          <label>Portal
-            <select name="orgId">
-              <option value="ncysa">NCYSA</option>
-              <option value="omg">OMG</option>
+          <label>Branding
+            <select name="brand">
+              <option value="ncysa">NCYSA — Coaches</option>
+              <option value="ncsra">NCSRA — Referees</option>
+              <option value="omg">OMG — Referees</option>
             </select>
           </label>
         </div>
@@ -2487,6 +2488,13 @@ async function viewCourseAdmin(flash) {
       }
     } catch (e) { /* non-fatal; the submit will report if unavailable */ }
     const form = document.getElementById('aiBuildForm');
+    // Picking a brand auto-matches the audience so the right portal + identity line up
+    // in one click (NCSRA/OMG are referee brands; NCYSA is coaches).
+    form.querySelector('[name=brand]')?.addEventListener('change', (ev) => {
+      const aud = form.querySelector('[name=audience]');
+      if (!aud) return;
+      aud.value = (ev.target.value === 'ncysa') ? 'coaches' : 'referees';
+    });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(form);
@@ -2505,7 +2513,7 @@ async function viewCourseAdmin(flash) {
             title: f.get('title') || '',
             topic, sourceText,
             audience: f.get('audience') || 'everyone',
-            orgId: f.get('orgId') || 'ncysa',
+            brand: f.get('brand') || 'ncysa',
             numLessons: Number(f.get('numLessons')) || 4,
             numQuestions: Number(f.get('numQuestions')) || 5,
             passPercent: Number(f.get('passPercent')) || 80,
