@@ -2158,7 +2158,11 @@ function slugify(s) {
 function buildLesson(body) {
   const type = ['text', 'video', 'quiz', 'scorm', 'slides'].includes(body.type) ? body.type : 'text';
   const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
-  if (type === 'text') return { ...base, html: String(body.html || '') };
+  if (type === 'text') {
+    // Optional reading pace: minimum seconds before "Complete" unlocks (0 = off).
+    const minSeconds = Math.min(3600, Math.max(0, Math.round(Number(body.minSeconds) || 0)));
+    return { ...base, html: String(body.html || ''), minSeconds };
+  }
   if (type === 'slides') {
     // A native slideshow: mostly image slides (gated by a per-slide time dwell in
     // seconds), but a slide may instead carry a `video` (Vimeo/YouTube) link that
@@ -2279,6 +2283,9 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
       numLessons: b.numLessons,
       numQuestions: b.numQuestions,
       passPercent: b.passPercent,
+      lessonMinSeconds: b.lessonMinSeconds,
+      videoUrls: Array.isArray(b.videoUrls) ? b.videoUrls
+        : (typeof b.videoUrls === 'string' ? b.videoUrls.split(/[\n,]/) : []),
     });
   } catch (e) {
     return res.status(502).json({ error: e.message || 'AI course generation failed.' });

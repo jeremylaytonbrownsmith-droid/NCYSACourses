@@ -1065,15 +1065,33 @@ function renderSlidesLesson(pane, course, lesson, lp) {
 }
 
 function renderTextLesson(pane, course, lesson, lp) {
+  // Optional reading pace: when minSeconds is set, hold "Complete" for that long
+  // so learners actually read the lesson instead of clicking straight through.
+  // A completed lesson (review) is never re-gated.
+  const minSeconds = Math.max(0, Number(lesson.minSeconds) || 0);
+  const gated = !lp.completed && minSeconds > 0;
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     <div class="lesson-content">${lesson.html}</div>
+    ${gated ? `<div class="watch-meter"><div class="progress-track"><div class="progress-fill" id="readFill" style="width:0%"></div></div><span id="readTimer" style="min-width:160px;text-align:right"></span></div>` : ''}
     <div class="lesson-actions">
       ${lp.completed
         ? `<span class="pill-done">✓ Completed</span><button class="btn btn-primary" id="nextBtn">Next lesson →</button>`
-        : `<button class="btn btn-accent btn-lg" id="completeBtn">Complete &amp; continue →</button>`}
+        : `<button class="btn btn-accent btn-lg" id="completeBtn"${gated ? ' disabled style="opacity:.5"' : ''}>Complete &amp; continue →</button>`}
     </div>`;
-  document.getElementById('completeBtn')?.addEventListener('click', () => completeLesson(course, lesson).catch((e) => toast(e.message, true)));
+  const completeBtn = document.getElementById('completeBtn');
+  if (gated && completeBtn) {
+    let remain = minSeconds;
+    const fill = document.getElementById('readFill'), timer = document.getElementById('readTimer');
+    const tick = () => {
+      if (fill) fill.style.width = (((minSeconds - remain) / minSeconds) * 100) + '%';
+      if (timer) timer.textContent = remain > 0 ? ('You can continue in ' + remain + 's') : '';
+      if (remain <= 0) { clearInterval(iv); completeBtn.disabled = false; completeBtn.style.opacity = ''; if (fill) fill.style.width = '100%'; return; }
+      remain--;
+    };
+    tick(); const iv = setInterval(tick, 1000);
+  }
+  completeBtn?.addEventListener('click', () => { if (!completeBtn.disabled) completeLesson(course, lesson).catch((e) => toast(e.message, true)); });
   document.getElementById('nextBtn')?.addEventListener('click', () => {
     const idx = course.lessons.findIndex((l) => l.id === lesson.id);
     const next = course.lessons[idx + 1];
@@ -2421,6 +2439,9 @@ async function viewCourseAdmin(flash) {
         <label>Source material <span style="font-weight:400;color:var(--ink-soft)">(optional — paste text to build from)</span>
           <textarea name="sourceText" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
         </label>
+        <label>Video links <span style="font-weight:400;color:var(--ink-soft)">(optional — YouTube or Vimeo, one per line)</span>
+          <textarea name="videoUrls" style="min-height:70px" placeholder="https://www.youtube.com/watch?v=...&#10;https://vimeo.com/..."></textarea>
+        </label>
         <div class="ai-row">
           <label>Audience
             <select name="audience">
@@ -2439,6 +2460,7 @@ async function viewCourseAdmin(flash) {
           <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
           <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
           <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
+          <label>Min. seconds / lesson<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Hold Continue this long on each reading lesson (0 = off)" /></label>
         </div>
         <div class="ai-cta">
           <button class="btn btn-accent" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
@@ -2480,6 +2502,8 @@ async function viewCourseAdmin(flash) {
             numLessons: Number(f.get('numLessons')) || 4,
             numQuestions: Number(f.get('numQuestions')) || 5,
             passPercent: Number(f.get('passPercent')) || 80,
+            lessonMinSeconds: Number(f.get('lessonMinSeconds')) || 0,
+            videoUrls: (f.get('videoUrls') || '').toString().split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
           },
         });
         viewCourseAdmin(`AI drafted “${r.course.title}” (${r.course.lessons.length} lessons). Review and edit it below, then Publish when ready.`);

@@ -37,6 +37,22 @@ test('normalizeDraft turns raw AI output into valid text lessons + a graded quiz
   expect(quiz.questions[0].answer).toBe(1);
 });
 
+test('normalizeDraft applies a per-lesson time gate and builds video lessons from pasted links', () => {
+  const draft = normalizeDraft({
+    title: 'With Video',
+    lessons: [{ title: 'Read', html: '<p>a</p>' }],
+    videos: [{ title: 'Throw-in demo', intro: '<p>Watch the count.</p>' }],
+    quiz: [{ prompt: 'Q?', options: ['a', 'b'], answerIndex: 1 }],
+  }, { passPercent: 80, lessonMinSeconds: 25, videoUrls: ['https://www.youtube.com/watch?v=abc123', 'not-a-url'] });
+  // reading (gated) + one video (only the valid URL) + quiz
+  expect(draft.lessons.map((l) => l.type)).toEqual(['text', 'video', 'quiz']);
+  expect(draft.lessons[0].minSeconds).toBe(25);
+  const vid = draft.lessons[1];
+  expect(vid.videoUrl).toBe('https://www.youtube.com/watch?v=abc123');
+  expect(vid.title).toBe('Throw-in demo');
+  expect(vid.html).toContain('Watch the count');
+});
+
 test('sanitizeHtml strips scripts/handlers but keeps the documented safe tags', () => {
   const dirty = '<p onclick="x()">Hi <strong>there</strong></p><script>alert(1)</script><iframe src="evil"></iframe><div class="callout">note</div>';
   const clean = sanitizeHtml(dirty);
@@ -173,6 +189,27 @@ test('the Course Designer Export panel opens and downloads a package through the
   await expect(panel.locator('.pp-status')).toContainText('downloaded');
 });
 
+test('a reading lesson with a minimum time holds "Complete" until the timer elapses', async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Paced Reading', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Timed', html: '<p>Read carefully.</p>', minSeconds: 3 } });
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  await page.goto('/#/register');
+  await page.fill('#firstName', 'Pace'); await page.fill('#lastName', 'Reader');
+  await page.fill('#email', `pace.reader+${Date.now()}@example.com`);
+  await page.click('button:has-text("Create account")');
+  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+
+  const lessonId = (await (await api.get(`/api/admin/courses/${courseId}`)).json()).course.lessons[0].id;
+  await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
+  const btn = page.locator('#completeBtn');
+  await expect(btn).toBeDisabled();                       // gate holds it
+  await expect(page.locator('#readTimer')).toContainText('continue in');
+  await expect(btn).toBeEnabled({ timeout: 8000 });       // unlocks after ~3s
+});
+
 test('the Build-with-AI panel renders the modern studio UI', async ({ page, context, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: DESIGNER });
@@ -181,6 +218,8 @@ test('the Build-with-AI panel renders the modern studio UI', async ({ page, cont
   await page.click('#aiBuildBtn');
   await expect(page.locator('.ai-studio .ai-hero h3')).toHaveText('Build a course with AI');
   await expect(page.locator('#aiBuildForm textarea[name="sourceText"]')).toBeVisible();
+  await expect(page.locator('#aiBuildForm textarea[name="videoUrls"]')).toBeVisible();       // video links field
+  await expect(page.locator('#aiBuildForm input[name="lessonMinSeconds"]')).toBeVisible();   // pacing field
   await expect(page.locator('#aiBuildSubmit')).toBeVisible();
 });
 

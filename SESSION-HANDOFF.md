@@ -32,9 +32,19 @@ pushed commits live). Tests: Playwright on port 3100 — run `npx playwright tes
   running the single spec; don't chase them as real breaks.
 
 ## Lesson types (public/app.js dispatch ~line 897)
-`text` (reading), `video`, `quiz`, `scorm` (uploaded package), and **`slides`** (NEW this
-session — native slideshow). Quiz: `passPercent` (default 80), `questions:[{prompt,options,answer}]`;
-passing the last lesson completes the course → certificate via `maybeCompleteCourse` (server).
+`text` (reading, optional `minSeconds` reading-pace gate), `video`, `quiz`, `scorm` (uploaded
+package), and **`slides`** (native slideshow, image or inline-video slides). Quiz: `passPercent`
+(default 80), `questions:[{prompt,options,answer}]`; passing the last lesson completes the course →
+certificate via `maybeCompleteCourse` (server).
+
+### AI Builder extras (this session)
+- **Reading pace**: a text lesson with `minSeconds>0` holds its "Complete" button that long
+  (countdown bar in `renderTextLesson`). `buildLesson` stores it; AI Studio field "Min. seconds /
+  lesson" applies it to every generated reading lesson (`lessonMinSeconds` → `normalizeDraft`).
+- **Video links**: AI Studio "Video links" field (YouTube/Vimeo, one per line) → `videoUrls`. The AI
+  is given the links as context and returns a `videos:[{title,intro}]` array; `normalizeDraft` zips
+  each human-provided URL with the AI's title/intro into a `video` lesson (before the quiz). The AI
+  NEVER invents links — it can't see YouTube, so it only writes copy around the links you paste.
 
 ## Code-managed courses: `ensureCourse(courseObj)` (server.js)
 Adds a course if missing AND keeps ALL fields (incl. lessons) in sync from code on each
