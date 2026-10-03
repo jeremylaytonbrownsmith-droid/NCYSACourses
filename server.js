@@ -18,7 +18,7 @@ const { load, save, id, initFromCloud } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
-const { buildScormZip } = require('./lib/scormexport');
+const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
 // favour of the uploaded SCORM referee modules. Its data file (data/ncsra-pilot.js)
@@ -2307,11 +2307,16 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   res.json({ course });
 });
 
-// Export a course as a portable SCORM 1.2 package (.zip) that plays in any LMS.
-app.get('/api/admin/courses/:courseId/export/scorm', requireEditor, (req, res) => {
+// Export/publish a course as a portable package (.zip). ?format= picks the
+// target: scorm12 (default) and scorm2004 for any LMS, or web for a standalone
+// HTML course that needs no LMS at all. The /export/scorm path is kept as a
+// SCORM-1.2 alias.
+function exportCourseHandler(req, res) {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  let format = String(req.query.format || req.params.format || 'scorm12').toLowerCase();
+  if (!EXPORT_FORMATS[format]) format = 'scorm12';
   // Read a local asset (slide image / inline <img>) for bundling, safely scoped
   // to the public directory so a crafted path can never escape it.
   const publicDir = path.join(__dirname, 'public');
@@ -2321,13 +2326,15 @@ app.get('/api/admin/courses/:courseId/export/scorm', requireEditor, (req, res) =
     try { return fs.readFileSync(full); } catch (e) { return null; }
   };
   let out;
-  try { out = buildScormZip(course, { readPublicFile }); } catch (e) {
-    return res.status(500).json({ error: 'Could not build the SCORM package: ' + e.message });
+  try { out = buildPackage(course, { format, readPublicFile }); } catch (e) {
+    return res.status(500).json({ error: 'Could not build the package: ' + e.message });
   }
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
   res.send(out.buffer);
-});
+}
+app.get('/api/admin/courses/:courseId/export', requireEditor, exportCourseHandler);
+app.get('/api/admin/courses/:courseId/export/scorm', requireEditor, exportCourseHandler);
 
 // Generate a signed launch link for a course — the same kind a partner (OMS)
 // would mint, so it can be demoed live without their system. Admin/editor only.

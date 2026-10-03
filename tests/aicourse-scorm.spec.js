@@ -4,6 +4,9 @@
 // unzipping the real package the endpoint returns.
 const { test, expect } = require('@playwright/test');
 const AdmZip = require('adm-zip');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { normalizeDraft, sanitizeHtml } = require('../lib/aicourse');
 
 const BASE = 'http://localhost:3100';
@@ -68,7 +71,7 @@ test('a course exports as a valid SCORM 1.2 package (manifest + player + graded 
   const names = zip.getEntries().map((e) => e.entryName);
   expect(names).toContain('imsmanifest.xml');
   expect(names).toContain('index.html');
-  expect(names).toContain('scormAPI.js');
+  expect(names).toContain('runtime.js');
 
   const manifest = zip.readAsText('imsmanifest.xml');
   expect(manifest).toContain('<schemaversion>1.2</schemaversion>');
@@ -76,13 +79,74 @@ test('a course exports as a valid SCORM 1.2 package (manifest + player + graded 
   expect(manifest).toContain('href="index.html"');
 
   const index = zip.readAsText('index.html');
-  expect(index).toContain('scormAPI.js');
-  expect(index).toContain('cmi.core.lesson_status'); // reports completion/score to the host LMS
-  expect(index).toContain('Sky color?');            // the quiz travels in the package
+  expect(index).toContain('runtime.js');
+  expect(index).toContain('window.LMS');  // the player talks to one adapter interface
+  expect(index).toContain('Sky color?');  // the quiz travels in the package
 
-  const apiJs = zip.readAsText('scormAPI.js');
-  expect(apiJs).toMatch(/LMSInitialize/);
-  expect(apiJs).toMatch(/LMSFinish/);
+  const rt = zip.readAsText('runtime.js');
+  expect(rt).toMatch(/LMSInitialize/);     // SCORM 1.2 runtime
+  expect(rt).toMatch(/LMSFinish/);
+  expect(rt).toMatch(/cmi\.core\.lesson_status/);
+});
+
+test('a course exports as SCORM 2004 (2004 manifest + API_1484_11 runtime)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Export 2004', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Reading', html: '<p>Study.</p>' } });
+
+  const res = await api.get(`/api/admin/courses/${courseId}/export?format=scorm2004`);
+  expect(res.ok()).toBeTruthy();
+  const zip = new AdmZip(await res.body());
+  const names = zip.getEntries().map((e) => e.entryName);
+  expect(names).toContain('imsmanifest.xml');
+  const manifest = zip.readAsText('imsmanifest.xml');
+  expect(manifest).toContain('2004');
+  expect(manifest).toContain('adlcp:scormType="sco"');   // note the 2004 capital T
+  const rt = zip.readAsText('runtime.js');
+  expect(rt).toMatch(/API_1484_11/);
+  expect(rt).toMatch(/cmi\.completion_status/);
+});
+
+test('a course exports as a standalone Web page (no LMS, no manifest)', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Export Web', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Reading', html: '<p>Open me in any browser.</p>' } });
+
+  const res = await api.get(`/api/admin/courses/${courseId}/export?format=web`);
+  expect(res.ok()).toBeTruthy();
+  const zip = new AdmZip(await res.body());
+  const names = zip.getEntries().map((e) => e.entryName);
+  expect(names).toContain('index.html');
+  expect(names).toContain('runtime.js');
+  expect(names).not.toContain('imsmanifest.xml');        // no LMS wrapper
+  const rt = zip.readAsText('runtime.js');
+  expect(rt).toMatch(/localStorage/);                    // progress kept in the browser
+  expect(rt).not.toMatch(/LMSInitialize|API_1484_11/);   // no LMS calls at all
+});
+
+test('the exported Web page actually runs standalone (file://) and completes with no LMS', async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Standalone Run', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Read', html: '<p>Learn this.</p>' } });
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 50, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
+
+  const res = await api.get(`/api/admin/courses/${courseId}/export?format=web`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gmrweb-'));
+  new AdmZip(await res.body()).extractAllTo(dir, true);
+
+  // Open the unzipped page directly from disk — no server, no LMS.
+  await page.goto('file://' + path.join(dir, 'index.html'));
+  await expect(page.locator('.lesson.active h2')).toHaveText('Read');
+  await page.click('#next');                                   // → quiz section
+  await expect(page.locator('.lesson.active h2')).toHaveText('Check');
+  await page.check('input[name="q0"][value="1"]');             // correct answer
+  await page.click('#next');                                   // Submit answers → grades
+  await expect(page.locator('.quizresult')).toContainText('Passed');
+  await page.click('#next');                                   // Finish
+  await expect(page.locator('#next')).toHaveText('Completed ✓');
 });
 
 test('exporting a course with image slides bundles the images into the package', async ({ playwright }) => {

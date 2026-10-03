@@ -85,18 +85,31 @@ deploy. Called in the boot sequence (~line 2942, alongside `setupOmgCourse`,
     `AI_COURSE_MODEL` (default `claude-sonnet-5-5`). UI: **"✨ Build with AI"** button in the
     Course Designer header (`aiBuildPanel`/`bindAiBuild`), gated/greyed when no key is set.
     Deliberately generates only text + quiz (reliable); images/video are added by a human after.
-11. **Portable SCORM 1.2 export** (`lib/scormexport.js` + `GET /api/admin/courses/:id/export/scorm`):
-    turns ANY native course into a standard SCORM 1.2 `.zip` (imsmanifest.xml + a self-contained
-    inline-styled `index.html` player + `scormAPI.js` wrapper + bundled `assets/` images) that
-    reports `cmi.core.lesson_status` + score to any LMS. Grades the quiz client-side (passed/
-    failed by pass %); reading-only courses complete on Finish. Image slides are bundled from
-    `public/` (path-scoped read); a video slide → "Watch the video" link; `scorm` lessons are
-    skipped (can't nest SCORM). UI: **"Export SCORM 1.2"** in each course's **More ▾** menu
-    (fetch → blob → download). This is the mirror of the SCORM we already host/track.
+11. **Multi-format export / publish menu** (`lib/scormexport.js` + `GET /api/admin/courses/:id/export?format=`):
+    turns ANY native course into a portable `.zip`. All formats ship the SAME self-contained
+    inline-styled `index.html` player (talks to one `window.LMS` interface) + bundled `assets/`
+    images; only a per-format `runtime.js` adapter and the manifest differ. Formats:
+    - **scorm12** (default; also at `/export/scorm`): SCORM 1.2 manifest + `window.API` runtime →
+      `cmi.core.lesson_status` + `cmi.core.score.raw`. For any LMS.
+    - **scorm2004**: SCORM 2004 manifest (`adlcp:scormType`) + `window.API_1484_11` runtime →
+      `cmi.completion_status`/`cmi.success_status`/`cmi.score.scaled`. For newer LMSs.
+    - **web**: NO manifest, NO LMS — a standalone HTML course; open `index.html` in any browser;
+      progress/resume kept in `localStorage`. **This is the answer when a partner has no LMS.**
+      (Proven end-to-end: a test extracts the zip and runs it via `file://` to completion.)
+    Quiz graded client-side (pass %); reading-only courses complete on Finish. Image slides
+    bundled from `public/` (path-scoped read); video slide → "Watch the video" link; `scorm`
+    lessons skipped (can't nest a package). `buildPackage(course,{format,readPublicFile})`;
+    `buildScormZip` kept as a scorm12 alias. UI: a **"Export / publish"** group in each course's
+    **More ▾** menu — SCORM 1.2 / SCORM 2004 / Web page (no LMS) / **Copy hosted link** (copies
+    `${origin}/#/course/<id>` — the simplest answer for a website/Zite). Mirror of the SCORM we
+    already host/track.
     - **The "three sides in tandem" pitch**: AI author → drag-and-drop builder → LMS that
-      delivers/certifies AND exports SCORM. Built for people who aren't Captivate experts.
+      delivers/certifies AND exports to SCORM 1.2/2004 or a standalone web page. For people who
+      aren't Captivate experts.
     - Tests: `tests/aicourse-scorm.spec.js` (normalizeDraft/sanitize units, AI gating w/o key,
-      SCORM zip validity, image-slide bundling).
+      SCORM 1.2 + 2004 + web zip validity, standalone `file://` run, image-slide bundling).
+    - Note on OMG: their "old system" is unknown/mixed — SCORM only helps if it's a real LMS; the
+      web export + hosted link cover the no-LMS cases. (xAPI/AICC/PDF are possible later tiers.)
 
 ## THE ONE UNRESOLVED ITEM — read carefully, do NOT re-litigate
 The Law 15 video **`vimeo.com/1200487589`** will NOT embed on `getmatchready.app`:

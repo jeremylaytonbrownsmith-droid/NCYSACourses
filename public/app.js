@@ -2227,7 +2227,13 @@ async function viewCourseAdmin(flash) {
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-slidegate" data-course="${c.id}">Slide timer</button>` : ''}
                     <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
-                    <button class="btn btn-ghost btn-sm export-scorm" data-course="${c.id}" data-title="${esc(c.title)}">Export SCORM 1.2</button>
+                    <div class="export-group" style="border-top:1px solid #e3e9f2;margin-top:6px;padding-top:6px">
+                      <div class="more-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#8795ad;padding:2px 2px 4px">Export / publish</div>
+                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="scorm12">SCORM 1.2 (LMS)</button>
+                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="scorm2004">SCORM 2004 (LMS)</button>
+                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="web">Web page (no LMS)</button>
+                      <button class="btn btn-ghost btn-sm copy-hosted" data-course="${c.id}">Copy hosted link</button>
+                    </div>
                     <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                     <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
                   </div>
@@ -2270,21 +2276,31 @@ async function viewCourseAdmin(flash) {
     document.getElementById('newCoursePanel').innerHTML = aiBuildPanel();
     bindAiBuild();
   });
-  document.querySelectorAll('.export-scorm').forEach((b) => b.addEventListener('click', async () => {
-    const cid = b.dataset.course, label = b.dataset.title || 'course';
+  const FORMAT_LABEL = { scorm12: 'SCORM 1.2', scorm2004: 'SCORM 2004', web: 'Web page' };
+  document.querySelectorAll('.export-pkg').forEach((b) => b.addEventListener('click', async () => {
+    const cid = b.dataset.course, label = b.dataset.title || 'course', fmt = b.dataset.format || 'scorm12';
     const orig = b.textContent; b.disabled = true; b.textContent = 'Building…';
     try {
-      const res = await fetch(`/api/admin/courses/${cid}/export/scorm`);
+      const res = await fetch(`/api/admin/courses/${cid}/export?format=${encodeURIComponent(fmt)}`);
       if (!res.ok) { let m = 'Export failed'; try { m = (await res.json()).error || m; } catch (e) { /* ignore */ } throw new Error(m); }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = (cid || 'course') + '-scorm12.zip';
+      a.href = url; a.download = (cid || 'course') + '-' + fmt + '.zip';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast('SCORM package downloaded for “' + label + '”.');
+      toast((FORMAT_LABEL[fmt] || 'Package') + ' downloaded for “' + label + '”.');
     } catch (e) { toast(e.message, true); }
     finally { b.disabled = false; b.textContent = orig; }
+  }));
+  document.querySelectorAll('.copy-hosted').forEach((b) => b.addEventListener('click', async () => {
+    const cid = b.dataset.course;
+    const link = `${location.origin}/#/course/${cid}`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(link);
+      else { const t = document.createElement('textarea'); t.value = link; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+      toast('Hosted link copied: ' + link);
+    } catch (e) { toast('Hosted link: ' + link); }
   }));
   document.querySelectorAll('.move-course').forEach((b) => b.addEventListener('click', async () => {
     b.disabled = true;
