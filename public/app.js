@@ -1008,8 +1008,11 @@ function renderSlidesLesson(pane, course, lesson, lp) {
         const sw = window.screen && screen.width ? screen.width : 1280;
         const sh = window.screen && screen.height ? screen.height : 800;
         const left = Math.max(0, Math.round((sw - w) / 2)), top = Math.max(0, Math.round((sh - h) / 2));
-        try { window.open(watchUrl, 'gmrVideo', 'noopener,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top); }
-        catch (e) { window.open(watchUrl, '_blank', 'noopener'); }
+        // NOTE: no "noopener" here — with it set, browsers ignore the size and open a
+        // plain tab. These popup features make it a real, closeable window instead.
+        const features = 'popup=yes,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+        const win = window.open(watchUrl, 'gmrVideo', features);
+        if (!win) window.open(watchUrl, '_blank'); // popup blocked → fall back to a tab
         opened = true;
       };
       openBtn && openBtn.addEventListener('click', () => {
@@ -1518,8 +1521,11 @@ function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
       const sw = window.screen && screen.width ? screen.width : 1280;
       const sh = window.screen && screen.height ? screen.height : 800;
       const left = Math.max(0, Math.round((sw - w) / 2)), top = Math.max(0, Math.round((sh - h) / 2));
-      try { window.open(watchUrl, 'gmrVideo', 'noopener,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top); }
-      catch (e) { window.open(watchUrl, '_blank', 'noopener'); }
+      // NOTE: no "noopener" here — with it set, browsers ignore the size and open a
+      // plain tab. These popup features make it a real, closeable window instead.
+      const features = 'popup=yes,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+      const win = window.open(watchUrl, 'gmrVideo', features);
+      if (!win) window.open(watchUrl, '_blank'); // popup blocked → fall back to a tab
       opened = true;
     };
     openBtn && openBtn.addEventListener('click', () => {
