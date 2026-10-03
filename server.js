@@ -330,6 +330,10 @@ function ensureCourse(courseObj) {
 function setupLawChangesCourse() {
   // Each slide is shown one at a time with a 15-second review gate (see the native
   // slideshow renderer in the SPA). Alt text labels each slide for accessibility.
+  // Slides 1-8 are images (15s review gate each). The final slide plays the Law 15
+  // throw-in video INLINE, right on the slide, gated by 30 seconds of real watch
+  // time — so there is no separate video lesson and no new-tab detour (if Vimeo
+  // blocks the embed, the renderer falls back to a watch-gated open-in-new-tab).
   const slideAlts = [
     'Title — Laws of the Game Changes 2026/27',
     'What is changing and when it applies',
@@ -339,9 +343,14 @@ function setupLawChangesCourse() {
     'Why IFAB made these changes',
     'Throw-in 5-second countdown: previous vs new',
     'Throw-in 5-second protocol: how to apply it',
-    'Video clip: the countdown in practice',
   ];
   const lawSlides = slideAlts.map((alt, i) => ({ img: `/media/law-changes/slide-${i + 1}.jpeg`, alt }));
+  lawSlides.push({
+    video: 'https://vimeo.com/1200487589',
+    watchSeconds: 30,
+    alt: 'Video clip: the throw-in countdown in practice',
+    caption: '<p><strong>Watch the throw-in countdown in a real match.</strong> Watch for: when the referee raises a hand to start the count, whether the thrower is in motion at five, and how the switch is signaled to both teams.</p>',
+  });
   ensureCourse({
     id: 'omg-law-changes-2026-27',
     orgId: 'omg',
@@ -366,18 +375,9 @@ function setupLawChangesCourse() {
         id: 'law-changes-slides',
         type: 'slides',
         title: 'Laws of the Game Changes 2026/27',
-        html: '<p>Work through each slide — you can continue after 15 seconds on each. Then watch the video example and take the quiz.</p>',
+        html: '<p>Work through each slide — you can continue after 15 seconds on each. The final slide plays the throw-in video example; watch it, then take the quiz.</p>',
         slideSeconds: 15,
         slides: lawSlides,
-      },
-      {
-        id: 'law-changes-video',
-        type: 'video',
-        title: 'Law 15 — The Throw-In (video example)',
-        html: '<p>Watch the throw-in countdown in a real match, then continue to the quiz. Watch for: when the referee raises a hand to start the count, whether the thrower is in motion at five, and how the switch is signaled to both teams.</p>',
-        videoUrl: 'https://vimeo.com/1200487589',
-        durationSeconds: 60,
-        minWatchSeconds: 30,
       },
       {
         id: 'law-changes-quiz',
@@ -2158,10 +2158,21 @@ function buildLesson(body) {
   const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
   if (type === 'text') return { ...base, html: String(body.html || '') };
   if (type === 'slides') {
-    // A native slideshow: one image per slide, with a per-slide review gate (seconds).
+    // A native slideshow: mostly image slides (gated by a per-slide time dwell in
+    // seconds), but a slide may instead carry a `video` (Vimeo/YouTube) link that
+    // plays INLINE on the slide, gated by `watchSeconds` of real watch time. Keep a
+    // slide if it has either an image or a video; carry the optional caption/alt.
     const slides = (Array.isArray(body.slides) ? body.slides : [])
-      .map((s) => (typeof s === 'string' ? { img: s } : { img: String(s.img || ''), alt: s.alt ? String(s.alt) : undefined }))
-      .filter((s) => s.img);
+      .map((s) => {
+        if (typeof s === 'string') return { img: s };
+        const out = {};
+        if (s.img) out.img = String(s.img);
+        if (s.video) { out.video = String(s.video); out.watchSeconds = Math.min(3600, Math.max(1, Number(s.watchSeconds) || 30)); }
+        if (s.alt) out.alt = String(s.alt);
+        if (s.caption) out.caption = String(s.caption);
+        return out;
+      })
+      .filter((s) => s.img || s.video);
     const slideSeconds = body.slideSeconds != null ? Math.min(600, Math.max(0, Math.round(Number(body.slideSeconds)) || 0)) : 15;
     return { ...base, html: String(body.html || ''), slideSeconds, slides };
   }

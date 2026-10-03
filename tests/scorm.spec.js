@@ -231,14 +231,15 @@ test('a video lesson with a Vimeo link renders an inline embedded player (native
   await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
   await expect(page.locator('#lessonVideo')).toHaveCount(0); // not the self-hosted <video> player
   // Native Vimeo handling: the inline player loads, or — if the embed can't initialize
-  // (blocked embed / Player API unreachable) — the graceful "open on Vimeo" fallback
-  // link appears. Either way it references the Vimeo video, never the MP4 player.
+  // (blocked embed / Player API unreachable, as in this sandbox) — the graceful
+  // "open the video" fallback button appears. Either path is the native handler,
+  // never the self-hosted MP4 player.
   await expect(
-    page.locator('#embedVideo[src*="player.vimeo.com/video/1200487589"], a[href*="vimeo.com/1200487589"]')
+    page.locator('#embedVideo[src*="player.vimeo.com/video/1200487589"], #openVid')
   ).toBeVisible({ timeout: 10000 });
 });
 
-test('the native Law Changes course is seeded for OMG with slides + a native Vimeo video lesson', async ({ request, playwright }) => {
+test('the native Law Changes course is seeded for OMG: slides (video on the last slide) + quiz, no separate video lesson', async ({ request, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
   const r = await api.get('/api/admin/courses/omg-law-changes-2026-27');
@@ -247,15 +248,20 @@ test('the native Law Changes course is seeded for OMG with slides + a native Vim
   expect(c.orgId).toBe('omg');
   expect(c.published).toBe(true);
   expect(c.coBrandName).toMatch(/OMG/);
+  // Two lessons only: the slideshow (with the video ON its final slide) and the quiz.
+  expect(c.lessons.length).toBe(2);
+  expect(c.lessons.find((l) => l.id === 'law-changes-video')).toBeUndefined();
   const slides = c.lessons.find((l) => l.id === 'law-changes-slides');
   expect(slides.type).toBe('slides');          // native slideshow, one slide at a time
-  expect(slides.slideSeconds).toBe(15);        // 15-second gate per slide
+  expect(slides.slideSeconds).toBe(15);        // 15-second gate per image slide
   expect(slides.slides.length).toBe(9);
   expect(slides.slides[0].img).toContain('/media/law-changes/slide-1.jpeg');
-  expect(slides.slides[8].img).toContain('/media/law-changes/slide-9.jpeg');
-  const vid = c.lessons.find((l) => l.id === 'law-changes-video');
-  expect(vid.type).toBe('video');
-  expect(vid.videoUrl).toContain('vimeo.com/1200487589');
+  expect(slides.slides[7].img).toContain('/media/law-changes/slide-8.jpeg');
+  // The last slide plays the Law 15 throw-in video inline, gated by 30s of watch time.
+  const last = slides.slides[8];
+  expect(last.video).toContain('vimeo.com/1200487589');
+  expect(last.watchSeconds).toBe(30);
+  expect(last.img).toBeUndefined();
   // A 5-question quiz, throw-in question first, 80% to pass.
   const quiz = c.lessons.find((l) => l.id === 'law-changes-quiz');
   expect(quiz.type).toBe('quiz');
@@ -280,6 +286,41 @@ test('the Law Changes slideshow shows one slide at a time with Next gated', asyn
   await expect(page.locator('#slideCount')).toHaveText('Slide 1 of 9');
   await expect(page.locator('#slideImg')).toHaveAttribute('src', /slide-1\.jpeg/);
   await expect(page.locator('#slideNav')).toBeDisabled();                // 15s gate holds Next
+});
+
+test('a video slide plays the clip inline on the slide (no separate lesson, no forced new tab)', async ({ page, playwright }) => {
+  // Build a tiny slides lesson: one image slide, then a video slide. slideSeconds:0
+  // removes the image time gate so the test can reach the video slide instantly.
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'Video Slide Course', audience: 'referees' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: {
+    type: 'slides', title: 'Slides with a video', slideSeconds: 0,
+    slides: [
+      { img: '/media/law-changes/slide-1.jpeg', alt: 'Intro' },
+      { video: 'https://vimeo.com/1200487589', watchSeconds: 30, alt: 'Clip', caption: '<p>Watch for the countdown.</p>' },
+    ],
+  } })).json()).lesson.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+
+  await page.goto('/#/register');
+  await page.fill('#firstName', 'Vid'); await page.fill('#lastName', 'Slide');
+  await page.fill('#email', `vid.slide+${Date.now()}@example.com`);
+  await page.click('button:has-text("Create account")');
+  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+
+  await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
+  await expect(page.locator('#slideImg')).toBeVisible();                 // slide 1 is the image
+  await page.click('#slideNav');                                         // no gate (slideSeconds:0)
+  await expect(page.locator('#slideCount')).toHaveText('Slide 2 of 2');
+  // Slide 2 plays the video ON the slide: the inline Vimeo iframe, or — if the embed
+  // can't initialize (as in this sandbox) — the watch-gated open button. Either way
+  // there is no separate video lesson and no stray <img> standing in for the clip.
+  await expect(page.locator('#slideImg')).toHaveCount(0);
+  await expect(
+    page.locator('#slideVideo[src*="player.vimeo.com/video/1200487589"], #slideOpenVid')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#slideCaption')).toContainText('Watch for the countdown');
 });
 
 test('an OMG referee course with no co-logo shows the OMG mark (not NCSRA) in the header and card', async ({ page, playwright }) => {

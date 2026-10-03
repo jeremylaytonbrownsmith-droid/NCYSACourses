@@ -60,13 +60,17 @@ deploy. Called in the boot sequence (~line 2942, alongside `setupOmgCourse`,
 6. **OMG logo fallback fix** (`orgLogo`): OMG portal header + course cards no longer break/
    fall back to NCSRA when a course omits its co-logo.
 7. **Native "2026-2027 Law Changes" course** (`setupLawChangesCourse` via `ensureCourse`,
-   id `omg-law-changes-2026-27`): OMG-branded; 3 lessons — a **`slides`** lesson (9 images in
-   `public/media/law-changes/slide-1..9.jpeg`, **15s per-slide gate**), a **`video`** lesson
-   (the Law 15 throw-in clip, `vimeo.com/1200487589`), and a **5-question quiz** (80% pass,
-   throw-in first; answers drawn from the slides). Slide deck was later refreshed (brighter
-   red accents) — same filenames.
-8. **`slides` lesson type** (`renderSlidesLesson`): one image at a time, Prev/Next, per-slide
-   time gate (default 15s), last slide completes. `buildLesson` recognizes it.
+   id `omg-law-changes-2026-27`): OMG-branded; **2 lessons** — a **`slides`** lesson (8 image
+   slides `public/media/law-changes/slide-1..8.jpeg` at **15s per-slide gate**, then a **video
+   slide** that plays the Law 15 throw-in clip `vimeo.com/1200487589` INLINE with a **30s watch
+   gate**), and a **5-question quiz** (80% pass, throw-in first; answers drawn from the slides).
+   The old separate `law-changes-video` lesson (opened a new tab) was REMOVED — the video now
+   lives on its own slide. Slide deck refreshed earlier (brighter red accents) — same filenames.
+8. **`slides` lesson type** (`renderSlidesLesson`): one slide at a time, Prev/Next. Image slides
+   use a per-slide time gate (default 15s); a slide carrying `{video, watchSeconds, caption}`
+   plays the Vimeo/YouTube clip INLINE (via a `#slideStage` container) gated by real watch time
+   (Vimeo Player API + a watch-gated "open in new tab" fallback if the embed is blocked). Last
+   slide completes. `buildLesson` recognizes slides and preserves image AND video slide fields.
 9. **Watch-gated "Open on Vimeo" fallback**: when the embed is blocked, the video lesson swaps
    the dead player for a "▶ Open the video (new tab)" button and gates Complete behind ~30s of
    actually being on the video tab (document.hidden accrual) — so the course works today even

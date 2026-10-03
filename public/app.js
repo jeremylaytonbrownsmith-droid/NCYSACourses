@@ -918,10 +918,15 @@ async function completeLesson(course, lesson) {
   location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
 }
 
-// Native slideshow lesson: one slide image at a time, with a per-slide time gate
-// (default 15s) before "Next" unlocks — the same review discipline as the SCORM
-// player, but for a code-built course. A slide already viewed isn't re-gated, the
-// last slide completes the lesson, and a completed lesson is freely reviewable.
+// Native slideshow lesson: one slide at a time, with a per-slide gate before
+// "Next" unlocks — the same review discipline as the SCORM player, but for a
+// code-built course. Most slides are images gated by a time dwell (default 15s).
+// A slide may instead carry a `video` (Vimeo/YouTube) link: that slide plays the
+// clip INLINE and is gated by actual watch time (`watchSeconds`, default 30),
+// with a watch-gated "open in a new tab" fallback if the host blocks the embed —
+// so the video lives ON its slide, not as a separate lesson/new tab. A slide
+// already viewed isn't re-gated, the last slide completes the lesson, and a
+// completed lesson is freely reviewable.
 function renderSlidesLesson(pane, course, lesson, lp) {
   const slides = (Array.isArray(lesson.slides) ? lesson.slides : []).map((s) => (typeof s === 'string' ? { img: s } : s));
   if (!slides.length) return renderTextLesson(pane, course, lesson, lp);
@@ -932,9 +937,8 @@ function renderSlidesLesson(pane, course, lesson, lp) {
     ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
     <div style="max-width:980px;margin:0 auto">
-      <div style="background:#0b1220;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(11,18,32,.18)">
-        <img id="slideImg" alt="" style="display:block;width:100%;height:auto" />
-      </div>
+      <div id="slideStage" style="background:#0b1220;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(11,18,32,.18)"></div>
+      <div id="slideCaption" class="lesson-content" style="margin:12px 0 0;display:none"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 4px">
         <button class="btn btn-ghost" id="slidePrev">← Prev</button>
         <span id="slideCount" style="font-weight:700;color:#51607a"></span>
@@ -945,38 +949,115 @@ function renderSlidesLesson(pane, course, lesson, lp) {
         <span id="slideTimer" style="min-width:160px;text-align:right"></span>
       </div>
     </div>`;
-  const imgEl = document.getElementById('slideImg'), countEl = document.getElementById('slideCount'),
+  const stageEl = document.getElementById('slideStage'), capEl = document.getElementById('slideCaption'),
+    countEl = document.getElementById('slideCount'),
     prevEl = document.getElementById('slidePrev'), navEl = document.getElementById('slideNav'),
     fillEl = document.getElementById('slideFill'), timerEl = document.getElementById('slideTimer');
-  let iv = null;
+  let iv = null, vcleanup = null;
   const isLast = () => idx === slides.length - 1;
+  function stopGates() { clearInterval(iv); iv = null; if (vcleanup) { try { vcleanup(); } catch (e) { /* ignore */ } vcleanup = null; } }
   function unlock() { navEl.disabled = false; navEl.style.opacity = ''; fillEl.style.width = '100%'; timerEl.textContent = ''; }
-  function gate() {
-    clearInterval(iv);
-    navEl.textContent = isLast() ? 'Complete & continue →' : 'Next →';
+  // Image slide: dwell timer before Next unlocks.
+  function timeGate() {
     if (per <= 0 || seen.has(idx)) { unlock(); return; }
     let remain = per; navEl.disabled = true; navEl.style.opacity = '.5';
     const tick = () => {
       fillEl.style.width = (((per - remain) / per) * 100) + '%';
       timerEl.textContent = 'You can continue in ' + remain + 's';
-      if (remain <= 0) { clearInterval(iv); seen.add(idx); unlock(); return; }
+      if (remain <= 0) { clearInterval(iv); iv = null; seen.add(idx); unlock(); return; }
       remain--;
     };
     tick(); iv = setInterval(tick, 1000);
   }
+  // Video slide: play inline and credit real watch time (Vimeo Player API), with a
+  // watch-gated new-tab fallback if the host blocks the embed. Mirrors the logic in
+  // renderEmbedVideoLesson, but scoped to this one slide.
+  function videoGate(s, embed) {
+    const required = Math.max(5, Number(s.watchSeconds) || 30);
+    if (seen.has(idx)) { unlock(); return; }
+    navEl.disabled = true; navEl.style.opacity = '.5';
+    let watched = 0, unlocked = false, alive = true;
+    vcleanup = () => { alive = false; };
+    function tick(sec) {
+      if (!alive) return;
+      watched = Math.max(watched, sec);
+      fillEl.style.width = Math.min(100, (watched / required) * 100) + '%';
+      if (!unlocked) timerEl.textContent = Math.floor(watched) + 's / ' + required + 's watched';
+      if (watched >= required) vunlock();
+    }
+    function vunlock() { if (unlocked || !alive) return; unlocked = true; seen.add(idx); timerEl.textContent = 'Watch requirement met ✓'; unlock(); }
+    const start = Date.now();
+    iv = setInterval(() => { if (!alive) return; tick((Date.now() - start) / 1000); if (unlocked) { clearInterval(iv); iv = null; } }, 500);
+    const watchUrl = embed.kind === 'vimeo' ? 'https://vimeo.com/' + embed.id
+      : embed.kind === 'youtube' ? 'https://www.youtube.com/watch?v=' + embed.id : null;
+    let swapped = false;
+    function fallbackToLink() {
+      if (swapped || !alive || !watchUrl) return; swapped = true;
+      stageEl.innerHTML = '<div style="position:relative;aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
+        + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
+        + '<button type="button" id="slideOpenVid" class="btn btn-accent">▶ Open the video (new tab)</button>'
+        + '<div id="slideWatchHint" style="font-size:.88rem;color:#9fb4d6;max-width:400px">Opens on Vimeo in a new tab. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
+      let away = watched, opened = false;
+      const hint = () => document.getElementById('slideWatchHint');
+      const openBtn = document.getElementById('slideOpenVid');
+      openBtn && openBtn.addEventListener('click', () => {
+        opened = true; window.open(watchUrl, '_blank', 'noopener');
+        if (hint()) hint().textContent = 'Keep watching on the Vimeo tab — you can continue when the bar below fills.';
+      });
+      const g = setInterval(() => {
+        if (!alive) { clearInterval(g); return; }
+        if (opened && document.hidden) { away += 1; tick(away); }
+        if (away >= required) {
+          clearInterval(g); vunlock();
+          if (hint()) hint().innerHTML = 'Done — you can continue. <a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" style="color:#9ec5ff">Re-watch</a>';
+        }
+      }, 1000);
+    }
+    if (embed.kind === 'vimeo') {
+      const boot = () => {
+        if (!alive) return;
+        try {
+          const p = new window.Vimeo.Player(document.getElementById('slideVideo'));
+          p.on('timeupdate', (d) => { if (d && d.seconds) tick(d.seconds); });
+          p.on('ended', vunlock);
+          p.on('error', fallbackToLink);
+          p.ready().then(() => {}).catch(fallbackToLink);
+        } catch (e) { fallbackToLink(); }
+      };
+      if (window.Vimeo && window.Vimeo.Player) boot();
+      else { const sc = document.createElement('script'); sc.src = 'https://player.vimeo.com/api/player.js'; sc.onload = boot; sc.onerror = fallbackToLink; document.head.appendChild(sc); }
+    }
+  }
+  function gate(s) {
+    stopGates();
+    navEl.textContent = isLast() ? 'Complete & continue →' : 'Next →';
+    fillEl.style.width = '0%'; timerEl.textContent = '';
+    const embed = s.video ? videoEmbedUrl(s.video) : null;
+    if (embed) videoGate(s, embed);
+    else timeGate();
+  }
   function show(i) {
     idx = Math.max(0, Math.min(slides.length - 1, i));
     const s = slides[idx];
-    imgEl.src = s.img; imgEl.alt = s.alt || ('Slide ' + (idx + 1));
+    const embed = s.video ? videoEmbedUrl(s.video) : null;
+    if (embed) {
+      const q = embed.kind === 'youtube' ? 'rel=0&modestbranding=1' : 'title=0&byline=0&portrait=0';
+      const src = embed.src + (embed.src.indexOf('?') > -1 ? '&' : '?') + q;
+      stageEl.innerHTML = '<div style="position:relative;aspect-ratio:16/9;background:#000">'
+        + '<iframe id="slideVideo" src="' + esc(src) + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="' + esc(s.alt || 'Video') + '" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe></div>';
+    } else {
+      stageEl.innerHTML = '<img id="slideImg" alt="' + esc(s.alt || ('Slide ' + (idx + 1))) + '" src="' + esc(s.img) + '" style="display:block;width:100%;height:auto" />';
+    }
+    if (s.caption) { capEl.style.display = ''; capEl.innerHTML = s.caption; } else { capEl.style.display = 'none'; capEl.innerHTML = ''; }
     countEl.textContent = 'Slide ' + (idx + 1) + ' of ' + slides.length;
     prevEl.disabled = idx === 0; prevEl.style.opacity = idx === 0 ? '.5' : '';
-    gate();
+    gate(s);
     try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ }
   }
   prevEl.addEventListener('click', () => { if (idx > 0) show(idx - 1); });
   navEl.addEventListener('click', () => {
     if (navEl.disabled) return;
-    seen.add(idx);
+    seen.add(idx); stopGates();
     if (isLast()) completeLesson(course, lesson).catch((e) => toast(e.message, true));
     else show(idx + 1);
   });
