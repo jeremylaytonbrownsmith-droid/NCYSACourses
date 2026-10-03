@@ -112,16 +112,20 @@ test('CDN video shim is injected for CDN-backed packages (identity map when noth
   expect(no).not.toContain('HTMLMediaElement');                  // no shim without the marker
 });
 
-test('served SCORM HTML gets the Vimeo/YouTube in-frame embed fix (watch-page link → player overlay)', async ({ request }) => {
+test('served SCORM HTML opens a Captivate Vimeo link in a new tab (not a blocked inline embed)', async ({ request }) => {
   const dir = path.join(__dirname, '..', '.test-data', 'scorm');
   fs.mkdirSync(path.join(dir, 'vimeo-course'), { recursive: true });
-  // A Captivate-style page that opens the un-embeddable Vimeo WATCH page in the frame.
+  // A Captivate-style page that opens the Vimeo WATCH page (what the real .cptx does).
   fs.writeFileSync(path.join(dir, 'vimeo-course', 'index.html'),
     '<!doctype html><head></head><body><script>cp.openURL("https://vimeo.com/1200487589?fl=pl","_self")</script></body>');
   const html = await (await request.get(`${BASE}/scorm/vimeo-course/index.html`)).text();
-  expect(html).toContain('gmr-vid-ov');                 // the overlay fix is injected
-  expect(html).toContain('player.vimeo.com/video/');    // converts watch URL → embeddable player
-  expect(html).toContain('youtube.com/embed/');         // handles YouTube too
+  // The shim hooks cp.openURL/window.open and opens the real WATCH page in a new tab —
+  // it must NOT force an inline player embed (that's what Vimeo privacy blocks).
+  expect(html).toContain('cp.openURL');
+  expect(html).toContain("'_blank'");
+  expect(html).toContain('vimeo.com/');
+  expect(html).not.toContain('player.vimeo.com/video/'); // no inline embed anymore
+  expect(html).not.toContain('gmr-vid-ov');              // no embed overlay anymore
 });
 
 test('served SCORM HTML sends a permissive referrer so Vimeo can verify the embed domain', async ({ request }) => {

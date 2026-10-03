@@ -1045,39 +1045,31 @@ function injectVideoError(html) {
   return html + script;
 }
 
-// Play Vimeo/YouTube in-frame instead of navigating to the un-embeddable watch page.
-// Captivate's "open URL" video widget points at the WATCH page (e.g. vimeo.com/<id>
-// opened in "_self"). That page blocks itself from loading in any site's frame
-// (X-Frame-Options on the main site), so inside our lesson iframe it shows "Vimeo
-// refused to connect" — regardless of the video's embed privacy. The fix: intercept
-// the navigation (both Captivate's cp.openURL and window.open), convert the watch URL
-// to the EMBEDDABLE player URL (player.vimeo.com/video/<id>, youtube.com/embed/<id>),
-// and show it in an overlay with a close button — so the learner stays in the course.
+// Open a Captivate video link in a NEW TAB — the same thing Captivate itself does.
+// Captivate's "open URL" video widget points at the Vimeo/YouTube WATCH page (e.g.
+// vimeo.com/<id>). Inside our lesson iframe, navigating there fails ("refused to
+// connect"), and an earlier version of this shim tried to be clever and convert it
+// to an inline EMBED (player.vimeo.com) — but a video whose owner blocks embedding
+// then shows "Because of its privacy settings, this video cannot be played here."
+// The watch page has no such restriction, so we now just open the real watch link in
+// a new tab, exactly as Captivate's preview / their own site do, and it plays.
 // Purely additive and host-scoped: it only acts on vimeo/youtube links, so our own
 // slideshow player and any other package are untouched.
 function injectVideoEmbedFix(html) {
-  const script = `<script>/* GMR: play Vimeo/YouTube in-frame instead of the un-embeddable watch page */(function(){
-  function toEmbed(u){try{if(typeof u!=='string')return null;
-    if(/player\\.vimeo\\.com\\/video\\//i.test(u)||/youtube(?:-nocookie)?\\.com\\/embed\\//i.test(u))return u;
-    var m=u.match(/vimeo\\.com\\/(\\d+)(?:\\/([0-9a-z]+))?/i);
-    if(m)return 'https://player.vimeo.com/video/'+m[1]+(m[2]?'?h='+m[2]:'');
-    m=u.match(/(?:youtube\\.com\\/watch\\?[^#]*\\bv=|youtu\\.be\\/)([\\w-]{6,})/i);
-    if(m)return 'https://www.youtube.com/embed/'+m[1];
-    return null;}catch(e){return null;}}
-  function overlay(url){var ex=document.getElementById('gmr-vid-ov');if(ex)ex.parentNode.removeChild(ex);
-    var o=document.createElement('div');o.id='gmr-vid-ov';
-    o.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center';
-    var box=document.createElement('div');box.style.cssText='position:relative;width:min(92vw,1100px);aspect-ratio:16/9;max-height:84vh';
-    var f=document.createElement('iframe');f.src=url+(url.indexOf('?')>-1?'&':'?')+'autoplay=1';
-    f.setAttribute('allow','autoplay; fullscreen; picture-in-picture');f.setAttribute('allowfullscreen','');
-    f.style.cssText='width:100%;height:100%;border:0;border-radius:8px;background:#000';
-    var c=document.createElement('button');c.type='button';c.textContent='\\u2715 Close';
-    c.style.cssText='position:absolute;top:-42px;right:0;background:#fff;color:#111;border:0;border-radius:6px;padding:8px 14px;font:600 14px system-ui,Arial,sans-serif;cursor:pointer';
-    function close(){if(o.parentNode)o.parentNode.removeChild(o);}
-    c.onclick=close;o.addEventListener('click',function(e){if(e.target===o)close();});
-    box.appendChild(c);box.appendChild(f);o.appendChild(box);(document.body||document.documentElement).appendChild(o);}
-  function handle(u){var e=toEmbed(u);if(e){overlay(e);return true;}return false;}
-  try{var wo=window.open;window.open=function(u){if(handle(u))return {closed:false,close:function(){},focus:function(){},blur:function(){}};return wo.apply(window,arguments);};}catch(e){}
+  const script = `<script>/* GMR: open Vimeo/YouTube links in a new tab (like Captivate does), not as an in-frame embed */(function(){
+  // Is this a Vimeo/YouTube link? (watch page or player URL — either way we open it.)
+  function isVideo(u){return typeof u==='string'&&/(?:player\\.)?vimeo\\.com\\/|youtube(?:-nocookie)?\\.com\\/|youtu\\.be\\//i.test(u);}
+  // Normalize to the canonical WATCH page so it always plays (embedding is what gets
+  // blocked by a video's privacy settings; the watch page is never domain-restricted).
+  function toWatch(u){try{
+    var m=u.match(/(?:player\\.)?vimeo\\.com\\/(?:video\\/)?(\\d+)(?:[\\/?]([0-9a-z]+))?/i);
+    if(m)return 'https://vimeo.com/'+m[1]+(m[2]&&m[2].length>=6?'/'+m[2]:'');
+    m=u.match(/(?:youtube(?:-nocookie)?\\.com\\/(?:embed\\/|watch\\?[^#]*\\bv=)|youtu\\.be\\/)([\\w-]{6,})/i);
+    if(m)return 'https://www.youtube.com/watch?v='+m[1];
+    return u;}catch(e){return u;}}
+  var realOpen=window.open;
+  function handle(u){if(!isVideo(u))return false;try{realOpen.call(window,toWatch(u),'_blank','noopener');}catch(e){try{realOpen.call(window,toWatch(u));}catch(_){}}return true;}
+  try{window.open=function(u){if(handle(u))return {closed:false,close:function(){},focus:function(){},blur:function(){}};return realOpen.apply(window,arguments);};}catch(e){}
   var tries=0,iv=setInterval(function(){tries++;try{if(window.cp&&typeof cp.openURL==='function'&&!cp.__gmrVid){var o=cp.openURL;cp.openURL=function(u){if(handle(u))return;return o.apply(this,arguments);};cp.__gmrVid=true;clearInterval(iv);}}catch(e){}if(tries>150)clearInterval(iv);},100);
 })();</script>`;
   if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, script + '</body>');
