@@ -376,8 +376,8 @@ function setupLawChangesCourse() {
         title: 'Law 15 — The Throw-In (video example)',
         html: '<p>Watch the throw-in countdown in a real match, then continue to the quiz. Watch for: when the referee raises a hand to start the count, whether the thrower is in motion at five, and how the switch is signaled to both teams.</p>',
         videoUrl: 'https://vimeo.com/1200487589',
-        durationSeconds: 45,
-        minWatchSeconds: 20,
+        durationSeconds: 60,
+        minWatchSeconds: 30,
       },
       {
         id: 'law-changes-quiz',

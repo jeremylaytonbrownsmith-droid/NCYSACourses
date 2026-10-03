@@ -1381,13 +1381,28 @@ function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
   function fallbackToLink() {
     if (swapped || !watchUrl) return; swapped = true;
     const shell = document.querySelector('.embed-shell');
-    if (shell) {
-      shell.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
-        + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
-        + '<a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" class="btn btn-accent" style="text-decoration:none">▶ Open the video (new tab)</a>'
-        + '<div style="font-size:.85rem;color:#9fb4d6;max-width:380px">This clip streams from Vimeo. It opens in a new tab — watch it, then come back here and continue.</div></div>';
-    }
-    unlock(); // can't gate on a video the host won't embed
+    if (!shell) { unlock(); return; }
+    shell.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;color:#fff">'
+      + '<div style="font-weight:700;font-size:1.15rem">Watch the training video</div>'
+      + '<button type="button" id="openVid" class="btn btn-accent">▶ Open the video (new tab)</button>'
+      + '<div id="watchHint" style="font-size:.88rem;color:#9fb4d6;max-width:400px">Opens on Vimeo in a new tab. Watch for at least ' + required + ' seconds, then come back here to continue.</div></div>';
+    // Gate on real watch time: only count the seconds spent AWAY on the video tab (this
+    // tab hidden) after they open it — so Complete unlocks only once they've actually
+    // watched ~`required` seconds, not just clicked. The bar below shows progress.
+    let away = watched, opened = false;
+    const hint = () => document.getElementById('watchHint');
+    const openBtn = document.getElementById('openVid');
+    openBtn && openBtn.addEventListener('click', () => {
+      opened = true; window.open(watchUrl, '_blank', 'noopener');
+      if (hint()) hint().textContent = 'Keep watching on the Vimeo tab — you can continue when the bar below fills.';
+    });
+    const g = setInterval(() => {
+      if (opened && document.hidden) { away += 1; tick(away); }
+      if (away >= required) {
+        clearInterval(g); unlock();
+        if (hint()) hint().innerHTML = 'Done — you can continue. <a href="' + esc(watchUrl) + '" target="_blank" rel="noopener" style="color:#9ec5ff">Re-watch</a>';
+      }
+    }, 1000);
   }
   if (embed.kind === 'vimeo') {
     const boot = () => {
