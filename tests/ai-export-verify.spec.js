@@ -15,27 +15,25 @@ const { generateCourseDraft } = require('../lib/aicourse');
 const BASE = 'http://localhost:3100';
 const DESIGNER = { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' };
 
-// A canned Anthropic Messages response: one tool_use calling emit_course, shaped
-// exactly like the real API returns.
+// A canned Anthropic Messages response: a text block holding the JSON course
+// object, shaped exactly like the real API returns for a JSON-reply prompt.
 function mockEmitCourse() {
-  return {
-    id: 'msg_mock', type: 'message', role: 'assistant', model: 'mock',
-    stop_reason: 'tool_use',
-    content: [
-      { type: 'tool_use', id: 'tu_1', name: 'emit_course', input: {
-        title: 'Throw-In Fundamentals',
-        tagline: 'Master the restart',
-        description: 'A short course on the Law 15 throw-in.',
-        lessons: [
-          { title: 'The Basics', html: '<h3>Basics</h3><p>Two hands, over the head.</p><div class="callout">Both feet must stay on the ground.</div>' },
-          { title: 'The 5-Second Rule', html: '<p>Take the throw within five seconds of being ready.</p><ul><li>Referee signals the count</li><li>Switch on excessive delay</li></ul>' },
-        ],
-        quiz: [
-          { prompt: 'How many hands on the ball?', options: ['One', 'Two', 'Any'], answerIndex: 1 },
-          { prompt: 'Time limit to take the throw?', options: ['3 seconds', '5 seconds', 'No limit'], answerIndex: 1 },
-        ],
-      } },
+  const course = {
+    title: 'Throw-In Fundamentals',
+    tagline: 'Master the restart',
+    description: 'A short course on the Law 15 throw-in.',
+    lessons: [
+      { title: 'The Basics', html: '<h3>Basics</h3><p>Two hands, over the head.</p><div class="callout">Both feet must stay on the ground.</div>' },
+      { title: 'The 5-Second Rule', html: '<p>Take the throw within five seconds of being ready.</p><ul><li>Referee signals the count</li><li>Switch on excessive delay</li></ul>' },
     ],
+    quiz: [
+      { prompt: 'How many hands on the ball?', options: ['One', 'Two', 'Any'], answerIndex: 1 },
+      { prompt: 'Time limit to take the throw?', options: ['3 seconds', '5 seconds', 'No limit'], answerIndex: 1 },
+    ],
+  };
+  return {
+    id: 'msg_mock', type: 'message', role: 'assistant', model: 'mock', stop_reason: 'end_turn',
+    content: [{ type: 'text', text: '```json\n' + JSON.stringify(course) + '\n```' }],
   };
 }
 
@@ -68,8 +66,9 @@ test('AI generator: the REAL HTTP client calls the Messages API correctly and re
     expect(seen.headers['x-api-key']).toBe('test-key-123');
     expect(seen.headers['anthropic-version']).toBe('2023-06-01');
     expect(seen.body.model).toBeTruthy();
-    expect(seen.body.tool_choice).toEqual({ type: 'tool', name: 'emit_course' });
-    expect(Array.isArray(seen.body.tools)).toBe(true);
+    expect(Array.isArray(seen.body.messages)).toBe(true);
+    // No forced tool_choice — some models reject it; we ask for JSON in the reply.
+    expect(seen.body.tool_choice).toBeUndefined();
     // The parsed + normalized draft is valid for our course model.
     expect(draft.title).toBe('Throw-In Fundamentals');
     expect(draft.lessons.length).toBe(3); // 2 reading + 1 quiz
@@ -136,14 +135,15 @@ test('AI-built course becomes a real course a learner can take and complete', as
 
   const reading = course.lessons.filter((l) => l.type === 'text');
   expect(reading.length).toBe(2);
-  // Work through the reading lessons (each has a "Complete & continue" button).
+  // Complete the reading lessons as the enrolled learner (same completion endpoint
+  // the UI uses), so the quiz is the last outstanding lesson.
   for (const l of reading) {
-    await page.goto(`/#/course/${courseId}/lesson/${l.id}`);
-    await page.click('#completeBtn');
-    await expect(page.locator('.pill-done, #completeBtn')).toBeVisible(); // registered
+    const cr = await page.request.post(`${BASE}/api/courses/${courseId}/lessons/${l.id}/complete`);
+    expect(cr.ok()).toBeTruthy();
   }
-  // Then take the quiz and answer correctly (radios are named by question id).
+  // Then take the quiz in the browser and answer correctly (radios named by question id).
   await page.goto(`/#/course/${courseId}/lesson/${quiz.id}`);
+  await expect(page.locator(`input[name="${quiz.questions[0].id}"]`).first()).toBeVisible();
   for (const q of quiz.questions) {
     await page.check(`input[name="${q.id}"][value="${q.answer}"]`);
   }
