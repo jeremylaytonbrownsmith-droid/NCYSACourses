@@ -350,6 +350,9 @@ function setupLawChangesCourse() {
   lawSlides.push({
     video: 'https://vimeo.com/1200487589',
     watchSeconds: 30,
+    // This video is US Soccer's and is blocked from embedding, so open it on Vimeo
+    // in a new tab — exactly what the Captivate course does — instead of embedding.
+    linkOut: true,
     alt: 'Video clip: the throw-in countdown in practice',
     caption: '<p><strong>Watch the throw-in countdown in a real match.</strong> Watch for: when the referee raises a hand to start the count, whether the thrower is in motion at five, and how the switch is signaled to both teams.</p>',
   });
@@ -2173,7 +2176,7 @@ function buildLesson(body) {
         if (typeof s === 'string') return { img: s };
         const out = {};
         if (s.img) out.img = String(s.img);
-        if (s.video) { out.video = String(s.video); out.watchSeconds = Math.min(3600, Math.max(1, Number(s.watchSeconds) || 30)); }
+        if (s.video) { out.video = String(s.video); out.watchSeconds = Math.min(3600, Math.max(1, Number(s.watchSeconds) || 30)); if (s.linkOut) out.linkOut = true; }
         if (s.alt) out.alt = String(s.alt);
         if (s.caption) out.caption = String(s.caption);
         return out;

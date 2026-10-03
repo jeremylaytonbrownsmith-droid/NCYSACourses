@@ -1013,6 +1013,10 @@ function renderSlidesLesson(pane, course, lesson, lp) {
         }
       }, 1000);
     }
+    // linkOut: skip embedding entirely and go straight to the "open on Vimeo" button —
+    // this is exactly what Captivate does (open the Vimeo link), and it's the right
+    // choice for videos the owner has blocked from embedding (e.g. US Soccer's).
+    if (s.linkOut) { fallbackToLink(); return; }
     if (embed.kind === 'vimeo') {
       const boot = () => {
         if (!alive) return;
@@ -1040,7 +1044,10 @@ function renderSlidesLesson(pane, course, lesson, lp) {
     idx = Math.max(0, Math.min(slides.length - 1, i));
     const s = slides[idx];
     const embed = s.video ? videoEmbedUrl(s.video) : null;
-    if (embed) {
+    if (embed && s.linkOut) {
+      // Placeholder box; the watch button is rendered by the gate (fallbackToLink).
+      stageEl.innerHTML = '<div style="aspect-ratio:16/9;background:#0b1220"></div>';
+    } else if (embed) {
       const q = embed.kind === 'youtube' ? 'rel=0&modestbranding=1' : 'title=0&byline=0&portrait=0';
       const src = embed.src + (embed.src.indexOf('?') > -1 ? '&' : '?') + q;
       stageEl.innerHTML = '<div style="position:relative;aspect-ratio:16/9;background:#000">'

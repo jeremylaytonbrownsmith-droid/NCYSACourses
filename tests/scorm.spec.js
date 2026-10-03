@@ -261,6 +261,7 @@ test('the native Law Changes course is seeded for OMG: slides (video on the last
   const last = slides.slides[8];
   expect(last.video).toContain('vimeo.com/1200487589');
   expect(last.watchSeconds).toBe(30);
+  expect(last.linkOut).toBe(true); // opens Vimeo in a tab (like Captivate), not an inline embed
   expect(last.img).toBeUndefined();
   // A 5-question quiz, throw-in question first, 80% to pass.
   const quiz = c.lessons.find((l) => l.id === 'law-changes-quiz');
@@ -321,6 +322,35 @@ test('a video slide plays the clip inline on the slide (no separate lesson, no f
     page.locator('#slideVideo[src*="player.vimeo.com/video/1200487589"], #slideOpenVid')
   ).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#slideCaption')).toContainText('Watch for the countdown');
+});
+
+test('a linkOut video slide opens Vimeo in a tab (like Captivate) instead of embedding', async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'LinkOut Video Course', audience: 'referees' } })).json()).course.id;
+  const lessonId = (await (await api.post(`/api/admin/courses/${courseId}/lessons`, { data: {
+    type: 'slides', title: 'Slides with a link-out video', slideSeconds: 0,
+    slides: [
+      { img: '/media/law-changes/slide-1.jpeg', alt: 'Intro' },
+      { video: 'https://vimeo.com/1200487589', watchSeconds: 30, linkOut: true, alt: 'Clip' },
+    ],
+  } })).json()).lesson.id;
+  await api.post(`/api/admin/courses/${courseId}/publish`, { data: { published: true } });
+  // linkOut survives the save (buildLesson preserves it).
+  const saved = (await (await api.get(`/api/admin/courses/${courseId}`)).json()).course.lessons[0].slides[1];
+  expect(saved.linkOut).toBe(true);
+
+  await page.goto('/#/register');
+  await page.fill('#firstName', 'Link'); await page.fill('#lastName', 'Out');
+  await page.fill('#email', `link.out+${Date.now()}@example.com`);
+  await page.click('button:has-text("Create account")');
+  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+
+  await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
+  await page.click('#slideNav'); // to the video slide
+  // No inline iframe is ever created — the "open the video" button shows directly.
+  await expect(page.locator('#slideOpenVid')).toBeVisible();
+  await expect(page.locator('#slideVideo')).toHaveCount(0);
 });
 
 test('an OMG referee course with no co-logo shows the OMG mark (not NCSRA) in the header and card', async ({ page, playwright }) => {
