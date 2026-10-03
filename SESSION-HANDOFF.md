@@ -107,9 +107,22 @@ deploy. Called in the boot sequence (~line 2942, alongside `setupOmgCourse`,
       delivers/certifies AND exports to SCORM 1.2/2004 or a standalone web page. For people who
       aren't Captivate experts.
     - Tests: `tests/aicourse-scorm.spec.js` (normalizeDraft/sanitize units, AI gating w/o key,
-      SCORM 1.2 + 2004 + web zip validity, standalone `file://` run, image-slide bundling).
+      SCORM 1.2 + 2004 + web zip validity, standalone `file://` run, image-slide bundling, modern
+      UI panels) AND `tests/ai-export-verify.spec.js` (deep end-to-end verification — see below).
     - Note on OMG: their "old system" is unknown/mixed — SCORM only helps if it's a real LMS; the
       web export + hosted link cover the no-LMS cases. (xAPI/AICC/PDF are possible later tiers.)
+    - `ANTHROPIC_BASE_URL` env override added (enterprise proxy / local-mock testing).
+12. **Deep verification** (`tests/ai-export-verify.spec.js`): the sandbox blocks egress so the real
+    Anthropic API can't be reached here — instead a LOCAL mock speaks the Messages API and the REAL
+    client is pointed at it (`ANTHROPIC_BASE_URL`). Proven: (a) the real HTTP client sends a correct
+    request (x-api-key, anthropic-version, model, forced emit_course tool) and parses the tool_use →
+    valid draft; (b) an API error surfaces as a clean message; (c) an AI-built course becomes a real
+    course a learner enrolls in, works through, passes, and completes (certificate screen); (d) an
+    exported **SCORM 1.2** package, run from disk against a mock `window.API`, reports
+    `cmi.core.lesson_status=passed` + `score.raw=100` + init/finish; (e) **SCORM 2004** against a mock
+    `window.API_1484_11` reports `completion_status=completed` + `success_status=passed` +
+    `score.scaled=1`. The ONLY unproven-here link is the literal socket to api.anthropic.com, which
+    works in prod once `ANTHROPIC_API_KEY` is set.
 
 ## THE ONE UNRESOLVED ITEM — read carefully, do NOT re-litigate
 The Law 15 video **`vimeo.com/1200487589`** will NOT embed on `getmatchready.app`:
