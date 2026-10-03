@@ -2221,19 +2221,13 @@ async function viewCourseAdmin(flash) {
                 <button class="btn ${c.published === false ? 'btn-accent' : 'btn-ghost'} btn-sm pub-toggle" data-course="${c.id}" data-pub="${c.published === false ? '0' : '1'}">${c.published === false ? 'Publish' : 'Unpublish'}</button>
                 <button class="btn btn-primary btn-sm add-lesson" data-course="${c.id}">＋ Add lesson</button>
                 <button class="btn btn-ghost btn-sm edit-course" data-course="${c.id}">Edit details</button>
+                <button class="btn btn-ghost btn-sm publish-course" data-course="${c.id}" data-title="${esc(c.title)}">⇩ Export</button>
                 <details class="more-menu">
                   <summary class="btn btn-ghost btn-sm">More ▾</summary>
                   <div class="more-panel">
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-minutes" data-course="${c.id}">Module minutes</button>` : ''}
                     ${c.lessons.some((l) => l.type === 'scorm') ? `<button class="btn btn-ghost btn-sm mod-slidegate" data-course="${c.id}">Slide timer</button>` : ''}
                     <button class="btn btn-ghost btn-sm demo-launch" data-course="${c.id}">Demo launch link</button>
-                    <div class="export-group" style="border-top:1px solid #e3e9f2;margin-top:6px;padding-top:6px">
-                      <div class="more-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#8795ad;padding:2px 2px 4px">Export / publish</div>
-                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="scorm12">SCORM 1.2 (LMS)</button>
-                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="scorm2004">SCORM 2004 (LMS)</button>
-                      <button class="btn btn-ghost btn-sm export-pkg" data-course="${c.id}" data-title="${esc(c.title)}" data-format="web">Web page (no LMS)</button>
-                      <button class="btn btn-ghost btn-sm copy-hosted" data-course="${c.id}">Copy hosted link</button>
-                    </div>
                     <button class="btn btn-ghost btn-sm change-url" data-course="${c.id}">Change URL</button>
                     <button class="btn btn-ghost btn-sm danger del-course" data-course="${c.id}" data-title="${esc(c.title)}">Delete course</button>
                   </div>
@@ -2277,30 +2271,15 @@ async function viewCourseAdmin(flash) {
     bindAiBuild();
   });
   const FORMAT_LABEL = { scorm12: 'SCORM 1.2', scorm2004: 'SCORM 2004', web: 'Web page' };
-  document.querySelectorAll('.export-pkg').forEach((b) => b.addEventListener('click', async () => {
-    const cid = b.dataset.course, label = b.dataset.title || 'course', fmt = b.dataset.format || 'scorm12';
-    const orig = b.textContent; b.disabled = true; b.textContent = 'Building…';
-    try {
-      const res = await fetch(`/api/admin/courses/${cid}/export?format=${encodeURIComponent(fmt)}`);
-      if (!res.ok) { let m = 'Export failed'; try { m = (await res.json()).error || m; } catch (e) { /* ignore */ } throw new Error(m); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = (cid || 'course') + '-' + fmt + '.zip';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast((FORMAT_LABEL[fmt] || 'Package') + ' downloaded for “' + label + '”.');
-    } catch (e) { toast(e.message, true); }
-    finally { b.disabled = false; b.textContent = orig; }
-  }));
-  document.querySelectorAll('.copy-hosted').forEach((b) => b.addEventListener('click', async () => {
-    const cid = b.dataset.course;
-    const link = `${location.origin}/#/course/${cid}`;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(link);
-      else { const t = document.createElement('textarea'); t.value = link; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
-      toast('Hosted link copied: ' + link);
-    } catch (e) { toast('Hosted link: ' + link); }
+  document.querySelectorAll('.publish-course').forEach((b) => b.addEventListener('click', () => {
+    const cid = b.dataset.course, title = b.dataset.title || 'course';
+    const slot = document.querySelector(`.panel-slot[data-course="${cid}"]`);
+    if (!slot) return;
+    // Toggle: a second click closes the panel.
+    if (slot.dataset.open === 'publish') { slot.innerHTML = ''; slot.dataset.open = ''; return; }
+    slot.dataset.open = 'publish';
+    slot.innerHTML = publishPanel(cid, title);
+    bindPublishPanel(cid, title, slot);
   }));
   document.querySelectorAll('.move-course').forEach((b) => b.addEventListener('click', async () => {
     b.disabled = true;
@@ -2424,39 +2403,49 @@ async function viewCourseAdmin(flash) {
   }));
 
   function aiBuildPanel() {
-    return `<form class="editor-form" id="aiBuildForm">
-      <h3>✨ Build a course with AI</h3>
-      <p class="form-hint">Describe a topic or paste source material. AI drafts the reading lessons and a graded quiz in our format — saved as a <strong>private Draft</strong> you can edit before publishing. You can also export any course as SCORM afterward.</p>
-      <div id="aiUnavailable" class="editor-msg" hidden></div>
-      <label>Course title (optional)<input name="title" placeholder="Leave blank to let AI name it" /></label>
-      <label>Topic / instructions<input name="topic" placeholder="e.g. Heading safety guidelines for U12 coaches" /></label>
-      <label>Source material (optional — paste text to build from)
-        <textarea name="sourceText" rows="7" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
-      </label>
-      <div class="form-row">
-        <label>Audience
-          <select name="audience">
-            ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
-              .map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
-          </select>
+    return `<div class="ai-studio">
+      <div class="ai-hero">
+        <span class="ai-badge">AI Studio</span>
+        <div class="spark">✨</div>
+        <h3>Build a course with AI</h3>
+        <p>Describe a topic or paste your source material — AI writes the reading lessons and a graded quiz in your format. It’s saved as a private <strong>Draft</strong> you review and edit before publishing, and you can export any course to SCORM or a web page afterward.</p>
+      </div>
+      <form class="ai-body" id="aiBuildForm">
+        <div id="aiUnavailable" class="ai-unavail" hidden></div>
+        <label>Course title <span style="font-weight:400;color:var(--ink-soft)">(optional)</span>
+          <input name="title" placeholder="Leave blank to let AI name it" />
         </label>
-        <label>Portal
-          <select name="orgId">
-            <option value="ncysa">NCYSA</option>
-            <option value="omg">OMG</option>
-          </select>
+        <label>Topic / instructions
+          <input name="topic" placeholder="e.g. Heading safety guidelines for U12 coaches" />
         </label>
-      </div>
-      <div class="form-row">
-        <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
-        <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
-        <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-accent" type="submit" id="aiBuildSubmit">Generate draft</button>
-        <span class="form-hint" id="aiBuildStatus" style="margin-left:10px"></span>
-      </div>
-    </form>`;
+        <label>Source material <span style="font-weight:400;color:var(--ink-soft)">(optional — paste text to build from)</span>
+          <textarea name="sourceText" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
+        </label>
+        <div class="ai-row">
+          <label>Audience
+            <select name="audience">
+              ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]
+                .map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
+            </select>
+          </label>
+          <label>Portal
+            <select name="orgId">
+              <option value="ncysa">NCYSA</option>
+              <option value="omg">OMG</option>
+            </select>
+          </label>
+        </div>
+        <div class="ai-row">
+          <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
+          <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
+          <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
+        </div>
+        <div class="ai-cta">
+          <button class="btn btn-accent" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
+          <span class="ai-note" id="aiBuildStatus"></span>
+        </div>
+      </form>
+    </div>`;
   }
   async function bindAiBuild() {
     // Surface up front whether the server has an AI key configured.
@@ -2477,7 +2466,8 @@ async function viewCourseAdmin(flash) {
       if (!topic && !sourceText) { msg('Enter a topic or paste some source material.', true); return; }
       const btn = document.getElementById('aiBuildSubmit');
       const status = document.getElementById('aiBuildStatus');
-      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Generating…';
+      btn.disabled = true; const orig = btn.textContent;
+      btn.innerHTML = '<span class="ai-spin"></span>Generating…';
       if (status) status.textContent = 'Writing lessons and quiz — this can take up to a minute…';
       try {
         const r = await api('/api/admin/courses/ai-build', {
@@ -2496,8 +2486,56 @@ async function viewCourseAdmin(flash) {
       } catch (err) {
         if (status) status.textContent = '';
         msg(err.message, true);
-        btn.disabled = false; btn.textContent = orig;
+        btn.disabled = false; btn.innerHTML = orig;
       }
+    });
+  }
+
+  function publishPanel(cid, title) {
+    const cards = [
+      { fmt: 'scorm12', ico: '🎓', t: 'SCORM 1.2', d: 'For most LMS platforms — the standard choice.' },
+      { fmt: 'scorm2004', ico: '🧩', t: 'SCORM 2004', d: 'For newer LMSs that prefer the 2004 standard.' },
+      { fmt: 'web', ico: '🌐', t: 'Web page (no LMS)', d: 'A self-contained site that opens in any browser — no LMS needed.' },
+    ];
+    return `<div class="publish-panel">
+      <div class="pp-head"><h3>Export / publish “${esc(title)}”</h3><button class="pp-close" type="button" aria-label="Close">×</button></div>
+      <p class="pp-sub">Download a package for any system, or copy a link to share the course directly.</p>
+      <div class="pp-grid">
+        ${cards.map((c) => `<button class="pp-card pp-export" type="button" data-format="${c.fmt}"><span class="pp-ico">${c.ico}</span><span class="pp-t">${c.t}</span><span class="pp-d">${c.d}</span></button>`).join('')}
+        <button class="pp-card pp-link pp-hosted" type="button"><span class="pp-ico">🔗</span><span class="pp-t">Copy hosted link</span><span class="pp-d">Share the live course on GetMatchReady — simplest for a website.</span></button>
+      </div>
+      <div class="pp-status"></div>
+    </div>`;
+  }
+  function bindPublishPanel(cid, title, slot) {
+    const statusEl = slot.querySelector('.pp-status');
+    const setStatus = (t, cls) => { if (statusEl) { statusEl.textContent = t; statusEl.className = 'pp-status' + (cls ? ' ' + cls : ''); } };
+    const close = () => { slot.innerHTML = ''; slot.dataset.open = ''; };
+    slot.querySelector('.pp-close').addEventListener('click', close);
+    slot.querySelectorAll('.pp-export').forEach((b) => b.addEventListener('click', async () => {
+      const fmt = b.dataset.format;
+      slot.querySelectorAll('.pp-card').forEach((x) => { x.disabled = true; });
+      setStatus('Building ' + (FORMAT_LABEL[fmt] || 'package') + '…');
+      try {
+        const res = await fetch(`/api/admin/courses/${cid}/export?format=${encodeURIComponent(fmt)}`);
+        if (!res.ok) { let m = 'Export failed'; try { m = (await res.json()).error || m; } catch (e) { /* ignore */ } throw new Error(m); }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = cid + '-' + fmt + '.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setStatus('✓ ' + (FORMAT_LABEL[fmt] || 'Package') + ' downloaded.', 'ok');
+      } catch (e) { setStatus(e.message, 'err'); }
+      finally { slot.querySelectorAll('.pp-card').forEach((x) => { x.disabled = false; }); }
+    }));
+    slot.querySelector('.pp-hosted').addEventListener('click', async () => {
+      const link = `${location.origin}/#/course/${cid}`;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(link);
+        else { const t = document.createElement('textarea'); t.value = link; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+        setStatus('✓ Hosted link copied: ' + link, 'ok');
+      } catch (e) { setStatus('Hosted link: ' + link, 'ok'); }
     });
   }
 

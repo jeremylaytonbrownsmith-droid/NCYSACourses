@@ -149,6 +149,41 @@ test('the exported Web page actually runs standalone (file://) and completes wit
   await expect(page.locator('#next')).toHaveText('Completed ✓');
 });
 
+test('the Course Designer Export panel opens and downloads a package through the UI', async ({ page, context, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  const courseId = (await (await api.post('/api/admin/courses', { data: { title: 'UI Export Course', audience: 'referees' } })).json()).course.id;
+  await api.post(`/api/admin/courses/${courseId}/lessons`, { data: { type: 'text', title: 'Reading', html: '<p>Hi.</p>' } });
+  // Authenticate the browser by carrying the designer's session cookie into it.
+  await context.addCookies((await api.storageState()).cookies);
+
+  await page.goto('/#/admin/courses');
+  const card = page.locator(`.course-admin[data-course="${courseId}"]`);
+  await expect(card).toBeVisible();
+  await card.locator('.publish-course').click();
+  const panel = card.locator('.publish-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.pp-card')).toHaveCount(4); // SCORM 1.2, 2004, Web, Hosted link
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    panel.locator('.pp-export[data-format="web"]').click(),
+  ]);
+  expect(download.suggestedFilename()).toContain('web');
+  await expect(panel.locator('.pp-status')).toContainText('downloaded');
+});
+
+test('the Build-with-AI panel renders the modern studio UI', async ({ page, context, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: DESIGNER });
+  await context.addCookies((await api.storageState()).cookies);
+  await page.goto('/#/admin/courses');
+  await page.click('#aiBuildBtn');
+  await expect(page.locator('.ai-studio .ai-hero h3')).toHaveText('Build a course with AI');
+  await expect(page.locator('#aiBuildForm textarea[name="sourceText"]')).toBeVisible();
+  await expect(page.locator('#aiBuildSubmit')).toBeVisible();
+});
+
 test('exporting a course with image slides bundles the images into the package', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: DESIGNER });
