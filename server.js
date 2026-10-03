@@ -1056,7 +1056,7 @@ function injectVideoError(html) {
 // Purely additive and host-scoped: it only acts on vimeo/youtube links, so our own
 // slideshow player and any other package are untouched.
 function injectVideoEmbedFix(html) {
-  const script = `<script>/* GMR: open Vimeo/YouTube links in a new tab (like Captivate does), not as an in-frame embed */(function(){
+  const script = `<script>/* GMR: open Vimeo/YouTube links in a floating player window (like Captivate does), not as an in-frame embed */(function(){
   // Is this a Vimeo/YouTube link? (watch page or player URL — either way we open it.)
   function isVideo(u){return typeof u==='string'&&/(?:player\\.)?vimeo\\.com\\/|youtube(?:-nocookie)?\\.com\\/|youtu\\.be\\//i.test(u);}
   // Normalize to the canonical WATCH page so it always plays (embedding is what gets
@@ -1068,7 +1068,13 @@ function injectVideoEmbedFix(html) {
     if(m)return 'https://www.youtube.com/watch?v='+m[1];
     return u;}catch(e){return u;}}
   var realOpen=window.open;
-  function handle(u){if(!isVideo(u))return false;try{realOpen.call(window,toWatch(u),'_blank','noopener');}catch(e){try{realOpen.call(window,toWatch(u));}catch(_){}}return true;}
+  // Open a centered, video-sized player window (no "noopener" — with it set, browsers
+  // ignore the size and open a plain tab). Falls back to a tab if the popup is blocked.
+  function handle(u){if(!isVideo(u))return false;var url=toWatch(u);
+    var w=1000,h=620,sw=(window.screen&&screen.width)||1280,sh=(window.screen&&screen.height)||800;
+    var left=Math.max(0,Math.round((sw-w)/2)),top=Math.max(0,Math.round((sh-h)/2));
+    var feats='popup=yes,width='+w+',height='+h+',left='+left+',top='+top+',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+    try{var win=realOpen.call(window,url,'gmrVideo',feats);if(!win)realOpen.call(window,url,'_blank');}catch(e){try{realOpen.call(window,url,'_blank');}catch(_){}}return true;}
   try{window.open=function(u){if(handle(u))return {closed:false,close:function(){},focus:function(){},blur:function(){}};return realOpen.apply(window,arguments);};}catch(e){}
   var tries=0,iv=setInterval(function(){tries++;try{if(window.cp&&typeof cp.openURL==='function'&&!cp.__gmrVid){var o=cp.openURL;cp.openURL=function(u){if(handle(u))return;return o.apply(this,arguments);};cp.__gmrVid=true;clearInterval(iv);}}catch(e){}if(tries>150)clearInterval(iv);},100);
 })();</script>`;

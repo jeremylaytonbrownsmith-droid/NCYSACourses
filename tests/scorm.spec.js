@@ -119,10 +119,10 @@ test('served SCORM HTML opens a Captivate Vimeo link in a new tab (not a blocked
   fs.writeFileSync(path.join(dir, 'vimeo-course', 'index.html'),
     '<!doctype html><head></head><body><script>cp.openURL("https://vimeo.com/1200487589?fl=pl","_self")</script></body>');
   const html = await (await request.get(`${BASE}/scorm/vimeo-course/index.html`)).text();
-  // The shim hooks cp.openURL/window.open and opens the real WATCH page in a new tab —
-  // it must NOT force an inline player embed (that's what Vimeo privacy blocks).
+  // The shim hooks cp.openURL/window.open and opens the real WATCH page in a floating
+  // player window — it must NOT force an inline player embed (that's what Vimeo blocks).
   expect(html).toContain('cp.openURL');
-  expect(html).toContain("'_blank'");
+  expect(html).toContain('popup=yes');                   // a real player window, not a tab
   expect(html).toContain('vimeo.com/');
   expect(html).not.toContain('player.vimeo.com/video/'); // no inline embed anymore
   expect(html).not.toContain('gmr-vid-ov');              // no embed overlay anymore
