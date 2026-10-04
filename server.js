@@ -1389,7 +1389,7 @@ function courseInScope(req, res, course) {
 function requireDashboard(req, res, next) {
   requireAuth(req, res, () => {
     if (req.user.role === 'admin' || req.user.role === 'partner') return next();
-    return res.status(403).json({ error: 'Dashboard access only' });
+    return res.status(403).json({ error: 'Dashboard access is for staff only.' });
   });
 }
 // Editor endpoints that are NOT yet org-partitioned (raw SCORM package storage,
@@ -2373,6 +2373,29 @@ const BRAND_PRESETS = {
 // ANTHROPIC_API_KEY covers everyone — users never handle keys.
 app.get('/api/admin/ai/status', requireEditor, (req, res) => {
   res.json({ enabled: aiEnabled() });
+});
+
+// Self-serve integration info for a partner (and admin): everything needed to
+// wire up a system like Zite, WITHOUT exposing any secret. Describes the launch
+// link, the signed completion webhook, and the pull/reconciliation API. The
+// shared secret and API key are never returned here.
+app.get('/api/admin/integration/info', requireEditor, (req, res) => {
+  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  res.json({
+    enabled: integrationEnabled(),
+    webhookConfigured: !!process.env.INTEGRATION_WEBHOOK_URL,
+    launchBase: base,
+    signatureHeader: 'X-GetMatchReady-Signature',
+    paths: {
+      launch: '/launch?token=<signed JWT>',
+      reconcile: '/api/v1/completions',
+      upload: '/api/v1/scorm',
+      testWebhook: '/api/v1/test-webhook',
+    },
+    // The JSON fields the completion webhook POSTs back on finish.
+    webhookFields: ['event', 'refId', 'moduleId', 'org', 'status', 'score', 'startedAt', 'completedAt', 'certificateId', 'durationSeconds'],
+    launchClaims: ['refId', 'name', 'email', 'moduleId', 'org', 'callbackUrl (optional)'],
+  });
 });
 app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   if (!aiEnabled()) return res.status(400).json({ error: 'AI course generation is not configured. Set ANTHROPIC_API_KEY in the environment, then redeploy.' });

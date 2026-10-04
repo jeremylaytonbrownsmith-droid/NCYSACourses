@@ -2278,6 +2278,7 @@ async function viewCourseAdmin(flash) {
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
           <button class="btn btn-ghost" id="storageBtn">Module storage</button>
           <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
+          <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
           <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
         </div>
       </div>
@@ -2351,6 +2352,10 @@ async function viewCourseAdmin(flash) {
   document.getElementById('aiBuildBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = aiBuildPanel();
     bindAiBuild();
+  });
+  document.getElementById('integrationBtn').addEventListener('click', () => {
+    document.getElementById('newCoursePanel').innerHTML = '<div class="editor-form"><p class="meta">Loading integration details…</p></div>';
+    bindIntegration(list);
   });
   const FORMAT_LABEL = { scorm12: 'SCORM 1.2', scorm2004: 'SCORM 2004', web: 'Web page' };
   document.querySelectorAll('.publish-course').forEach((b) => b.addEventListener('click', () => {
@@ -2585,6 +2590,77 @@ async function viewCourseAdmin(flash) {
         btn.disabled = false; btn.innerHTML = orig;
       }
     });
+  }
+
+  async function bindIntegration(courses) {
+    let info; try { info = await api('/api/admin/integration/info'); } catch (e) { info = { enabled: false }; }
+    const panel = document.getElementById('newCoursePanel');
+    panel.innerHTML = integrationPanel(info, courses || []);
+    panel.querySelector('.pp-close')?.addEventListener('click', () => { panel.innerHTML = ''; });
+    const gen = panel.querySelector('#genLaunch');
+    gen?.addEventListener('click', async () => {
+      const cid = panel.querySelector('#lnkCourse').value;
+      const refId = (panel.querySelector('#lnkRef').value || '').trim();
+      const email = (panel.querySelector('#lnkEmail').value || '').trim();
+      const out = panel.querySelector('#lnkOut');
+      if (!cid) { out.textContent = 'Pick a course first.'; return; }
+      gen.disabled = true; const o = gen.textContent; gen.textContent = 'Generating…';
+      try {
+        const r = await api('/api/admin/integration/test-link', { method: 'POST', body: { courseId: cid, refId, email } });
+        out.innerHTML = '<div style="word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;font-size:.82rem">' + esc(r.url) + '</div>'
+          + '<button class="btn btn-ghost btn-sm" type="button" id="copyLnk">Copy link</button> <span class="meta">Valid ~' + Math.max(1, Math.round((r.expiresInMinutes || 0) / 1440)) + ' days</span>';
+        panel.querySelector('#copyLnk')?.addEventListener('click', () => {
+          try { navigator.clipboard?.writeText(r.url); } catch (e) { /* ignore */ }
+          toast('Launch link copied.');
+        });
+      } catch (e) { out.textContent = e.message; }
+      finally { gen.disabled = false; gen.textContent = o; }
+    });
+  }
+  function integrationPanel(info, courses) {
+    const host = location.origin;
+    const base = info.launchBase || host;
+    const sig = info.signatureHeader || 'X-GetMatchReady-Signature';
+    const opts = (courses || []).map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
+    return `<div class="publish-panel">
+      <div class="pp-head"><h3>🔌 Integration — connect your system (e.g. Zite)</h3><button class="pp-close" type="button" aria-label="Close">×</button></div>
+      ${info.enabled ? '' : '<div class="ai-unavail" style="margin-bottom:12px">Integration isn’t switched on yet — set <code>INTEGRATION_SECRET</code> in the environment and redeploy. The launch-link generator will work once it is.</div>'}
+      <p class="pp-sub">Three pieces: send learners in with a signed <b>launch link</b>, get a signed <b>completion webhook</b> back, and <b>pull status</b> any time. No code from you — just call these.</p>
+
+      <div class="cols">
+        <div class="card">
+          <h3>1 · Launch link (your system → a course)</h3>
+          <p class="meta" style="margin:0 0 10px">Generate a signed link that drops a specific person into a course. Your system builds these with any JWT library (HS256) and the shared secret.</p>
+          <label style="display:block;font-size:.82rem;font-weight:700;margin-bottom:6px">Course
+            <select id="lnkCourse" style="width:100%;padding:9px;border:1.5px solid var(--line);border-radius:8px;margin-top:4px"><option value="">Pick a course…</option>${opts}</select>
+          </label>
+          <div class="form-row" style="display:flex;gap:8px">
+            <input id="lnkRef" placeholder="Their ID (refId)" style="flex:1;padding:9px;border:1.5px solid var(--line);border-radius:8px" />
+            <input id="lnkEmail" placeholder="email@…" style="flex:1;padding:9px;border:1.5px solid var(--line);border-radius:8px" />
+          </div>
+          <button class="btn btn-accent btn-sm" type="button" id="genLaunch" style="margin-top:10px"${info.enabled ? '' : ' disabled'}>Generate test link</button>
+          <div id="lnkOut" class="meta" style="margin-top:8px"></div>
+          <p class="meta" style="margin-top:8px">Token claims: <code>${(info.launchClaims || ['refId','name','email','moduleId','org']).join(', ')}</code>. Endpoint: <code>${esc(base)}/launch?token=…</code></p>
+        </div>
+
+        <div class="card">
+          <h3>2 · Completion webhook (course → your system)</h3>
+          <p class="meta" style="margin:0 0 8px">When a learner finishes, we POST JSON to your URL, signed so you can trust it:</p>
+          <ul class="clist" style="font-size:.86rem">
+            <li>Header <code>${esc(sig)}: sha256=&lt;HMAC&gt;</code> — verify with the shared secret.</li>
+            <li>Body fields: <code>${(info.webhookFields || ['event','refId','moduleId','status','score','completedAt','certificateId']).join(', ')}</code></li>
+            <li>Mark the person complete on their profile when <code>status</code> is <code>passed</code>/<code>completed</code>.</li>
+          </ul>
+          <h3 style="margin-top:14px">3 · Pull status any time</h3>
+          <ul class="clist" style="font-size:.86rem">
+            <li><code>GET ${esc(base)}${(info.paths && info.paths.reconcile) || '/api/v1/completions'}</code> with <code>Authorization: Bearer &lt;API key&gt;</code>.</li>
+            <li>Fire a sample to test your receiver: <code>POST ${(info.paths && info.paths.testWebhook) || '/api/v1/test-webhook'}</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="rec" style="margin-top:14px"><b>The Zite loop:</b> applicant accepted → your system opens the launch link → they complete the course → our webhook posts back → you mark it on their profile → assigners see who's cleared. The shared secret and API key are issued by Jeremy — they're never shown here.</div>
+    </div>`;
   }
 
   function publishPanel(cid, title) {

@@ -10,14 +10,17 @@ test('dashboard Organization filter separates OMG records from NCYSA/NCSRA', asy
   const api = await playwright.request.newContext({ baseURL: BASE });
   await api.post('/api/login', { data: ADMIN });
   const stamp = Date.now();
-  // An OMG course and an NCYSA course, each published with a lesson.
+  // An OMG course and an NCYSA course, each with a lesson. Only the OMG course is
+  // published — the learner below enrolls in it. The NCYSA course stays unpublished
+  // so it doesn't leak onto the public coaches portal (which would collide with the
+  // learner-journey test's single-card assumption); it still exists for the filter.
   const omg = (await (await api.post('/api/admin/courses', { data: { title: `OrgFilter OMG ${stamp}`, audience: 'referees', orgId: 'omg' } })).json()).course;
   const ncysa = (await (await api.post('/api/admin/courses', { data: { title: `OrgFilter NCYSA ${stamp}`, audience: 'coaches' } })).json()).course;
   expect(omg.orgId).toBe('omg');
   for (const c of [omg, ncysa]) {
     await api.post(`/api/admin/courses/${c.id}/lessons`, { data: { type: 'text', title: 'Read', html: '<p>hi</p>' } });
-    await api.post(`/api/admin/courses/${c.id}/publish`, { data: { published: true } });
   }
+  await api.post(`/api/admin/courses/${omg.id}/publish`, { data: { published: true } });
 
   // A learner enrolls in the OMG course (creates an OMG record).
   const learner = await playwright.request.newContext({ baseURL: BASE });
