@@ -567,6 +567,13 @@ app.get('/proposal', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'proposal.html'));
 });
 
+// Zite integration one-pager — the technical contract (signed launch link in,
+// signed completion webhook out, pull/reconcile) a partner's developer follows to
+// wire up. Standalone, no secrets, safe to share. Served at /zite.
+app.get('/zite', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'zite-integration.html'));
+});
+
 // Partner launch (e.g. OMS): a signed JWT carries the referee's identity and the
 // module to open. We verify it, sign the referee in as a learner (no password),
 // enroll them, and drop them straight into the module. On completion, a signed

@@ -2660,6 +2660,7 @@ async function viewCourseAdmin(flash) {
       </div>
 
       <div class="rec" style="margin-top:14px"><b>The Zite loop:</b> applicant accepted → your system opens the launch link → they complete the course → our webhook posts back → you mark it on their profile → assigners see who's cleared. The shared secret and API key are issued by Jeremy — they're never shown here.</div>
+      <div class="dlbar" style="justify-content:flex-start;margin-top:12px"><a class="btn btn-accent btn-sm" href="/zite-integration.html" target="_blank" rel="noopener">📄 Open the shareable one-pager (for Michael / Zite) →</a></div>
     </div>`;
   }
 

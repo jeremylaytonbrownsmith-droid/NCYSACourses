@@ -1,0 +1,239 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/media/getmatchready-mark.svg">
+<title>GetMatchReady × Zite — Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f7fb; --surface:#ffffff; --ink:#17224f; --muted:#5b6480; --line:#e6e9f4;
+  --accent:#6366f1; --accent2:#7c3aed; --bar:#109e73; --teal:#0ea5a0; --amber:#e9a626;
+  --grad:linear-gradient(120deg,#6366f1,#7c3aed);
+  --code-bg:#0e1630; --code-ink:#dbe4ff; --code-line:#22305c;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"Public Sans","Segoe UI",system-ui,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow:0 8px 26px rgba(23,34,79,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0b1224; --surface:#141d38; --ink:#eaeefb; --muted:#9aa6c8; --line:#26325a; --bar:#2fd39c; --shadow:0 10px 30px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{--paper:#0b1224; --surface:#141d38; --ink:#eaeefb; --muted:#9aa6c8; --line:#26325a; --bar:#2fd39c; --shadow:0 10px 30px rgba(0,0,0,.35);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px 60px}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em;margin:0;text-wrap:balance}
+a{color:var(--accent)}
+.tnum{font-variant-numeric:tabular-nums}
+
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-block:16px}
+.mark{font-family:var(--display);font-weight:800;font-size:1.25rem;letter-spacing:-.02em;color:var(--ink)}
+.mark b{color:var(--accent)}
+.tag{font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0c1330,#17224f);color:#fff;border-radius:20px;padding:38px 32px}
+.hero .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:40px 40px;-webkit-mask-image:radial-gradient(120% 90% at 80% 0%,#000 30%,transparent 75%);mask-image:radial-gradient(120% 90% at 80% 0%,#000 30%,transparent 75%)}
+.hero-in{position:relative}
+.hero .eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#a9b8ff;margin-bottom:12px}
+.hero h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.04;font-weight:800}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#5eead4,#7aa2ff 55%,#a78bfa);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.hero p.sub{color:#d5ddf5;margin:14px 0 0;font-size:1.02rem;max-width:62ch}
+
+section{padding-block:30px}
+.eyebrow2{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+h2{font-size:clamp(1.3rem,3vw,1.75rem);font-weight:700}
+h3{font-size:1.05rem;font-weight:800;margin-top:0}
+.lead{color:var(--muted);margin:8px 0 0}
+.note{color:var(--muted);font-size:.82rem;margin:12px 0 0}
+
+/* the loop */
+.steps{counter-reset:s;list-style:none;margin:20px 0 0;padding:0;display:grid;gap:10px}
+.steps li{counter-increment:s;position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 54px;box-shadow:var(--shadow);font-size:.95rem}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--grad);color:#fff;font:800 .9rem/28px var(--display);text-align:center}
+
+/* contract cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow);margin-top:18px}
+.card .dir{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:6px}
+.kv{width:100%;border-collapse:collapse;margin-top:10px;font-size:.9rem}
+.kv th,.kv td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.kv th{width:160px;color:var(--muted);font-weight:600}
+.kv code{font-family:var(--mono);font-size:.82rem}
+.inline{font-family:var(--mono);font-size:.84em;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+
+pre{background:var(--code-bg);color:var(--code-ink);border:1px solid var(--code-line);border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:.82rem;line-height:1.5;margin:14px 0 0}
+pre .c{color:#8aa0d8}
+pre .s{color:#9ce3c0}
+pre .k{color:#9db4ff}
+.lbl{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 0}
+
+.callout{margin-top:18px;border-left:5px solid var(--amber);background:color-mix(in srgb,var(--amber) 9%,transparent);border-radius:0 12px 12px 0;padding:16px 20px;font-size:.95rem}
+.callout b{color:var(--ink)}
+.secrets{margin-top:18px;background:var(--surface);border:1px dashed color-mix(in srgb,var(--accent) 45%,transparent);border-radius:14px;padding:18px 20px}
+.secrets h3{color:var(--accent)}
+.secrets ul{margin:10px 0 0;padding-left:20px;font-size:.92rem}
+.secrets li{margin:5px 0}
+
+.base{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:.9rem;box-shadow:var(--shadow)}
+.base code{font-family:var(--mono);font-weight:600;color:var(--accent)}
+
+.dlbar{display:flex;justify-content:flex-end;margin:10px 0 -8px}
+.dlbtn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:var(--surface);border:1px solid var(--line);color:var(--ink);font:600 .9rem var(--body);padding:10px 16px;border-radius:10px;box-shadow:var(--shadow)}
+.dlbtn .ic{width:18px;height:18px;border-radius:6px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:800}
+
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem}
+@media print{.dlbar{display:none}body{background:#fff}.card,.steps li,.base{box-shadow:none}pre{white-space:pre-wrap;word-break:break-word}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="mark">Get<b>Match</b>Ready</div>
+    <div class="tag">Integration one-pager · for Zite / OMG</div>
+  </div>
+
+  <div class="dlbar"><a class="dlbtn" href="/downloads/GetMatchReady-Zite-Integration.pdf" download><span class="ic">↓</span> Download PDF</a></div>
+
+  <header class="hero">
+    <div class="grid"></div>
+    <div class="hero-in">
+      <div class="eyebrow">GetMatchReady × Zite</div>
+      <h1>Wire training into your <em>assignment pipeline</em></h1>
+      <p class="sub">Two calls connect your system to GetMatchReady: send an official in with a signed <b>launch link</b>, and receive a signed <b>completion webhook</b> when they finish. A third call lets you <b>pull status</b> any time. No JavaScript to write, no SDK to install — standard JWT + HMAC your team already has libraries for (.NET included).</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="eyebrow2">The loop</div>
+    <h2>How a training requirement clears, end to end</h2>
+    <ol class="steps">
+      <li>An official applies to an event and is accepted in Zite.</li>
+      <li>Zite builds a <b>signed launch link</b> and sends the official to the required GetMatchReady course.</li>
+      <li>They complete it — real watch time, pass/fail, a score — and earn their certificate.</li>
+      <li>GetMatchReady fires a <b>signed completion webhook</b> back to your endpoint.</li>
+      <li>Zite marks the requirement done; assigners and event managers see who's cleared — automatically.</li>
+    </ol>
+    <div class="base"><b>Base URL</b> <code id="base">https://YOUR-GMR-HOST</code> <span class="note" style="margin:0">Jeremy provides the exact OMG base URL and your two credentials (below). Everything else is in this doc.</span></div>
+  </section>
+
+  <section>
+    <div class="eyebrow2">Step 1 · inbound</div>
+    <div class="card">
+      <span class="dir">Zite → GetMatchReady</span>
+      <h3>Launch link — drop a specific official into a course</h3>
+      <p class="lead">A standard <b>JWT (HS256)</b> signed with the shared secret. Put it on the query string of the launch URL. Mint it with any JWT library.</p>
+      <table class="kv">
+        <tr><th>Endpoint</th><td><code>GET {BASE}/launch?token=&lt;JWT&gt;</code></td></tr>
+        <tr><th>Algorithm</th><td><code>HS256</code>, signed with the <b>shared secret</b> (<code>INTEGRATION_SECRET</code>)</td></tr>
+        <tr><th>Claims</th><td><code>refId</code> (their ID in your system) · <code>name</code> · <code>email</code> · <code>moduleId</code> (the course ID) · <code>org</code> · <code>callbackUrl</code> <i>(optional — override where this one completion is posted)</i> · plus standard <code>iat</code>/<code>exp</code></td></tr>
+        <tr><th>Expiry</th><td>Set <code>exp</code> as you like (minutes for a one-click launch, or days for an emailed link).</td></tr>
+      </table>
+      <div class="lbl">Mint a link (Node)</div>
+<pre><span class="c">// npm i jsonwebtoken</span>
+<span class="k">const</span> jwt = <span class="k">require</span>(<span class="s">'jsonwebtoken'</span>);
+<span class="k">const</span> token = jwt.sign({
+  refId: <span class="s">'OFFICIAL-12345'</span>,      <span class="c">// your ID for this person</span>
+  name:  <span class="s">'Jane Official'</span>,
+  email: <span class="s">'jane@example.com'</span>,
+  moduleId: <span class="s">'crs_abc123'</span>,          <span class="c">// the GetMatchReady course ID</span>
+  org:   <span class="s">'omg'</span>
+}, SHARED_SECRET, { algorithm: <span class="s">'HS256'</span>, expiresIn: <span class="s">'7d'</span> });
+
+<span class="k">const</span> launchUrl = <span class="s">`${BASE}/launch?token=${token}`</span>;  <span class="c">// send the official here</span></pre>
+      <div class="lbl">Mint a link (.NET / C#)</div>
+<pre><span class="c">// System.IdentityModel.Tokens.Jwt</span>
+<span class="k">var</span> claims = <span class="k">new</span>[] {
+  <span class="k">new</span> Claim(<span class="s">"refId"</span>, <span class="s">"OFFICIAL-12345"</span>),
+  <span class="k">new</span> Claim(<span class="s">"email"</span>, <span class="s">"jane@example.com"</span>),
+  <span class="k">new</span> Claim(<span class="s">"moduleId"</span>, <span class="s">"crs_abc123"</span>),
+  <span class="k">new</span> Claim(<span class="s">"org"</span>, <span class="s">"omg"</span>)
+};
+<span class="k">var</span> key = <span class="k">new</span> SymmetricSecurityKey(Encoding.UTF8.GetBytes(SHARED_SECRET));
+<span class="k">var</span> creds = <span class="k">new</span> SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+<span class="k">var</span> jwt = <span class="k">new</span> JwtSecurityToken(claims: claims, expires: DateTime.UtcNow.AddDays(7), signingCredentials: creds);
+<span class="k">var</span> token = <span class="k">new</span> JwtSecurityTokenHandler().WriteToken(jwt);</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow2">Step 2 · outbound</div>
+    <div class="card">
+      <span class="dir">GetMatchReady → Zite</span>
+      <h3>Completion webhook — we tell you when they finish</h3>
+      <p class="lead">When a learner reaches a terminal state, we <code>POST</code> JSON to your endpoint, <b>signed</b> so you can trust it. We retry on 5xx so a brief outage never loses a completion.</p>
+      <table class="kv">
+        <tr><th>Your endpoint</th><td>An <code>https://</code> URL you give us (global, or per-launch via the <code>callbackUrl</code> claim)</td></tr>
+        <tr><th>Method</th><td><code>POST</code> · <code>Content-Type: application/json</code></td></tr>
+        <tr><th>Signature</th><td><code>X-GetMatchReady-Signature: sha256=&lt;hex&gt;</code> — HMAC-SHA256 of the <b>raw request body</b>, keyed with the shared secret</td></tr>
+      </table>
+      <div class="lbl">Example payload</div>
+<pre>{
+  <span class="k">"event"</span>:          <span class="s">"module.passed"</span>,     <span class="c">// module.&lt;status&gt;</span>
+  <span class="k">"refId"</span>:          <span class="s">"OFFICIAL-12345"</span>,    <span class="c">// echoes your launch claim</span>
+  <span class="k">"moduleId"</span>:       <span class="s">"crs_abc123"</span>,
+  <span class="k">"org"</span>:            <span class="s">"omg"</span>,
+  <span class="k">"status"</span>:         <span class="s">"passed"</span>,            <span class="c">// passed | failed | completed | incomplete</span>
+  <span class="k">"score"</span>:          92,
+  <span class="k">"startedAt"</span>:      <span class="s">"2026-10-04T15:12:00Z"</span>,
+  <span class="k">"completedAt"</span>:    <span class="s">"2026-10-04T15:47:30Z"</span>,
+  <span class="k">"certificateId"</span>: <span class="s">"cert_7h2k9"</span>,
+  <span class="k">"durationSeconds"</span>: 2130
+}</pre>
+      <div class="lbl">Verify the signature before trusting it (Node / Express)</div>
+<pre><span class="c">// use the RAW body, not the parsed object</span>
+<span class="k">const</span> crypto = <span class="k">require</span>(<span class="s">'crypto'</span>);
+<span class="k">function</span> <span class="k">verify</span>(rawBody, header) {
+  <span class="k">const</span> expected = <span class="s">'sha256='</span> +
+    crypto.createHmac(<span class="s">'sha256'</span>, SHARED_SECRET).update(rawBody).digest(<span class="s">'hex'</span>);
+  <span class="k">return</span> crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+}
+
+app.post(<span class="s">'/gmr/webhook'</span>, express.raw({ type: <span class="s">'*/*'</span> }), (req, res) =&gt; {
+  <span class="k">if</span> (!verify(req.body, req.get(<span class="s">'X-GetMatchReady-Signature'</span>))) <span class="k">return</span> res.sendStatus(401);
+  <span class="k">const</span> e = JSON.parse(req.body);
+  <span class="k">if</span> (e.status === <span class="s">'passed'</span> || e.status === <span class="s">'completed'</span>) markCleared(e.refId, e.moduleId);
+  res.sendStatus(200);  <span class="c">// 2xx = received; non-2xx 5xx = we retry</span>
+});</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow2">Step 3 · on demand</div>
+    <div class="card">
+      <span class="dir">Zite → GetMatchReady</span>
+      <h3>Pull status &amp; self-test</h3>
+      <p class="lead">Reconcile any time (nightly job, or to backfill after an outage), and fire a sample to test your receiver before go-live. These use the <b>API key</b> (separate from the webhook secret).</p>
+      <div class="lbl">Reconcile — pull completions</div>
+<pre>curl -H <span class="s">"Authorization: Bearer $API_KEY"</span> \
+  <span class="s">"{BASE}/api/v1/completions"</span></pre>
+      <div class="lbl">Send a test webhook to your endpoint</div>
+<pre>curl -X POST -H <span class="s">"Authorization: Bearer $API_KEY"</span> \
+  <span class="s">"{BASE}/api/v1/test-webhook"</span></pre>
+      <p class="note">Uploading your own SCORM lessons for us to host is also available at <code>POST {BASE}/api/v1/scorm</code> (same Bearer key) — ask Jeremy if you want that turned on.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="secrets">
+      <h3>🔑 Your two credentials (issued by Jeremy, out-of-band)</h3>
+      <ul>
+        <li><b>Shared secret</b> (<span class="inline">INTEGRATION_SECRET</span>) — signs &amp; verifies <b>both</b> launch tokens and webhook signatures. Keep it server-side only.</li>
+        <li><b>API key</b> (<span class="inline">INTEGRATION_API_KEY</span>) — Bearer auth for the pull/reconcile and test endpoints. Rotatable independently of the secret.</li>
+      </ul>
+      <p class="note">These are never printed in this document, the app, or any link. Jeremy provides them directly and can rotate either at any time.</p>
+    </div>
+    <div class="callout">
+      <b>Already built and live.</b> Both directions — the signed launch in and the signed completion webhook out — are running today and were tested end to end. There is no code for GetMatchReady's side to finish; this is the contract for Zite to call.
+    </div>
+  </section>
+
+  <footer>
+    <p>GetMatchReady × Zite integration reference. Prepared by Jeremy Layton Brown Smith, GetMatchReady. Confidential — intended for Officials Management Group / Officials Management Systems and their technical team. The shared secret and API key are issued separately and never appear here.</p>
+  </footer>
+
+</div>
+</body></html>

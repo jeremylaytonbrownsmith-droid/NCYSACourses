@@ -48,3 +48,17 @@ test('integration info rejects a learner', async ({ playwright }) => {
   const res = await c.get('/api/admin/integration/info');
   expect(res.status()).toBeGreaterThanOrEqual(401);
 });
+
+test('the Zite one-pager is served, describes the contract, and leaks no secret', async ({ playwright }) => {
+  const c = await playwright.request.newContext({ baseURL: BASE });
+  const res = await c.get('/zite');
+  expect(res.ok()).toBeTruthy();
+  const html = await res.text();
+  // It documents the real contract...
+  expect(html).toContain('X-GetMatchReady-Signature');
+  expect(html).toContain('/launch?token=');
+  expect(html).toContain('/api/v1/completions');
+  // ...but never the actual secret or API-key VALUES (the test server's are known).
+  expect(html).not.toContain('test-secret-123');
+  expect(html).not.toContain('test-api-key-456');
+});
