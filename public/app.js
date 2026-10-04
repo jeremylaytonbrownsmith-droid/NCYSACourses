@@ -2019,6 +2019,20 @@ function courseFilterGroups(d) {
   }).join('');
 }
 
+// The organization a course belongs to, as a display group (matches the course
+// filter's grouping). Used to view records per org — NCYSA, NCSRA and OMG are
+// kept separate.
+function orgGroupOfCourse(c) {
+  return c.orgId === 'omg' ? 'OMG' : (c.audience === 'referees' ? 'NCSRA (Referees)' : 'NCYSA');
+}
+function orgFilterOptions(d) {
+  const courses = Array.isArray(d.courses) ? d.courses : [];
+  const order = ['NCYSA', 'NCSRA (Referees)', 'OMG'];
+  const present = [...new Set(courses.map(orgGroupOfCourse))];
+  const names = [...order.filter((g) => present.includes(g)), ...present.filter((g) => !order.includes(g))];
+  return names.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+}
+
 async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
@@ -2042,6 +2056,10 @@ async function viewAdmin() {
           </div>
           <div class="filter-bar">
             <input id="fltSearch" placeholder="Search name or email…" />
+            <select id="fltOrg">
+              <option value="">All organizations</option>
+              ${orgFilterOptions(d)}
+            </select>
             <select id="fltCourse">
               <option value="">All courses</option>
               ${courseFilterGroups(d)}
@@ -2100,8 +2118,13 @@ async function viewAdmin() {
   // Rows are every enrollment with its module progress, so the dashboard shows
   // both finished referees and those partway through the modules.
   const rows = d.enrollments || d.completions || [];
+  // Map a record to its organization group via its course, so records can be
+  // filtered per org (OMG kept separate from NCYSA/NCSRA).
+  const courseById = {}; (d.courses || []).forEach((c) => { courseById[c.id] = c; });
+  const rowOrgGroup = (c) => { const cc = courseById[c.courseId]; return cc ? orgGroupOfCourse(cc) : ''; };
   const els = {
     search: document.getElementById('fltSearch'),
+    org: document.getElementById('fltOrg'),
     course: document.getElementById('fltCourse'),
     status: document.getElementById('fltStatus'),
     from: document.getElementById('fltFrom'),
@@ -2111,12 +2134,14 @@ async function viewAdmin() {
   const whenOf = (c) => c.completedAt || c.startedAt || null;
   function filtered() {
     const q = els.search.value.trim().toLowerCase();
+    const org = els.org ? els.org.value : '';
     const course = els.course.value;
     const status = els.status ? els.status.value : '';
     const from = els.from.value ? new Date(els.from.value + 'T00:00:00') : null;
     const to = els.to.value ? new Date(els.to.value + 'T23:59:59') : null;
     return rows.filter((c) => {
       if (q && !((c.learner || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))) return false;
+      if (org && rowOrgGroup(c) !== org) return false;
       if (course && c.course !== course) return false;
       if (status === 'done' && !c.completedAt) return false;
       if (status === 'prog' && c.completedAt) return false;
@@ -2172,6 +2197,7 @@ async function viewAdmin() {
   if (els.table) {
     ['input', 'change'].forEach((ev) => {
       els.search.addEventListener(ev, renderTable); els.course.addEventListener(ev, renderTable);
+      if (els.org) els.org.addEventListener(ev, renderTable);
       if (els.status) els.status.addEventListener(ev, renderTable);
       els.from.addEventListener(ev, renderTable); els.to.addEventListener(ev, renderTable);
     });

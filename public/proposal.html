@@ -340,8 +340,26 @@ footer a{color:var(--accent);text-decoration:underline}
         </table>
       </div>
     </div>
-    <div class="delta">For comparison, AWS CloudFront runs roughly <b class="g">8–10× Bunny's rate</b> — but at your scale the absolute numbers are small either way: <b>tens of dollars a year, not thousands.</b> The automation is the real win: upload once, it's live everywhere, nothing breaks.</div>
-    <p class="note">Video sizes are estimates; the per-GB rate is Bunny's published rate. Hosting is passed through at actual cost (storage and CDN usage) — an estimate that scales with video watched, not a cap.</p>
+    <div class="cols" style="margin-top:14px">
+      <div class="card">
+        <h3>Cost — per GB delivered</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <tbody>
+            <tr><td style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--accent)">Bunny CDN</b> (what we use)</td><td style="padding:8px 0;border-bottom:1px solid var(--line);text-align:right;font-weight:700">$0.005–0.01</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid var(--line)">AWS CloudFront</td><td style="padding:8px 0;border-bottom:1px solid var(--line);text-align:right;font-weight:700">~$0.085</td></tr>
+            <tr><td style="padding:8px 0">Vimeo / typical hosted video</td><td style="padding:8px 0;text-align:right;font-weight:700">$500–1,900+/yr plan</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:10px 0 0;color:var(--muted);font-size:.86rem">Bunny runs roughly <b style="color:var(--bar)">8–10× cheaper</b> than AWS, and there's no fixed monthly plan — you pay only for what's watched.</p>
+      </div>
+      <div class="card">
+        <h3>The real difference: it's automated</h3>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:.9rem"><b style="color:var(--ink)">Bunny is wired into the platform through its API.</b> Add a video and it's uploaded, hosted, and live automatically — nothing to link, nothing that breaks.</p>
+        <p style="margin:0;color:var(--muted);font-size:.9rem"><b style="color:var(--ink)">Vimeo and YouTube are just links.</b> They depend on the owner's embed settings, can refuse to play on your domain, and have to be managed by hand. We hit exactly that with a US Soccer clip. Self-hosting on Bunny removes all of it — your video always plays, inline, everywhere.</p>
+      </div>
+    </div>
+    <div class="delta">At your scale the dollars are tiny either way — <b>tens of dollars a year, not thousands.</b> The win is the <b class="g">automation</b>: upload once, it's live everywhere, nothing to maintain and nothing to break.</div>
+    <p class="note">Video sizes are estimates; per-GB rates are published rates (Bunny, AWS CloudFront). Vimeo figure is a typical paid-plan range. Hosting is passed through at actual cost (storage and CDN usage) — an estimate that scales with video watched, not a cap.</p>
   </section>
 
   <section aria-labelledby="zite-h">
