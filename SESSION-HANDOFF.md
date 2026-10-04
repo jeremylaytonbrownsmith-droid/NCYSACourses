@@ -197,6 +197,41 @@ Vimeo shows **"Because of its privacy settings, this video cannot be played here
   `tests/partner-isolation.spec.js`. Plan + remaining phases: `PARTNER-ADMIN-SCOPE.md`.
   **Safe to give Dick/OMG a `partner` login now** (not a global admin).
 
+## Security & resilience hardening (latest session)
+A full security + code-health audit drove these fixes (all tested; 113 passing,
+the one flaky e2e passes standalone):
+- **Stored XSS closed.** All lesson `html` and slide `caption` are now sanitized on
+  save in `buildLesson` via `lib/sanitize.js` (`sanitizeLessonHtml`, backed by
+  `sanitize-html`): keeps real formatting (links, images, headings, lists, tables,
+  the `callout` class) but strips `<script>`/handlers/`javascript:`/`data:`/styles.
+  (The AI path keeps its own stricter `sanitizeHtml` in `lib/aicourse.js`.)
+- **SVG uploads removed** from `IMAGE_TYPES` (scriptable SVG = same-origin XSS).
+- **Data durability safety net.** `DATA_DIR` now points at the persistent disk
+  (`/var/scorm/data`) in render.yaml, so the local JSON fallback survives a redeploy
+  even if Firestore is down. `lib/store.js` exports `status()`; boot prints a LOUD
+  alarm if prod persistence isn't durable; new cheap `GET /health` (also the Render
+  healthCheckPath) returns `{ok,durable,backend}`. Firestore stays primary.
+- **Process resilience.** Global Express error handler (last middleware) + an `ah()`
+  async wrapper on the three learner completion routes (quiz/complete/scorm) +
+  `process.on('unhandledRejection'|'uncaughtException')` — one bad request can no
+  longer crash the single-process server or leak a stack trace.
+- **SSRF fail-closed.** `allowedCallbackUrl` now always rejects loopback/private/
+  link-local/metadata (169.254.169.254) hosts; loopback http only off-production.
+- **Per-org integration isolation (opt-in, backward-compatible).** `lib/integration.js`
+  adds `secretForOrg`/`apiKeyForOrg`/`decodeClaims`. `/launch` verifies the token
+  against the TARGET COURSE's org secret, so with `INTEGRATION_SECRET_OMG` set, an
+  OMG-held secret can't mint launches for NCYSA/NCSRA courses. `/api/v1/completions`
+  accepts per-org keys and scopes results to that org (`INTEGRATION_API_KEY_OMG`).
+  Admin test-link signs with the course's org secret. **Unset = global fallback =
+  prior behavior** (so tests + any live single-key setup keep working). To actually
+  separate OMG from NCYSA/NCSRA, set `INTEGRATION_SECRET_OMG` + `INTEGRATION_API_KEY_OMG`
+  in Render and hand THOSE to Michael (not the global ones). `/launch` identity now
+  prefers `(refId, org)` over bare email (no silent account absorption by email).
+- Added dep **`sanitize-html`**. Pre-existing transitive audit warnings (adm-zip,
+  firebase-admin's grpc/busboy) are NOT from this change — adm-zip is used only to
+  BUILD export zips, not to extract untrusted input (that uses `unzipper`, zip-slip
+  checked). Worth a later `npm audit fix` pass (P2).
+
 ## Hard rules / gotchas
 - **`admin` and `editor` are GLOBAL roles** (Jeremy/Colin) — they see EVERY org. Only the new
   **`partner`** role is org-scoped. NEVER give a partner an `admin`/`editor` login — that's the

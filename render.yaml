@@ -28,7 +28,7 @@ services:
     plan: standard # 1 CPU / 2 GB RAM — enough memory to accept large SCORM uploads
     buildCommand: npm ci --omit=dev
     startCommand: node server.js
-    healthCheckPath: /api/courses
+    healthCheckPath: /health
     # Durable storage for uploaded SCORM packages (needs a paid plan, above).
     # Sized for several full courses of video modules; enlarge here as more
     # courses are added (Render only allows growing a disk, never shrinking).
@@ -42,7 +42,7 @@ services:
       - key: PUBLIC_URL
         value: https://getmatchready.app # branded base URL used in generated launch links (falls back to the Render host if unset)
       - key: DATA_DIR
-        value: /tmp/ncysa-data # ephemeral local cache; Firestore is the source of truth
+        value: /var/scorm/data # on the PERSISTENT disk, so the local JSON fallback survives a redeploy even if Firestore is unavailable. Firestore stays the primary source of truth when FIREBASE_SERVICE_ACCOUNT is set.
       # Uploaded SCORM packages live on the persistent disk so they survive
       # restarts/redeploys.
       - key: SCORM_DIR
@@ -79,7 +79,16 @@ services:
       - key: INTEGRATION_API_KEY
         sync: false # per-tenant key for the reconciliation pull API (falls back to INTEGRATION_SECRET if unset)
       - key: INTEGRATION_CALLBACK_ALLOWED_HOSTS
-        sync: false # optional: comma-separated host suffixes a per-launch callback URL may use (e.g. oms.example.com). Leave unset to allow any HTTPS callback from a signed token.
+        sync: false # optional: comma-separated host suffixes a per-launch callback URL may use (e.g. oms.example.com). Internal/private/loopback hosts are always rejected (SSRF). Leave unset to allow any PUBLIC HTTPS callback from a signed token.
+      # ---- Optional per-org isolation: give a partner (e.g. OMG) its own launch
+      #      secret and pull-API key so it can NEVER mint launches for, or read
+      #      completions of, another org (NCYSA/NCSRA). When unset, both fall back
+      #      to the global INTEGRATION_SECRET / INTEGRATION_API_KEY above and
+      #      behavior is unchanged. Suffix is the org id upper-cased (OMG). ----
+      - key: INTEGRATION_SECRET_OMG
+        sync: false # OMG-only launch/webhook HMAC secret (hand this to OMG instead of the global one)
+      - key: INTEGRATION_API_KEY_OMG
+        sync: false # OMG-only reconciliation pull-API key; results are scoped to OMG courses
       - key: NCYSA_NOTIFY_EMAIL
         value: education@ncysa.org
       # ---- Real email delivery (certificates land in learners' inboxes) ----

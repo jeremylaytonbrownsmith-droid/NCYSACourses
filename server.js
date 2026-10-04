@@ -14,10 +14,11 @@ const path = require('path');
 const fs = require('fs');
 const unzipper = require('unzipper'); // streaming unzip — never loads the whole .zip into memory
 
-const { load, save, id, initFromCloud } = require('./lib/store');
+const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
+const { sanitizeLessonHtml } = require('./lib/sanitize');
 const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
 const courseSeed = require('./data/courses');
 // The 2026 NCSRA video "Recertification Refresher" pilot has been retired in
@@ -207,6 +208,10 @@ function omgCourseOrder() {
 // links, and records behave exactly as before. Additional orgs (e.g. OMG) get
 // their own portal, branding, course, and separate learner records.
 const DEFAULT_ORG = 'ncysa';
+// The org the shared integration key/secret belongs to (the single partner, OMG).
+// Used to scope partner uploads and — when per-org keys are configured — the
+// launch and reconciliation APIs.
+const INTEGRATION_ORG = (process.env.INTEGRATION_ORG || 'omg').toLowerCase();
 const ORGS = {
   ncysa: { slug: 'ncysa', name: 'NCYSA' },
   omg: { slug: 'omg', name: 'Officials Management Group' },
@@ -574,6 +579,15 @@ app.get('/zite', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'zite-integration.html'));
 });
 
+// Lightweight liveness/durability probe — cheap (no data-layer scan) so it's a
+// good healthcheck + keep-alive target. `durable:false` flags that writes would
+// not survive a restart (see the boot alarm).
+app.get('/health', (req, res) => {
+  let durable = null, backend = null;
+  try { const st = storeStatus(); durable = st.durable; backend = st.backend; } catch (e) { /* ignore */ }
+  res.json({ ok: true, durable, backend, uptimeSeconds: Math.round(process.uptime()) });
+});
+
 // Partner launch (e.g. OMS): a signed JWT carries the referee's identity and the
 // module to open. We verify it, sign the referee in as a learner (no password),
 // enroll them, and drop them straight into the module. On completion, a signed
@@ -581,18 +595,35 @@ app.get('/zite', (req, res) => {
 // player internals — they mint a token and receive a callback.
 app.get('/launch', (req, res) => {
   if (!integrationEnabled()) return res.status(503).send('Integration is not configured on this server.');
-  let claims;
-  try { claims = verifyToken(req.query.token); }
+  // Read the target course from the (as-yet-unverified) token so we can verify
+  // the signature against THAT course's org secret. With per-org secrets set, a
+  // token signed for OMG won't verify for an NCYSA/NCSRA course (cross-tenant
+  // launch blocked); with only the global secret, this is identical to before.
+  let courseId;
+  try { const u = decodeClaims(req.query.token); courseId = String(u.moduleId || u.courseId || ''); }
   catch (e) {
     return res.status(400).send('This training link is invalid or has expired. Please return to your dashboard and open the module again.');
   }
   const db = load();
-  const courseId = String(claims.moduleId || claims.courseId || '');
   const course = allCourses().find((c) => c.id === courseId);
   if (!course) return res.status(404).send('That training module was not found.');
+  const courseOrg = orgOf(course);
+  let claims;
+  try { claims = verifyToken(req.query.token, secretForOrg(courseOrg)); }
+  catch (e) {
+    return res.status(400).send('This training link is invalid or has expired. Please return to your dashboard and open the module again.');
+  }
   const email = String(claims.email || '').trim().toLowerCase();
+  const refId = claims.refId ? String(claims.refId) : null;
+  const claimOrg = claims.org ? String(claims.org) : null;
+  // Identity resolution: prefer the stable (externalRef, org) pair the partner
+  // assigned; only fall back to email when there's no refId match. This stops a
+  // token from silently absorbing an unrelated learner account just by asserting
+  // its email address.
+  let user = null;
+  if (refId) user = db.users.find((u) => u.externalRef === refId && (!claimOrg || !u.externalOrg || u.externalOrg === claimOrg));
+  if (!user && email) user = db.users.find((u) => u.email.toLowerCase() === email);
   // Never launch as a staff/admin account (those carry a password hash).
-  let user = email ? db.users.find((u) => u.email.toLowerCase() === email) : null;
   if (user && user.passHash) return res.status(403).send('This email belongs to a staff account and cannot be used for a referee launch.');
   if (!user) {
     user = {
@@ -631,12 +662,17 @@ app.get('/launch', (req, res) => {
 app.get('/api/v1/completions', (req, res) => {
   if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
   const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
-  const apiKey = integrationApiKey();
-  let ok = false;
-  if (m && apiKey) {
-    const a = Buffer.from(m[1]); const b = Buffer.from(apiKey);
-    ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  const presented = m ? m[1] : null;
+  const eq = (a, b) => { if (!a || !b) return false; const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+  // Accept the global key OR any per-org key. A per-org key scopes results to that
+  // org (cross-tenant read blocked); the global key keeps the prior unscoped
+  // behavior for single-tenant setups.
+  let ok = false, callerOrg = null;
+  for (const o of Object.keys(ORGS)) {
+    const k = apiKeyForOrg(o);
+    if (k && eq(presented, k)) { ok = true; callerOrg = o; break; }
   }
+  if (!ok && eq(presented, integrationApiKey())) { ok = true; callerOrg = null; }
   if (!ok) return res.status(401).json({ error: 'Invalid or missing API key.' });
   const refId = String(req.query.refId || '').trim();
   if (!refId) return res.status(400).json({ error: 'refId is required.' });
@@ -644,8 +680,10 @@ app.get('/api/v1/completions', (req, res) => {
   // instead of the whole array). Accept either casing of the parameter.
   const moduleId = String(req.query.moduleId || req.query.moduleid || '').trim();
   const db = load();
+  const courseOrgOf = (cid) => { const c = allCourses().find((x) => x.id === cid); return c ? orgOf(c) : null; };
   const rows = db.enrollments
     .filter((e) => e.externalRef === refId && (!moduleId || e.courseId === moduleId))
+    .filter((e) => !callerOrg || courseOrgOf(e.courseId) === callerOrg)
     .map((e) => {
       const rec = db.lessonProgress.find((p) => p.userId === e.userId && p.courseId === e.courseId && p.scorm);
       let status;
@@ -1837,7 +1875,12 @@ app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, re
 });
 
 // Quiz submission: graded server-side (answers never leave the server).
-app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, async (req, res) => {
+// Wrap an async route so a rejected promise is forwarded to the global error
+// handler (Express 4 does not do this automatically) instead of becoming an
+// unhandled rejection that hangs the request.
+const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, ah(async (req, res) => {
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -1859,10 +1902,10 @@ app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, async (re
   save();
   const completion = passed ? await maybeCompleteCourse(req.user, course) : null;
   res.json({ score, passed, passPercent: lesson.passPercent, correct, total: lesson.questions.length, courseCompleted: !!completion, certId: completion?.certId || null, returnUrl: (completion && completion.returnUrl) || null });
-});
+}));
 
 // Generic completion for text/video lessons.
-app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async (req, res) => {
+app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, ah(async (req, res) => {
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -1894,7 +1937,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async
   }
   const completion = await maybeCompleteCourse(req.user, course);
   res.json({ ok: true, courseCompleted: !!completion, certId: completion?.certId || null, returnUrl: (completion && completion.returnUrl) || null });
-});
+}));
 
 // SCORM 1.2 runtime callback. The in-page window.API (public/app.js) relays the
 // module's cmi values here. These modules complete on reaching the final slide,
@@ -1902,7 +1945,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, async
 // that against the enrolled referee. lesson_location / suspend_data are stored so
 // a learner resumes where they left off. No score to grade — completion is the
 // signal that feeds the dashboard export.
-app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (req, res) => {
+app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async (req, res) => {
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -1990,7 +2033,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, async (r
     courseCompleted: !!completion, certId: completion?.certId || null,
     returnUrl: (completion && completion.returnUrl) || null,
   });
-});
+}));
 
 // Fire a signed outcome webhook to a partner. Used for both a successful
 // completion and a terminal failure; only fires for partner-launched
@@ -2245,7 +2288,7 @@ function buildLesson(body) {
   if (type === 'text') {
     // Optional reading pace: minimum seconds before "Complete" unlocks (0 = off).
     const minSeconds = Math.min(3600, Math.max(0, Math.round(Number(body.minSeconds) || 0)));
-    return { ...base, html: String(body.html || ''), minSeconds };
+    return { ...base, html: sanitizeLessonHtml(body.html), minSeconds };
   }
   if (type === 'slides') {
     // A native slideshow: mostly image slides (gated by a per-slide time dwell in
@@ -2259,17 +2302,19 @@ function buildLesson(body) {
         if (s.img) out.img = String(s.img);
         if (s.video) { out.video = String(s.video); out.watchSeconds = Math.min(3600, Math.max(1, Number(s.watchSeconds) || 30)); if (s.linkOut) out.linkOut = true; }
         if (s.alt) out.alt = String(s.alt);
-        if (s.caption) out.caption = String(s.caption);
+        // Caption is injected via innerHTML in the player, so sanitize it (the
+        // alt/img/video fields are escaped at render time).
+        if (s.caption) out.caption = sanitizeLessonHtml(s.caption);
         return out;
       })
       .filter((s) => s.img || s.video);
     const slideSeconds = body.slideSeconds != null ? Math.min(600, Math.max(0, Math.round(Number(body.slideSeconds)) || 0)) : 15;
-    return { ...base, html: String(body.html || ''), slideSeconds, slides };
+    return { ...base, html: sanitizeLessonHtml(body.html), slideSeconds, slides };
   }
   if (type === 'video') {
     const duration = Math.max(1, Number(body.durationSeconds) || 60);
     return {
-      ...base, html: String(body.html || ''),
+      ...base, html: sanitizeLessonHtml(body.html),
       videoUrl: String(body.videoUrl || ''),
       videoUrlWebm: body.videoUrlWebm ? String(body.videoUrlWebm) : undefined,
       durationSeconds: duration,
@@ -2306,7 +2351,7 @@ function buildLesson(body) {
     if (Array.isArray(body.hiddenSlides)) {
       hiddenSlides = [...new Set(body.hiddenSlides.map((n) => Math.round(Number(n))).filter((n) => Number.isInteger(n) && n >= 1))].sort((a, b) => a - b).slice(0, 2000);
     }
-    return { ...base, html: String(body.html || ''), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides };
+    return { ...base, html: sanitizeLessonHtml(body.html), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -2315,7 +2360,7 @@ function buildLesson(body) {
     options: (Array.isArray(q.options) ? q.options : []).map(String).filter(Boolean),
     answer: Number(q.answer) || 0,
   })).filter((q) => q.prompt && q.options.length >= 2);
-  return { ...base, html: String(body.html || ''), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
+  return { ...base, html: sanitizeLessonHtml(body.html), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
 }
 
 app.post('/api/admin/courses', requireEditor, (req, res) => {
@@ -2503,12 +2548,14 @@ app.post('/api/admin/integration/test-link', requireEditor, (req, res) => {
     name: b.name || 'Demo Referee',
     email: b.email || `demo+${rand}@getmatchready.app`,
     moduleId: course.id,
-    org: b.org || 'DEMO',
+    org: b.org || orgOf(course),
   };
   // Optional per-launch completion webhook (validated + host-allow-listed).
   const cb = allowedCallbackUrl(b.callbackUrl);
   if (cb) claims.callbackUrl = cb;
-  const token = signToken(claims, undefined, expiresInSec);
+  // Sign with the course's org secret so the demo link verifies under per-org
+  // isolation (falls back to the global secret when no per-org secret is set).
+  const token = signToken(claims, secretForOrg(orgOf(course)), expiresInSec);
   // Prefer the branded public domain over the raw Render host for shared links.
   const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
   res.json({ url: `${base}/launch?token=${token}`, expiresInMinutes: Math.round(expiresInSec / 60) });
@@ -2667,12 +2714,15 @@ app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req
 // Upload an image for use inside a lesson (Course Designer). The raw image bytes
 // are POSTed with the file's content-type; we stream them to the uploads disk and
 // return a URL to drop into the lesson. Capped well below the SCORM limit.
-const IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg' };
+// SVG is deliberately excluded: an SVG can carry inline <script> and, served
+// same-origin from /uploads, would execute in the app origin (stored XSS). Only
+// raster formats are allowed for uploads.
+const IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB
 app.post('/api/admin/upload-image', requireEditor, async (req, res) => {
   const ctype = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
   const ext = IMAGE_TYPES[ctype];
-  if (!ext) return res.status(400).json({ error: 'Please choose an image file (JPG, PNG, GIF, WEBP or SVG).' });
+  if (!ext) return res.status(400).json({ error: 'Please choose an image file (JPG, PNG, GIF or WEBP).' });
   const declared = Number(req.headers['content-length'] || 0);
   if (declared && declared > MAX_IMAGE_BYTES) return res.status(413).json({ error: `That image is over the ${(MAX_IMAGE_BYTES / 1e6).toFixed(0)} MB limit.` });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -2866,7 +2916,7 @@ app.post('/api/admin/scorm', requireEditorNotPartner, async (req, res) => {
 // full loop is self-service: upload → moduleId → mint launch link → referee runs
 // it → completion webhook fires. The .zip is POSTed as the raw request body; all
 // options are query-string params (?title=, ?minMinutes=, ?moduleId=, ?publish=).
-const PARTNER_UPLOAD_ORG = (process.env.INTEGRATION_ORG || 'omg').toLowerCase();
+const PARTNER_UPLOAD_ORG = INTEGRATION_ORG;
 app.post('/api/v1/scorm', async (req, res) => {
   if (!integrationEnabled()) return res.status(503).json({ error: 'Integration is not configured.' });
   if (!partnerKeyOk(req)) return res.status(401).json({ error: 'Invalid or missing API key.' });
@@ -3307,6 +3357,31 @@ app.get(/^(?!\/api\/).*/, (req, res) => {
   sendIndexHtml(req, res);
 });
 
+// Global error handler (must be last). Catches synchronous throws and rejected
+// promises forwarded by Express from any route, so a single bad request can't
+// take the process down or leak a stack trace. In production the client sees a
+// generic message; the full error is logged server-side.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err && (err.status || err.statusCode);
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({ error: 'That upload is too large.' });
+  }
+  console.error('[error]', req && req.method, req && req.originalUrl, '-', err && (err.stack || err.message || err));
+  if (res.headersSent) return;
+  res.status(status && status >= 400 && status < 600 ? status : 500)
+    .json({ error: process.env.NODE_ENV === 'production' ? 'Something went wrong.' : String(err && (err.message || err)) });
+});
+
+// Last-resort safety nets: a stray rejected promise or thrown error in a
+// background callback must not crash the single-process server for everyone.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason && (reason.stack || reason));
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err && (err.stack || err));
+});
+
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   // 1) Load existing state from the cloud (Firestore) if configured, so a
@@ -3328,6 +3403,19 @@ if (require.main === module) {
       }
     })
     .then(() => {
+      // Durability alarm: in production, learner records/certificates survive a
+      // restart ONLY if the store is durable (Firestore live, or the local file
+      // on a non-ephemeral disk). If not, shout it in the logs — an ephemeral
+      // /tmp file is silently wiped on every redeploy, losing completions.
+      try {
+        const st = storeStatus();
+        if (st.durable) {
+          console.log(`[store] Durable persistence OK (backend: ${st.backend}, dir: ${st.dataDir}).`);
+        } else {
+          const banner = '='.repeat(72);
+          console.error(`\n${banner}\n[store] ⚠️  DATA IS NOT DURABLE — learner records/certificates will be\n        LOST on the next restart/redeploy. backend=${st.backend} dir=${st.dataDir}\n        Fix: set FIREBASE_SERVICE_ACCOUNT, or point DATA_DIR at the\n        persistent disk (e.g. /var/scorm/data).\n${banner}\n`);
+        }
+      } catch (e) { /* never block boot on the status check */ }
       const server = app.listen(PORT, () => console.log(`NCYSA Learn running on http://localhost:${PORT}`));
       // Large SCORM modules (hundreds of MB) upload slowly on shaky connections.
       // The default 5-minute request cap cuts them off ("Upload failed"), so give
