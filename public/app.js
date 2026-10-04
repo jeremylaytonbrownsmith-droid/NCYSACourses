@@ -206,6 +206,7 @@ function renderNav() {
     ${user ? `
       ${user.role === 'admin' ? '<a class="navlink nav-dashboard" href="#/admin">Dashboard</a><a class="navlink nav-training" href="#/staff-training">Staff Training</a>' : ''}
       ${user.role === 'editor' ? '<a class="navlink nav-dashboard" href="#/admin/courses">Course Designer</a>' : ''}
+      ${user.role === 'partner' ? '<a class="navlink nav-dashboard" href="#/admin">Dashboard</a><a class="navlink nav-courses" href="#/admin/courses">Course Designer</a>' : ''}
       <button class="bell" id="bellBtn" title="Notifications" aria-label="Notifications${me.unread ? ` (${me.unread} unread)` : ''}">${ICON_BELL}${me.unread ? `<span class="dot">${me.unread}</span>` : ''}</button>
       <span class="navlink greeting" style="cursor:default">Hi, ${esc(user.name.split(' ')[0])}</span>
       <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
@@ -2258,7 +2259,7 @@ async function viewAdmin() {
 // ---------- admin course editor ----------
 
 async function viewCourseAdmin(flash) {
-  if (!me?.user || !['admin', 'editor'].includes(me.user.role)) { location.hash = '#/staff'; return; }
+  if (!me?.user || !['admin', 'editor', 'partner'].includes(me.user.role)) { location.hash = '#/staff'; return; }
   const isAdmin = me.user.role === 'admin';
   const { courses } = await api('/api/courses');
   const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));

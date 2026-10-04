@@ -1357,10 +1357,48 @@ function requireAdmin(req, res, next) {
 
 // Course designers (collaborators) and admins can edit the course catalog.
 // Collaborators do NOT get the completion dashboard or learner records.
-const STAFF_ROLES = ['admin', 'editor'];
+// `partner` is an org-bound role (carries req.user.orgId): it reaches the same
+// editor endpoints but every read/write is scoped to its org (see reqOrgScope).
+const STAFF_ROLES = ['admin', 'editor', 'partner'];
 function requireEditor(req, res, next) {
   requireAuth(req, res, () => {
     if (!STAFF_ROLES.includes(req.user.role)) return res.status(403).json({ error: 'Course designers only' });
+    next();
+  });
+}
+
+// ---- Multi-tenant scoping -------------------------------------------------
+// The org a request is restricted to: null for a super-admin / global editor
+// (no filtering), or the partner's own orgId. Everything that reads or writes
+// org data must honor this — default-deny, so a missed spot fails closed.
+function reqOrgScope(req) {
+  return (req.user && req.user.role === 'partner') ? (req.user.orgId || '__none__') : null;
+}
+// Guard a single-course endpoint: a partner may only touch courses in its org.
+// Returns true if allowed; otherwise sends 404 (don't reveal other orgs exist).
+function courseInScope(req, res, course) {
+  const scope = reqOrgScope(req);
+  if (scope && (!course || (course.orgId || DEFAULT_ORG) !== scope)) {
+    res.status(404).json({ error: 'Course not found' });
+    return false;
+  }
+  return true;
+}
+// Admin-or-own-org dashboard access: super-admin sees all; a partner sees only
+// its org; a plain editor has no dashboard.
+function requireDashboard(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user.role === 'admin' || req.user.role === 'partner') return next();
+    return res.status(403).json({ error: 'Dashboard access only' });
+  });
+}
+// Editor endpoints that are NOT yet org-partitioned (raw SCORM package storage,
+// CDN migration, cleanup). Until package-level org tagging exists, partners are
+// blocked here outright — fail closed rather than risk exposing another org's
+// uploaded packages. Partners build native/AI courses instead.
+function requireEditorNotPartner(req, res, next) {
+  requireEditor(req, res, () => {
+    if (req.user.role === 'partner') return res.status(403).json({ error: 'Not available for partner accounts yet.' });
     next();
   });
 }
@@ -1436,6 +1474,28 @@ function seedOwner() {
     save();
   } else if (existing.role !== 'admin' || existing.passHash !== passHash) {
     existing.role = 'admin'; existing.salt = salt; existing.passHash = passHash;
+    save();
+  }
+}
+
+// Seed a partner (org-bound) admin account for OMG — can build/manage ONLY its
+// org's courses and see ONLY its own completion records (see reqOrgScope). Set
+// OMG_PARTNER_EMAIL / OMG_PARTNER_PASSWORD in the environment for production.
+function seedPartner() {
+  const db = load();
+  const email = (process.env.OMG_PARTNER_EMAIL || 'partner@omgtsys.com').toLowerCase();
+  const password = seedPassword('OMG_PARTNER_PASSWORD', 'omg-partner-2026');
+  const existing = db.users.find((u) => u.email.toLowerCase() === email);
+  const salt = existing?.salt || crypto.randomBytes(8).toString('hex');
+  const passHash = hashPassword(password, salt);
+  if (!existing) {
+    db.users.push({
+      id: id('usr'), name: 'OMG Administrator', email,
+      role: 'partner', orgId: 'omg', salt, passHash, createdAt: new Date().toISOString(),
+    });
+    save();
+  } else if (existing.role !== 'partner' || existing.orgId !== 'omg' || existing.passHash !== passHash) {
+    existing.role = 'partner'; existing.orgId = 'omg'; existing.salt = salt; existing.passHash = passHash;
     save();
   }
 }
@@ -1571,7 +1631,7 @@ app.get('/api/me', (req, res) => {
   const unread = db.notifications.filter(
     (n) => n.audience === 'user' && n.userId === user.id && !n.read
   ).length;
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role }, unread, staffAccess });
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, orgId: user.orgId || null }, unread, staffAccess });
 });
 
 // Unlock the staff area with the shared access code (sets a signed cookie).
@@ -1592,12 +1652,15 @@ app.get('/api/courses', (req, res) => {
   // courses. With no org param, all orgs are returned (the admin course designer
   // relies on this). A course with no orgId counts as the default org.
   const org = req.query.org ? String(req.query.org) : null;
+  // A partner only ever sees its own org's courses, even in the staff designer.
+  const partnerScope = (user && user.role === 'partner') ? (user.orgId || '__none__') : null;
   const db = load();
   res.json({
     // Staff-audience trainings are hidden from everyone who hasn't unlocked the
     // staff area with the access code (admins are always authorized).
     courses: allCourses().filter((c) => isStaff || isPublished(c))
       .filter((c) => c.audience !== 'staff' || staffOK)
+      .filter((c) => !partnerScope || orgOf(c) === partnerScope)
       .filter((c) => !org || orgOf(c) === org)
       .map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
@@ -2054,10 +2117,15 @@ app.get('/api/certificate/:certId', (req, res) => {
 
 // ---------- NCYSA admin ----------
 
-app.get('/api/admin/overview', requireAdmin, (req, res) => {
+app.get('/api/admin/overview', requireDashboard, (req, res) => {
   const db = load();
+  // Partner scope: restrict every record to courses in the partner's org.
+  const scope = reqOrgScope(req);
+  const courseOrg = {}; for (const c of allCourses()) courseOrg[c.id] = (c.orgId || DEFAULT_ORG);
+  const inScope = (courseId) => !scope || courseOrg[courseId] === scope;
+  const scopedEnrollments = db.enrollments.filter((e) => inScope(e.courseId));
   res.json({
-    completions: db.enrollments
+    completions: scopedEnrollments
       .filter((e) => e.completedAt)
       .map((e) => {
         const u = db.users.find((u) => u.id === e.userId);
@@ -2075,7 +2143,7 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
     // Every enrollment with its module progress — so the dashboard can show and
     // export in-progress referees (X of N modules), not just finished ones.
     // This is what the Arbiter hand-off is built from.
-    enrollments: db.enrollments.map((e) => {
+    enrollments: scopedEnrollments.map((e) => {
       const u = db.users.find((x) => x.id === e.userId);
       const course = allCourses().find((c) => c.id === e.courseId);
       const total = course ? course.lessons.length : 0;
@@ -2090,16 +2158,18 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
         startedAt: e.startedAt || null,
       };
     }).sort((a, b) => String(b.completedAt || b.startedAt || '').localeCompare(String(a.completedAt || a.startedAt || ''))),
-    ncysaNotifications: db.notifications
+    // NC-internal notifications/outbox are hidden from a partner (they may name
+    // other orgs' learners); a partner sees only its own org's webhook/upload log.
+    ncysaNotifications: scope ? [] : db.notifications
       .filter((n) => n.audience === 'ncysa')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    outbox: db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    partnerWebhooks: (db.webhookLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
-    partnerUploads: (db.uploadLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
-    learnerCount: db.users.filter((u) => u.role === 'learner').length,
-    // Every course (incl. unpublished) so the dashboard can group the course
-    // filter by organization and flag drafts.
-    courses: allCourses().map((c) => ({
+    outbox: scope ? [] : db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    partnerWebhooks: (db.webhookLog || []).filter((w) => !scope || (w.org && String(w.org).toLowerCase() === scope)).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
+    partnerUploads: (db.uploadLog || []).filter((u) => !scope || (u.org && String(u.org).toLowerCase() === scope)).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
+    learnerCount: scope ? new Set(scopedEnrollments.map((e) => e.userId)).size : db.users.filter((u) => u.role === 'learner').length,
+    // Courses the requester may manage (all, or only the partner's org), so the
+    // dashboard can group the course filter by organization and flag drafts.
+    courses: allCourses().filter((c) => !scope || (c.orgId || DEFAULT_ORG) === scope).map((c) => ({
       id: c.id, title: c.title,
       orgId: c.orgId || DEFAULT_ORG,
       audience: c.audience || 'everyone',
@@ -2113,11 +2183,17 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
 // notifications for it. If the learner is a plain (passwordless) learner with no
 // other enrollments left, the account is removed too. Staff/admin accounts are
 // NEVER deleted (only their enrollment is), so the owner and staff logins survive.
-app.delete('/api/admin/enrollments', requireAdmin, (req, res) => {
+app.delete('/api/admin/enrollments', requireDashboard, (req, res) => {
   const userId = String(req.body?.userId || '');
   const courseId = String(req.body?.courseId || '');
   if (!userId || !courseId) return res.status(400).json({ error: 'userId and courseId are required.' });
   const db = load();
+  // A partner may only clear records for its own org's courses.
+  const scope = reqOrgScope(req);
+  if (scope) {
+    const course = allCourses().find((c) => c.id === courseId);
+    if (!course || (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  }
   const gone = db.enrollments.filter((e) => e.userId === userId && e.courseId === courseId);
   if (!gone.length) return res.status(404).json({ error: 'No matching record.' });
   const certIds = gone.map((e) => e.certId).filter(Boolean);
@@ -2246,9 +2322,9 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     description: String(b.description || ''),
     badge: String(b.badge || 'Course'),
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
-    // Organization the course belongs to (which portal shows it). Unknown/blank
-    // → the default org, so it behaves exactly as NC courses always have.
-    orgId: ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG,
+    // Organization the course belongs to (which portal shows it). A partner can
+    // only ever create in its own org; others use the requested org (or default).
+    orgId: reqOrgScope(req) || (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG),
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: String(b.completionRedirectUrl || ''),
@@ -2322,8 +2398,9 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   // Branding: a one-click preset chooses the identity. Fall back to the raw orgId
   // (back-compat) or the default org when no brand/org is given.
   const preset = BRAND_PRESETS[String(b.brand || '').toLowerCase()];
-  const orgId = preset ? preset.orgId
-    : (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG);
+  // A partner's AI course is always created in its own org, regardless of preset.
+  const orgId = reqOrgScope(req) || (preset ? preset.orgId
+    : (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG));
   const course = {
     id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
     title,
@@ -2356,6 +2433,7 @@ function exportCourseHandler(req, res) {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   let format = String(req.query.format || req.params.format || 'scorm12').toLowerCase();
   if (!EXPORT_FORMATS[format]) format = 'scorm12';
   // Read a local asset (slide image / inline <img>) for bundling, safely scoped
@@ -2384,6 +2462,7 @@ app.post('/api/admin/integration/test-link', requireEditor, (req, res) => {
   const b = req.body || {};
   const course = allCourses().find((c) => c.id === b.courseId);
   if (!course) return res.status(404).json({ error: 'Pick a valid course.' });
+  if (!courseInScope(req, res, course)) return;
   const rand = crypto.randomBytes(3).toString('hex');
   // Demo links are for hand-off/testing, so default to a long life (7 days) and
   // allow up to 30, instead of the old 1-hour expiry that kept links dying
@@ -2410,6 +2489,7 @@ app.post('/api/admin/courses/:courseId/publish', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   course.published = !!(req.body && req.body.published);
   save();
   res.json({ id: course.id, published: course.published });
@@ -2422,6 +2502,7 @@ app.post('/api/admin/courses/:courseId/move', requireEditor, (req, res) => {
   const db = load();
   const idx = db.courses.findIndex((c) => c.id === req.params.courseId);
   if (idx < 0) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, db.courses[idx])) return;
   const org = orgOf(db.courses[idx]);
   const dir = (req.body && req.body.dir) === 'up' ? -1 : 1;
   let j = idx + dir;
@@ -2437,6 +2518,7 @@ app.post('/api/admin/courses/:courseId/lessons/:lessonId/move', requireEditor, (
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const i = course.lessons.findIndex((l) => l.id === req.params.lessonId);
   if (i < 0) return res.status(404).json({ error: 'Lesson not found' });
   const j = i + ((req.body && req.body.dir) === 'up' ? -1 : 1);
@@ -2451,6 +2533,7 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const b = req.body || {};
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions',
     'coBrandName', 'coLogoUrl', 'certOrg', 'certTitle', 'certPrefix']) if (b[f] != null) course[f] = String(b[f]);
@@ -2464,8 +2547,9 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
     else if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) course[f] = v;
   }
   // Move a course between organizations (e.g. NC → OMG). Only a known org is
-  // accepted; an unknown value leaves the course where it is.
-  if (b.orgId != null) { const o = String(b.orgId).toLowerCase(); if (ORGS[o]) course.orgId = o; }
+  // accepted; an unknown value leaves the course where it is. Partners cannot move
+  // a course out of their own org (reqOrgScope is non-null only for partners).
+  if (b.orgId != null && reqOrgScope(req) === null) { const o = String(b.orgId).toLowerCase(); if (ORGS[o]) course.orgId = o; }
   if (b.publicVideoGate != null) course.publicVideoGate = !!b.publicVideoGate;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
   save();
@@ -2476,6 +2560,7 @@ app.delete('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const db = load();
   const i = db.courses.findIndex((c) => c.id === req.params.courseId);
   if (i < 0) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, db.courses[i])) return;
   db.courses.splice(i, 1);
   save();
   res.json({ ok: true });
@@ -2490,6 +2575,7 @@ app.post('/api/admin/courses/:courseId/slug', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const newId = slugify(req.body && req.body.slug);
   if (!newId) return res.status(400).json({ error: 'Enter a web address (letters, numbers, dashes).' });
   const oldId = course.id;
@@ -2506,6 +2592,7 @@ app.post('/api/admin/courses/:courseId/lessons', requireEditor, (req, res) => {
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const lesson = buildLesson(req.body || {});
   course.lessons.push(lesson);
   save();
@@ -2516,6 +2603,7 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const idx = course.lessons.findIndex((l) => l.id === req.params.lessonId);
   if (idx < 0) return res.status(404).json({ error: 'Lesson not found' });
   const existing = course.lessons[idx] || {};
@@ -2538,6 +2626,7 @@ app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req
   const db = load();
   const course = db.courses.find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   const i = course.lessons.findIndex((l) => l.id === req.params.lessonId);
   if (i < 0) return res.status(404).json({ error: 'Lesson not found' });
   course.lessons.splice(i, 1);
@@ -2733,7 +2822,7 @@ function sendScormUploadError(res, e) {
   res.status(e.message === 'UPLOAD_TOO_LARGE' ? 413 : 400).json({ error: msg });
 }
 
-app.post('/api/admin/scorm', requireEditor, async (req, res) => {
+app.post('/api/admin/scorm', requireEditorNotPartner, async (req, res) => {
   try { res.json(await ingestScormUpload(req, req.query.name)); }
   catch (e) { sendScormUploadError(res, e); }
 });
@@ -2884,7 +2973,7 @@ function storageByOrg(packages) {
   }
   return { byOrg: Object.values(orgs).sort((a, b) => b.bytes - a.bytes), sharedBytes, sharedCount };
 }
-app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
+app.get('/api/admin/scorm/storage', requireEditorNotPartner, (req, res) => {
   const packages = listScormPackages();
   let freeBytes = null, totalBytes = null;
   try { const s = fs.statfsSync(SCORM_DIR); freeBytes = s.bfree * s.bsize; totalBytes = s.blocks * s.bsize; } catch { /* older node / unsupported */ }
@@ -2908,7 +2997,7 @@ app.get('/api/admin/scorm/storage', requireEditor, (req, res) => {
 // Move the videos in already-uploaded packages to the Bunny CDN — so existing
 // modules get CDN offload without re-uploading. Only runs when Bunny is fully
 // configured; skips packages already on the CDN.
-app.post('/api/admin/scorm/migrate-cdn', requireEditor, async (req, res) => {
+app.post('/api/admin/scorm/migrate-cdn', requireEditorNotPartner, async (req, res) => {
   if (!bunnyEnabled()) return res.status(400).json({ error: 'Bunny CDN is not configured yet — set the four BUNNY_* variables in Render, then try again.' });
   let names = [];
   try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); } catch { /* none */ }
@@ -2952,7 +3041,7 @@ function manifestFromDir(dir) {
   );
   return { launchFile, title };
 }
-app.get('/api/admin/scorm/:pkg/launch', requireEditor, (req, res) => {
+app.get('/api/admin/scorm/:pkg/launch', requireEditorNotPartner, (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
@@ -2961,7 +3050,7 @@ app.get('/api/admin/scorm/:pkg/launch', requireEditor, (req, res) => {
   res.json({ packageId: pkg, launchFile: m.launchFile, title: m.title });
 });
 
-app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
+app.get('/api/admin/scorm/:pkg/files', requireEditorNotPartner, (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
@@ -3071,7 +3160,7 @@ app.get('/api/admin/scorm/:pkg/files', requireEditor, (req, res) => {
 // player, by original number, with its title and whether it's an image or video.
 // Returns slideshow:false for a package that isn't our player (no parseable
 // manifest.js) so the UI can explain hiding isn't available for it.
-app.get('/api/admin/scorm/:pkg/slides', requireEditor, async (req, res) => {
+app.get('/api/admin/scorm/:pkg/slides', requireEditorNotPartner, async (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
@@ -3144,7 +3233,7 @@ async function cdnVideoWiring(pkg, base) {
         detail: 'The player will show a black screen for these — they’re offloaded but the CDN isn’t delivering them. Check the pull zone and the filenames below.' };
   return { cdn: true, slideshow: true, count: videos.length, brokenCount: brokenVisible.length, videos, status };
 }
-app.get('/api/admin/scorm/:pkg/wiring', requireEditor, async (req, res) => {
+app.get('/api/admin/scorm/:pkg/wiring', requireEditorNotPartner, async (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const base = path.resolve(SCORM_DIR, pkg);
   if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return res.status(404).json({ error: 'Package not found on disk.' });
@@ -3153,7 +3242,7 @@ app.get('/api/admin/scorm/:pkg/wiring', requireEditor, async (req, res) => {
 
 // Serve a package file straight from disk with NO trimmed-deck remap, for the
 // Manage-slides thumbnails — admins must always see the real, original slides.
-app.get('/api/admin/scorm/:pkg/rawmedia/*', requireEditor, (req, res) => {
+app.get('/api/admin/scorm/:pkg/rawmedia/*', requireEditorNotPartner, (req, res) => {
   const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
   const rel = String(req.params[0] || '').replace(/\\/g, '/').replace(/^\/+/, '');
   const base = path.resolve(SCORM_DIR, pkg);
@@ -3162,7 +3251,7 @@ app.get('/api/admin/scorm/:pkg/rawmedia/*', requireEditor, (req, res) => {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return res.status(404).end();
   res.sendFile(file);
 });
-app.post('/api/admin/scorm/cleanup', requireEditor, (req, res) => {
+app.post('/api/admin/scorm/cleanup', requireEditorNotPartner, (req, res) => {
   const mode = (req.body && req.body.mode) === 'all' ? 'all' : 'orphans';
   const referenced = referencedPackageIds();
   const packages = listScormPackages();
@@ -3179,6 +3268,7 @@ app.post('/api/admin/scorm/cleanup', requireEditor, (req, res) => {
 app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
   res.json({ course });
 });
 
@@ -3200,7 +3290,7 @@ if (require.main === module) {
       // failing migration can never stop the server from listening — the site
       // stays up (degraded at worst) instead of going fully down on boot.
       try {
-        seedCourses(); seedAdmin(); seedEditor(); seedOwner(); removeRetiredCourses();
+        seedCourses(); seedAdmin(); seedEditor(); seedOwner(); seedPartner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
         fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder();
       } catch (e) {

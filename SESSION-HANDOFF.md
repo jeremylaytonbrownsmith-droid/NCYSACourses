@@ -186,10 +186,21 @@ Vimeo shows **"Because of its privacy settings, this video cannot be played here
   Captivate internal-server for state lessons, so GMR adoption there is a **slow, gradual
   year-long burn**. The **near-term priority is the OMG/Dick deal (Zite-based), needed sooner.**
 
+## Org-scoped partner admin (Phase 1 shipped)
+- NEW **`partner`** role (carries `user.orgId`), seeded OMG account `partner@omgtsys.com` /
+  `OMG_PARTNER_PASSWORD` (default `omg-partner-2026`). A partner sees/manages ONLY its org's
+  courses and its own completion records; every per-course admin endpoint is guarded by
+  `courseInScope` (fail-closed 404), `/api/courses` + `/api/admin/overview` are org-filtered,
+  create/AI-build force the partner's org, and raw SCORM package endpoints are blocked for
+  partners (`requireEditorNotPartner`). `admin` (Jeremy) + `editor` (Colin) stay GLOBAL/unchanged.
+  Helpers: `reqOrgScope(req)`, `courseInScope`, `requireDashboard`. Proven by
+  `tests/partner-isolation.spec.js`. Plan + remaining phases: `PARTNER-ADMIN-SCOPE.md`.
+  **Safe to give Dick/OMG a `partner` login now** (not a global admin).
+
 ## Hard rules / gotchas
-- **Admin is a GLOBAL role, not org-scoped.** `/api/admin/overview` returns EVERY org's learner
-  data, emails, outbox. **Giving a partner (Michael/Dick) an admin login = a data breach across
-  all clients.** Do not hand out admin access; tie it to signing + (future) org-scoped admin.
+- **`admin` and `editor` are GLOBAL roles** (Jeremy/Colin) — they see EVERY org. Only the new
+  **`partner`** role is org-scoped. NEVER give a partner an `admin`/`editor` login — that's the
+  cross-client data breach. Give them the org-bound `partner` role (above).
 - Render **manual deploy** required for changes to go live.
 - Keep responses to Jeremy **short/concise**; he's often on mobile. He values honesty, double-
   checking against the actual code (not memory), and not over-claiming.

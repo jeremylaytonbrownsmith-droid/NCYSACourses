@@ -1,5 +1,16 @@
 # Org-Scoped Partner Admin — Scope & Plan
 
+> **STATUS: Phase 1 DONE** (backend isolation + security tests). A `partner` role
+> (seeded OMG account `partner@omgtsys.com` / `OMG_PARTNER_PASSWORD`, default
+> `omg-partner-2026`, env-overridable) sees/manages ONLY its org's courses + its own
+> completion records; blocked (fail-closed) from other orgs' courses and from raw SCORM
+> package management. Super-admin unchanged. Proven by `tests/partner-isolation.spec.js`
+> (6 tests). **Still to do:** Phase 2 (lock the partner's designer/AI-builder UI to its
+> org + scoped dashboard polish) and Phase 3 (self-serve API key / launch links / export)
+> and package-level SCORM org-tagging (currently partners are blocked from SCORM, not
+> scoped).
+
+
 **Why (from the OMG/OMS call):** Dick wants to run his own side — build courses, see his
 completions, manage his learners — and it must plug into his assignment pipeline (Zite).
 Today that's impossible safely: **admin is a GLOBAL role.** Any admin/editor login sees
