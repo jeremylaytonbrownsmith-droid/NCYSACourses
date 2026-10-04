@@ -167,12 +167,24 @@ Vimeo shows **"Because of its privacy settings, this video cannot be played here
 - Offered-not-accepted: `OMG_NOTIFY_EMAIL` env var; web `/proposal` header polish; dashboard
   org grouping on records table; Tier 2 authoring.
 
-## People / business context
-- **Michael Day** (mnday@swbell.net / mnday@…) — OMG technical/testing contact.
-- **Dick Triche** (Richard Triche, officialsmgtgroup.com) — OMG commercial decision-maker.
+## People / business / entity map (keep these straight)
+- **NCYSA** (NC Youth Soccer, coaches) and **NCSRA / NCS** (NC referees) are **Jeremy's own
+  North Carolina entities.** They must stay **completely separate** from the partner side —
+  separate data, branding, billing — and are carved OUT of the OMG agreement (per the proposal).
+  In the app this is enforced by `orgId` (default org `ncysa`); do not leak NC data into the
+  partner portal or vice-versa.
+- **OMG and OMS are the SAME organization** (OMG = Officials Management Group, OMS = Officials
+  Management Systems). **Dick Triche** (Richard Triche, officialsmgtgroup.com) runs both and is
+  the **commercial** decision-maker; **Michael Day** (mnday@swbell.net) is the **technical**
+  contact for both. → **One partner org** in GMR (`orgId: 'omg'`), branded OMG. Do NOT create a
+  second org for OMS — it's the same customer. (Earlier notes mislabeled Michael as "OMG"; he's
+  the technical side of the single OMG/OMS org.)
 - OMG uses **Zite.com** (an AI app builder) on their side; GMR integrates via signed launch
   link in + completion webhook out (already built in `lib/integration.js`; partner upload API
   at `POST /api/v1/scorm`).
+- **Rollout reality (Oct 2026):** NCSRA/national stays on the US Soccer Learning Center LMS +
+  Captivate internal-server for state lessons, so GMR adoption there is a **slow, gradual
+  year-long burn**. The **near-term priority is the OMG/Dick deal (Zite-based), needed sooner.**
 
 ## Hard rules / gotchas
 - **Admin is a GLOBAL role, not org-scoped.** `/api/admin/overview` returns EVERY org's learner
