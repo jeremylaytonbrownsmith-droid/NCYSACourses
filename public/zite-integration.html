@@ -93,7 +93,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:v
 
   <div class="top">
     <div class="mark">Get<b>Match</b>Ready</div>
-    <div class="tag">Integration one-pager · for Zite / OMG</div>
+    <div class="tag">Integration one-pager · for your technical team</div>
   </div>
 
   <div class="dlbar"><a class="dlbtn" href="/downloads/GetMatchReady-Zite-Integration.pdf" download><span class="ic">↓</span> Download PDF</a></div>
@@ -117,7 +117,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:v
       <li>GetMatchReady fires a <b>signed completion webhook</b> back to your endpoint.</li>
       <li>Zite marks the requirement done; assigners and event managers see who's cleared — automatically.</li>
     </ol>
-    <div class="base"><b>Base URL</b> <code id="base">https://YOUR-GMR-HOST</code> <span class="note" style="margin:0">Jeremy provides the exact OMG base URL and your two credentials (below). Everything else is in this doc.</span></div>
+    <div class="base"><b>Base URL</b> <code id="base">https://YOUR-GMR-HOST</code> <span class="note" style="margin:0">The same contract serves every organization — only the <code>org</code> value and credentials change per org. Jeremy provides the base URL and the two credentials (below) for each org you connect (e.g. OMG/OMS, NCSRA).</span></div>
   </section>
 
   <section>
@@ -232,7 +232,7 @@ app.post(<span class="s">'/gmr/webhook'</span>, express.raw({ type: <span class=
   </section>
 
   <footer>
-    <p>GetMatchReady × Zite integration reference. Prepared by Jeremy Layton Brown Smith, GetMatchReady. Confidential — intended for Officials Management Group / Officials Management Systems and their technical team. The shared secret and API key are issued separately and never appear here.</p>
+    <p>GetMatchReady × Zite integration reference. Prepared by Jeremy Layton Brown Smith, GetMatchReady. One contract for every organization you connect (OMG/OMS, NCSRA, and beyond) — only the <code>org</code> value and credentials change. Confidential, for the recipient's technical team. The shared secret and API key are issued separately and never appear here.</p>
   </footer>
 
 </div>
