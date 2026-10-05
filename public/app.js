@@ -2077,9 +2077,83 @@ function orgFilterOptions(d) {
   return names.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
 }
 
+// Human duration from milliseconds (min / h / d), compact.
+function fmtMs(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60), rm = m % 60;
+  if (h < 24) return rm ? `${h}h ${rm}m` : `${h}h`;
+  const d = Math.floor(h / 24), rh = h % 24;
+  return rh ? `${d}d ${rh}h` : `${d}d`;
+}
+// Derive dashboard analytics from the enrollment rows (no extra server call).
+function computeAnalytics(rows) {
+  const now = Date.now(), DAY = 86400000;
+  const total = rows.length;
+  const done = rows.filter((r) => r.completedAt);
+  const completed = done.length;
+  const rate = total ? Math.round((completed / total) * 100) : 0;
+  const durs = done.map((r) => r.startedAt ? (new Date(r.completedAt) - new Date(r.startedAt)) : null).filter((x) => x != null && x >= 0);
+  const avgMs = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : null;
+  const completed30 = done.filter((r) => now - new Date(r.completedAt) <= 30 * DAY).length;
+  const active30 = new Set(rows.filter((r) => { const t = r.completedAt || r.startedAt; return t && now - new Date(t) <= 30 * DAY; }).map((r) => r.email || r.userId)).size;
+  const months = [], base = new Date(); base.setDate(1);
+  for (let i = 5; i >= 0; i--) { const dt = new Date(base.getFullYear(), base.getMonth() - i, 1); months.push({ key: `${dt.getFullYear()}-${dt.getMonth()}`, label: dt.toLocaleString('en-US', { month: 'short' }), value: 0 }); }
+  const mIdx = {}; months.forEach((m, i) => { mIdx[m.key] = i; });
+  done.forEach((r) => { const dt = new Date(r.completedAt); const k = `${dt.getFullYear()}-${dt.getMonth()}`; if (k in mIdx) months[mIdx[k]].value++; });
+  const byCourse = {};
+  rows.forEach((r) => { const k = r.course || '—'; const v = (byCourse[k] = byCourse[k] || { enrolled: 0, completed: 0, durs: [] }); v.enrolled++; if (r.completedAt) { v.completed++; if (r.startedAt) { const ms = new Date(r.completedAt) - new Date(r.startedAt); if (ms >= 0) v.durs.push(ms); } } });
+  const courses = Object.entries(byCourse).map(([name, v]) => ({ name, enrolled: v.enrolled, completed: v.completed, rate: v.enrolled ? Math.round(v.completed / v.enrolled * 100) : 0, avgMs: v.durs.length ? v.durs.reduce((a, b) => a + b, 0) / v.durs.length : null })).sort((a, b) => b.enrolled - a.enrolled);
+  return { total, completed, rate, avgMs, completed30, active30, months, courses };
+}
+// Inline SVG bar chart (no library) for monthly completions.
+function miniBarChart(series) {
+  const max = Math.max(1, ...series.map((s) => s.value));
+  const bw = 26, gap = 22, h = 150, baseY = h - 26, w = series.length * (bw + gap) + 10;
+  const bars = series.map((s, i) => {
+    const x = i * (bw + gap) + 12;
+    const bh = Math.round((s.value / max) * (baseY - 16));
+    const y = baseY - bh;
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(bh, 2)}" rx="5" fill="url(#anGrad)"></rect>`
+      + `<text x="${x + bw / 2}" y="${baseY + 16}" text-anchor="middle" font-size="11" fill="var(--ink-soft)">${esc(s.label)}</text>`
+      + (s.value ? `<text x="${x + bw / 2}" y="${y - 5}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${s.value}</text>` : '');
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="150" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Completions by month">`
+    + `<defs><linearGradient id="anGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>${bars}</svg>`;
+}
+function rateBar(pct) {
+  const color = pct >= 75 ? '#109e73' : pct >= 40 ? '#e9a626' : '#9aa0b4';
+  return `<span class="rate-wrap"><span class="rate-track"><span style="width:${pct}%;background:${color}"></span></span><span class="rate-pct">${pct}%</span></span>`;
+}
+function analyticsCard(an) {
+  return `<div class="admin-card">
+    <h2>At a glance</h2>
+    <div class="an-kpis">
+      <div class="an-kpi"><div class="k">${an.rate}%</div><div class="l">Completion rate</div></div>
+      <div class="an-kpi"><div class="k">${an.avgMs != null ? esc(fmtMs(an.avgMs)) : '—'}</div><div class="l">Avg time to complete</div></div>
+      <div class="an-kpi"><div class="k">${an.completed30}</div><div class="l">Completed · last 30 days</div></div>
+      <div class="an-kpi"><div class="k">${an.active30}</div><div class="l">Active learners · 30 days</div></div>
+    </div>
+    <h3 class="an-sub">Completions by month</h3>
+    ${miniBarChart(an.months)}
+    <h3 class="an-sub">By course</h3>
+    <div class="table-scroll"><table class="admin-table an-courses">
+      <tr><th>Course</th><th>Enrolled</th><th>Completed</th><th>Completion rate</th><th>Avg time</th></tr>
+      ${an.courses.length ? an.courses.map((c) => `<tr>
+        <td data-label="Course">${esc(c.name)}</td>
+        <td data-label="Enrolled">${c.enrolled}</td>
+        <td data-label="Completed">${c.completed}</td>
+        <td data-label="Completion rate">${rateBar(c.rate)}</td>
+        <td data-label="Avg time">${c.avgMs != null ? esc(fmtMs(c.avgMs)) : '—'}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="empty">No enrollments yet.</td></tr>'}
+    </table></div>
+  </div>`;
+}
+
 async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
+  const analytics = computeAnalytics(d.enrollments || d.completions || []);
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">
@@ -2095,6 +2169,7 @@ async function viewAdmin() {
         <div class="stat-tile prog"><div class="st-num">${(d.enrollments || []).filter((e) => !e.completedAt).length}</div><div class="st-lbl">In progress</div></div>
       </div>
       <div class="admin-grid">
+        ${analyticsCard(analytics)}
         <div class="admin-card">
           <div class="card-head">
             <h2>Progress &amp; completions (records)</h2>

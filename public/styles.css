@@ -1046,3 +1046,15 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .certificate .cert-verify-txt { font-size: .8rem; color: var(--ink-soft); text-align: left; line-height: 1.5; }
 .certificate .cert-verify-txt a { font-weight: 700; word-break: break-all; }
 @media print { .certificate .cert-verify { break-inside: avoid; } }
+
+/* ---------- dashboard "At a glance" analytics ---------- */
+.an-kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 8px; }
+.an-kpi { flex: 1; min-width: 130px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; }
+.an-kpi .k { font-size: 1.5rem; font-weight: 800; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+.an-kpi .l { margin-top: 5px; font-size: .72rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.an-sub { font-size: .85rem; color: var(--ink-soft); margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+.an-courses td, .an-courses th { font-size: .88rem; }
+.rate-wrap { display: inline-flex; align-items: center; gap: 8px; }
+.rate-track { display: inline-block; width: 90px; height: 7px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.rate-track > span { display: block; height: 100%; border-radius: 99px; }
+.rate-pct { font-variant-numeric: tabular-nums; font-size: .82rem; color: var(--ink-soft); min-width: 34px; }
