@@ -147,6 +147,15 @@ function applyOrgChrome() {
     document.title = `${activeBrand.name} — Education & Training`;
     return;
   }
+  // The admin dashboard is the platform view for global staff — wear the
+  // GetMatchReady mark in the tab (not a single org's logo).
+  const onAdminArea = /^#\/(admin|staff-training)/.test(location.hash || '');
+  const globalStaff = me?.user && (me.user.role === 'admin' || me.user.role === 'editor');
+  if (onAdminArea && globalStaff && !onProductDomain) {
+    if (iconEl) iconEl.href = '/media/getmatchready-mark.svg';
+    document.title = 'GetMatchReady — Dashboard';
+    return;
+  }
   if (onProductDomain) {
     // The GetMatchReady product front door — the neutral product mark, never an
     // org logo (and never NCYSA's).
@@ -183,16 +192,32 @@ let navMinimal = false;
 
 function renderNav() {
   const user = me?.user;
-  const brandLogo = activeBrand
+  let brandLogo = activeBrand
     ? `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`
     : logoImg('brandmark');
-  const brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
+  let brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
+  let brandSub = 'Education &amp; Training Platform';
   // In a non-NCYSA organization (e.g. OMG), the top bar shows only that org — no
   // links into NCYSA's portals — and the logo returns to the org's own portal.
   const orgCtx = (activeBrand && activeBrand.orgId && activeBrand.orgId !== DEFAULT_ORG) ? activeBrand.orgId : null;
+  // On the admin DASHBOARD area, for the global staff login (Jeremy/Colin, not a
+  // partner), show the platform lockup: GetMatchReady + the two NC orgs it serves
+  // (NCYSA + NCSRA). Learner portals and the OMG partner side are untouched.
+  const onAdminArea = /^#\/(admin|staff-training)/.test(location.hash || '');
+  const globalStaff = user && (user.role === 'admin' || user.role === 'editor');
+  if (onAdminArea && globalStaff && !orgCtx && !PRODUCT_DOMAINS.has(location.hostname)) {
+    brandLogo = '<span class="brandmarks">'
+      + '<img src="/media/getmatchready-mark.svg" alt="GetMatchReady" />'
+      + '<span class="bdiv"></span>'
+      + '<img src="/media/ncysa-logo.png" alt="NCYSA" />'
+      + '<img src="/media/ncsra-logo.png" alt="NCSRA" />'
+      + '</span>';
+    brandName = 'GetMatchReady';
+    brandSub = 'NCYSA · NCSRA · Education &amp; Training';
+  }
   const logoHref = orgCtx ? `#/org/${orgCtx}/referees` : '#/';
   if (navMinimal) {
-    topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span><span class="brandname">${brandName}</span><span class="sub">Education &amp; Training Platform</span></span></span>`;
+    topnav.innerHTML = `<span class="logo" style="cursor:default">${brandLogo}<span><span class="brandname">${brandName}</span><span class="sub">${brandSub}</span></span></span>`;
     return;
   }
   // The links + auth controls live in .navmenu. On desktop it's `display:contents`
@@ -217,7 +242,7 @@ function renderNav() {
   topnav.innerHTML = `
     <a class="logo" href="${logoHref}">
       ${brandLogo}
-      <span><span class="brandname">${brandName}</span><span class="sub">Education &amp; Training Platform</span></span>
+      <span><span class="brandname">${brandName}</span><span class="sub">${brandSub}</span></span>
     </a>
     <span class="spacer"></span>
     <button class="navtoggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="navMenu">
@@ -2046,9 +2071,11 @@ async function viewAdmin() {
           <a class="btn btn-primary" href="#/admin/courses">Manage courses</a>
         </div>
       </div>
-      <p class="lead" style="color:var(--ink-soft)">${d.learnerCount} registered learner${d.learnerCount === 1 ? '' : 's'} ·
-        ${(d.enrollments || []).filter((e) => e.completedAt).length} completed ·
-        ${(d.enrollments || []).filter((e) => !e.completedAt).length} in progress</p>
+      <div class="stat-tiles">
+        <div class="stat-tile"><div class="st-num">${d.learnerCount}</div><div class="st-lbl">Registered learner${d.learnerCount === 1 ? '' : 's'}</div></div>
+        <div class="stat-tile ok"><div class="st-num">${(d.enrollments || []).filter((e) => e.completedAt).length}</div><div class="st-lbl">Completed</div></div>
+        <div class="stat-tile prog"><div class="st-num">${(d.enrollments || []).filter((e) => !e.completedAt).length}</div><div class="st-lbl">In progress</div></div>
+      </div>
       <div class="admin-grid">
         <div class="admin-card">
           <div class="card-head">
@@ -2156,7 +2183,14 @@ async function viewAdmin() {
       return true;
     });
   }
-  const progOf = (c) => (c.totalModules ? `${c.modulesComplete}/${c.totalModules}` : (c.completedAt ? '✓' : '—'));
+  const progOf = (c) => {
+    if (c.totalModules) {
+      const pct = Math.max(0, Math.min(100, Math.round((c.modulesComplete / c.totalModules) * 100)));
+      return `<span class="pbar" title="${c.modulesComplete}/${c.totalModules}"><span style="width:${pct}%"></span></span><span class="pbar-lbl">${c.modulesComplete}/${c.totalModules}</span>`;
+    }
+    return c.completedAt ? '✓' : '—';
+  };
+  const statusCell = (c) => c.completedAt ? '<span class="pill-done">✓ Complete</span>' : '<span class="pill-prog">In progress</span>';
   // How long the learner took, start of enrollment → completion. Wall-clock, so
   // it includes any breaks between sittings. Only shown once a course is done.
   const fmtDuration = (startIso, endIso) => {
@@ -2178,7 +2212,7 @@ async function viewAdmin() {
         ${list.map((c) => `<tr>
           <td data-label="Learner">${esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
-          <td data-label="Status">${c.completedAt ? '<span class="pill-done">✓ Complete</span>' : 'In progress'}</td>
+          <td data-label="Status">${statusCell(c)}</td>
           <td data-label="Time to complete">${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
           <td data-label="Completed">${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
           <td data-label="Certificate">${esc(c.certId || '—')}</td>
