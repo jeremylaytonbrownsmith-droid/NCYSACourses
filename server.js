@@ -1439,10 +1439,14 @@ function isHttps(req) {
 function cookieFlags(req) {
   return `HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000${isHttps(req) ? '; Secure' : ''}`;
 }
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — matches the cookie Max-Age
 function setSession(req, res, userId) {
   const db = load();
   const token = crypto.randomBytes(24).toString('hex');
-  db.sessions[token] = userId;
+  // Store an expiry alongside the user so a captured token can't live forever
+  // server-side (the cookie Max-Age is only client-side). Backward compatible:
+  // currentUser accepts both the new {userId,exp} shape and the old bare string.
+  db.sessions[token] = { userId, exp: Date.now() + SESSION_TTL_MS };
   save();
   res.setHeader('Set-Cookie', `session=${token}; ${cookieFlags(req)}`);
 }
@@ -1452,7 +1456,14 @@ function currentUser(req) {
   const m = cookie.match(/(?:^|;\s*)session=([a-f0-9]+)/);
   if (!m) return null;
   const db = load();
-  const userId = db.sessions[m[1]];
+  const rec = db.sessions[m[1]];
+  if (!rec) return null;
+  const userId = (typeof rec === 'object') ? rec.userId : rec;
+  // Expire server-side (new object sessions only; legacy string sessions have no
+  // stored expiry and keep working until logout).
+  if (rec && typeof rec === 'object' && rec.exp && Date.now() > rec.exp) {
+    delete db.sessions[m[1]]; save(); return null;
+  }
   return db.users.find((u) => u.id === userId) || null;
 }
 
@@ -1547,6 +1558,7 @@ function seedAdmin() {
   } else if (existing.passHash !== passHash || existing.email !== email) {
     // Keep the seeded admin in sync with the configured credentials.
     existing.email = email; existing.salt = salt; existing.passHash = passHash;
+    invalidateUserSessions(db, existing.id);
     save();
   }
 }
@@ -1568,6 +1580,7 @@ function seedEditor() {
     save();
   } else if (existing.role !== 'admin' || existing.passHash !== passHash) {
     existing.role = 'admin'; existing.salt = salt; existing.passHash = passHash;
+    invalidateUserSessions(db, existing.id);
     save();
   }
 }
@@ -1589,6 +1602,7 @@ function seedOwner() {
     save();
   } else if (existing.role !== 'admin' || existing.passHash !== passHash) {
     existing.role = 'admin'; existing.salt = salt; existing.passHash = passHash;
+    invalidateUserSessions(db, existing.id);
     save();
   }
 }
@@ -1611,12 +1625,37 @@ function seedPartner() {
     save();
   } else if (existing.role !== 'partner' || existing.orgId !== 'omg' || existing.passHash !== passHash) {
     existing.role = 'partner'; existing.orgId = 'omg'; existing.salt = salt; existing.passHash = passHash;
+    invalidateUserSessions(db, existing.id);
     save();
   }
 }
 
-// ---------- course helpers ----------
+// Emails that belong to seeded staff/admin/partner accounts — self-registration
+// of these is refused, so nobody can "squat" a future staff email and have the
+// seeder later upgrade that account (and its session) into a privileged role.
+function reservedStaffEmails() {
+  return new Set([
+    (process.env.ADMIN_EMAIL || 'admin@ncysa.org'),
+    (process.env.EDITOR_EMAIL || 'DA@ncsoccer.org'),
+    (process.env.OWNER_EMAIL || 'jeremy.layton.brown.smith@gmail.com'),
+    (process.env.OMG_PARTNER_EMAIL || 'partner@omgtsys.com'),
+    OWNER_EMAIL, MANAGER_EMAIL,
+  ].map((e) => String(e).toLowerCase()));
+}
+// Kill every active session for a user id — used when a seeder upgrades a
+// pre-existing account to a privileged role, so an earlier (self-registered)
+// session token can't ride along into the new role.
+function invalidateUserSessions(db, userId) {
+  let changed = false;
+  for (const tok of Object.keys(db.sessions || {})) {
+    const v = db.sessions[tok];
+    const uid = (v && typeof v === 'object') ? v.userId : v;
+    if (uid === userId) { delete db.sessions[tok]; changed = true; }
+  }
+  return changed;
+}
 
+// ---------- course helpers ----------
 // Public view of a course: strips quiz answers so they never reach the client.
 function publicCourse(course) {
   return {
@@ -1677,6 +1716,12 @@ app.post('/api/register', (req, res) => {
   const name = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : String(b.name || '').trim();
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+  // A seeded staff/admin/partner email can never be self-registered as a learner —
+  // otherwise a squatter could claim a future staff email and have the seeder
+  // upgrade that very account (and its session) into a privileged role.
+  if (reservedStaffEmails().has(email.toLowerCase())) {
+    return res.status(403).json({ error: 'That email has a staff account — please use the staff sign-in with your password.', needsPassword: true });
+  }
   const db = load();
   const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   if (existing) {
@@ -1706,23 +1751,30 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body || {};
   const emailKey = String(email || '').toLowerCase();
-  // Brute-force guard for password (staff/admin) sign-in. Keyed on the account
-  // being targeted plus the caller IP, so guessing one account's password is
-  // throttled without locking out everyone behind a shared IP. Only failures
-  // count (a correct password is never blocked). Learner sign-in is passwordless
-  // and unaffected.
-  const clientIp = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '';
-  const lockKey = `login:${emailKey}:${clientIp}`;
+  // Brute-force guard for password (staff/admin) sign-in. Keyed on the ACCOUNT
+  // only — there are a handful of staff accounts, so this can't be bypassed by
+  // spoofing the X-Forwarded-For header (which an IP-based key allowed), and a
+  // failure on one account never affects another. Only failures count (a correct
+  // password clears them). Learner sign-in is passwordless and unaffected.
+  const lockKey = `login:${emailKey}`;
   const db = load();
   const user = db.users.find((u) => u.email.toLowerCase() === emailKey);
+  // Generic failure message so login can't be used to enumerate which emails exist.
   if (!user)
-    return res.status(401).json({ error: 'No account with that email yet — use “Get started” to create one.' });
+    return res.status(401).json({ error: 'That email or password is incorrect.' });
   if (STAFF_ROLES.includes(user.role)) {
     if (loginBlocked(lockKey))
       return res.status(429).json({ error: 'Too many sign-in attempts. Please wait a few minutes and try again.', needsPassword: true });
-    if (!password || !user.passHash || hashPassword(password, user.salt) !== user.passHash) {
+    // Constant-time comparison of the derived hashes (avoids a timing side channel).
+    let okPass = false;
+    if (password && user.passHash && user.salt) {
+      const given = Buffer.from(hashPassword(password, user.salt), 'hex');
+      const want = Buffer.from(user.passHash, 'hex');
+      okPass = given.length === want.length && crypto.timingSafeEqual(given, want);
+    }
+    if (!okPass) {
       noteLoginFailure(lockKey);
-      return res.status(401).json({ error: 'Incorrect password.', needsPassword: true });
+      return res.status(401).json({ error: 'That email or password is incorrect.', needsPassword: true });
     }
     clearLoginFailures(lockKey); // a good password resets the counter
   }
@@ -1751,8 +1803,17 @@ app.get('/api/me', (req, res) => {
 
 // Unlock the staff area with the shared access code (sets a signed cookie).
 app.post('/api/staff-access', (req, res) => {
+  // Throttle guesses of the shared code (keyed on client IP; also a global cap so
+  // a rotating-IP bot still can't hammer it).
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown';
+  if (rateLimited('staff-access:' + ip, 10, 60_000) || rateLimited('staff-access:all', 60, 60_000)) {
+    return res.status(429).json({ error: 'Too many attempts. Please wait a minute and try again.' });
+  }
   const code = String((req.body && req.body.code) || '');
-  if (!code || code !== String(STAFF_ACCESS_CODE)) return res.status(403).json({ error: 'That staff access code isn’t right.' });
+  const want = String(STAFF_ACCESS_CODE);
+  const a = Buffer.from(code), b = Buffer.from(want);
+  const okCode = !!code && a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!okCode) return res.status(403).json({ error: 'That staff access code isn’t right.' });
   res.setHeader('Set-Cookie', `staff_access=${staffCookieValue()}; ${cookieFlags(req)}`);
   res.json({ ok: true });
 });
@@ -2359,7 +2420,7 @@ app.delete('/api/admin/enrollments', requireDashboard, (req, res) => {
   let removedAccount = false;
   if (user && user.role === 'learner' && !db.enrollments.some((e) => e.userId === userId)) {
     db.users = db.users.filter((u) => u.id !== userId);
-    for (const tok of Object.keys(db.sessions)) if (db.sessions[tok] === userId) delete db.sessions[tok];
+    invalidateUserSessions(db, userId);
     removedAccount = true;
   }
   save();
