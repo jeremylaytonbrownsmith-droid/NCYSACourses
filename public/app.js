@@ -1844,6 +1844,10 @@ async function viewCertificate(certId) {
       <p>has successfully completed</p>
       <div class="course-name">${esc(c.course)}</div>
       <div class="cert-meta">Completed ${date} · Certificate ID ${esc(c.certId)}</div>
+      ${c.verifyUrl ? `<div class="cert-verify">
+        ${c.qrDataUrl ? `<img class="cert-qr" src="${esc(c.qrDataUrl)}" alt="Scan to verify this certificate" />` : ''}
+        <span class="cert-verify-txt">Scan or visit to verify<br><a href="${esc(c.verifyUrl)}">${esc(c.verifyUrl.replace(/^https?:\/\//, ''))}</a></span>
+      </div>` : ''}
       <div class="seal">${ICON_CERT}</div>
     </div>
     <p style="text-align:center; margin-bottom:48px">
@@ -1947,6 +1951,20 @@ async function downloadCertificatePdf(c, dateStr) {
     ctx.closePath(); ctx.fill();
     ctx.restore();
   })(W / 2, 685);
+
+  // Verify QR + URL (bottom-left) so even a printed certificate can be scanned to
+  // confirm it's genuine on the public /verify page.
+  if (c.qrDataUrl) {
+    try {
+      const qr = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = c.qrDataUrl; });
+      ctx.drawImage(qr, 70, H - 160, 96, 96);
+    } catch { /* ignore QR */ }
+  }
+  if (c.verifyUrl) {
+    ctx.textAlign = 'left';
+    ctx.font = '600 12px Arial'; ctx.fillStyle = '#6b645e'; ctx.fillText('Verify at', 70, H - 48);
+    ctx.font = '400 12px Arial'; ctx.fillStyle = titleColor; ctx.fillText(c.verifyUrl.replace(/^https?:\/\//, ''), 70, H - 32);
+  }
 
   // Canvas → JPEG → minimal PDF
   const jpeg = canvas.toDataURL('image/jpeg', 0.92);

@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const unzipper = require('unzipper'); // streaming unzip — never loads the whole .zip into memory
+const QRCode = require('qrcode'); // certificate verify QR codes (generated as data URLs)
 
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
@@ -217,6 +218,75 @@ const ORGS = {
   omg: { slug: 'omg', name: 'Officials Management Group' },
 };
 const orgOf = (c) => (c && c.orgId) || DEFAULT_ORG;
+// Canonical certificate logo for a course — guarantees the RIGHT entity's mark
+// even when a course sets no explicit coLogoUrl (previously every unbranded
+// course fell back to the NCYSA logo on the cert). An explicit co-logo wins.
+function certLogoFor(course) {
+  if (course && course.coLogoUrl) return course.coLogoUrl;
+  const org = orgOf(course);
+  if (org === 'omg') return '/media/omg-logo.png';
+  if (course && course.audience === 'referees') return '/media/ncsra-logo.png';
+  return '/media/ncysa-logo.png';
+}
+// A readable issuing-org name when a course sets no explicit certOrg.
+function certOrgName(course) {
+  if (course && course.certOrg) return course.certOrg;
+  const org = orgOf(course);
+  if (org === 'omg') return 'Officials Management Group';
+  if (course && course.audience === 'referees') return 'North Carolina Soccer Referee Association';
+  return 'North Carolina Youth Soccer Association';
+}
+// Absolute base URL for building shareable links (verify pages, launch links).
+function baseUrl(req) {
+  return (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL
+    || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+}
+const escHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Public, self-contained certificate verification page (no login, no SPA). Shows
+// the correct issuing entity's logo/colors and a clear Valid / Not-found state.
+function renderVerifyPage(enr, user, course) {
+  const found = !!enr;
+  const accent = (course && course.certAccent) || '#10045a';
+  const logo = found ? certLogoFor(course) : '/media/getmatchready-mark.svg';
+  const org = found ? certOrgName(course) : 'GetMatchReady';
+  const when = found ? new Date(enr.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  const body = found ? `
+    <div class="badge ok">✓ Valid certificate</div>
+    <img class="logo" src="${escHtml(logo)}" alt="${escHtml(org)}" />
+    <div class="org">${escHtml(org)}</div>
+    <dl>
+      <dt>Name</dt><dd>${escHtml(user && user.name || 'Learner')}</dd>
+      <dt>Course</dt><dd>${escHtml(course && course.title || 'Course')}</dd>
+      <dt>Completed</dt><dd>${escHtml(when)}</dd>
+      <dt>Certificate ID</dt><dd class="mono">${escHtml(enr.certId)}</dd>
+    </dl>
+    <p class="foot">This certificate was issued by ${escHtml(org)} on the GetMatchReady education platform.</p>`
+    : `
+    <div class="badge bad">Certificate not found</div>
+    <img class="logo" src="${escHtml(logo)}" alt="GetMatchReady" />
+    <p class="foot">We couldn't verify a certificate with that ID. Check the ID and try again, or contact the issuing organization.</p>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/media/getmatchready-mark.svg">
+<title>Certificate verification</title>
+<style>
+  :root{--accent:${escHtml(accent)}}
+  *{box-sizing:border-box} body{margin:0;background:#f4f5fa;color:#1d2440;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;min-height:100vh;display:grid;place-items:center;padding:24px}
+  .card{background:#fff;border:1px solid #e6e9f4;border-radius:18px;box-shadow:0 10px 30px rgba(23,34,79,.08);max-width:440px;width:100%;padding:30px 30px 26px;text-align:center}
+  .badge{display:inline-block;font-weight:800;font-size:.9rem;padding:7px 16px;border-radius:999px;margin-bottom:18px}
+  .badge.ok{background:#e7f6ee;color:#0d8a52} .badge.bad{background:#fdecec;color:#c0392b}
+  .logo{height:64px;width:auto;margin:4px auto 6px;display:block}
+  .org{font-weight:800;color:var(--accent);letter-spacing:.01em;margin-bottom:16px}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;margin:0 0 6px;border-top:1px solid #eef0f6;padding-top:16px}
+  dt{color:#6b7392;font-size:.82rem;font-weight:600} dd{margin:0;font-weight:600}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem}
+  .foot{color:#6b7392;font-size:.82rem;margin-top:16px}
+</style></head>
+<body><main class="card">${body}</main></body></html>`;
+}
 
 // One-time: give the OMG organization its own referee recertification course by
 // cloning the NCSRA course's lessons (same uploaded module files — the lessons
@@ -2145,24 +2215,57 @@ app.post('/api/notifications/read', requireAuth, (req, res) => {
 // be viewed by anyone holding its (random, unguessable) ID — this is what makes
 // the link emailed to the learner openable without signing in. Only the
 // non-sensitive fields are returned (name, course, date — never the email).
-app.get('/api/certificate/:certId', (req, res) => {
+function certPayload(enr, user, course, req) {
+  return {
+    certId: enr.certId, learner: user?.name || 'NCYSA Learner',
+    course: course?.title || 'NCYSA Course', completedAt: enr.completedAt,
+    // Per-course certificate branding (e.g. an NCSRA course issues an NCSRA cert).
+    // certOrg/logo fall back to the course's real entity (never the wrong logo).
+    org: certOrgName(course),
+    certTitle: course?.certTitle || null,
+    logoUrl: certLogoFor(course),
+    // Optional per-course accent colors (border/title + seal) so the certificate
+    // carries the org's color scheme, not just its logo.
+    certAccent: course?.certAccent || null,
+    certAccent2: course?.certAccent2 || null,
+    verifyUrl: `${baseUrl(req)}/verify/${enr.certId}`,
+  };
+}
+
+app.get('/api/certificate/:certId', ah(async (req, res) => {
   const db = load();
   const enr = db.enrollments.find((e) => e.certId === req.params.certId && e.completedAt);
   if (!enr) return res.status(404).json({ error: 'Certificate not found' });
   const user = db.users.find((u) => u.id === enr.userId);
   const course = allCourses().find((c) => c.id === enr.courseId);
+  const payload = certPayload(enr, user, course, req);
+  // A scan-to-verify QR of the public verify URL, as a data URL (no external call).
+  try { payload.qrDataUrl = await QRCode.toDataURL(payload.verifyUrl, { margin: 1, width: 240 }); }
+  catch (e) { payload.qrDataUrl = null; }
+  res.json(payload);
+}));
+
+// Public certificate verification (no login) — JSON for programmatic checks
+// (e.g. an assigners' system) and an HTML page a human can open or scan to.
+app.get('/api/verify/:certId', (req, res) => {
+  const db = load();
+  const enr = db.enrollments.find((e) => e.certId === req.params.certId && e.completedAt);
+  if (!enr) return res.status(404).json({ valid: false, error: 'No certificate with that ID.' });
+  const user = db.users.find((u) => u.id === enr.userId);
+  const course = allCourses().find((c) => c.id === enr.courseId);
   res.json({
-    certId: enr.certId, learner: user?.name || 'NCYSA Learner',
-    course: course?.title || 'NCYSA Course', completedAt: enr.completedAt,
-    // Per-course certificate branding (e.g. an NCSRA course issues an NCSRA cert).
-    org: course?.certOrg || null,
-    certTitle: course?.certTitle || null,
-    logoUrl: course?.coLogoUrl || null,
-    // Optional per-course accent colors (border/title + seal) so the certificate
-    // carries the org's color scheme, not just its logo.
-    certAccent: course?.certAccent || null,
-    certAccent2: course?.certAccent2 || null,
+    valid: true, certId: enr.certId, learner: user?.name || 'Learner',
+    course: course?.title || 'Course', org: certOrgName(course), completedAt: enr.completedAt,
   });
+});
+
+app.get('/verify/:certId', (req, res) => {
+  const db = load();
+  const enr = db.enrollments.find((e) => e.certId === req.params.certId && e.completedAt);
+  const user = enr && db.users.find((u) => u.id === enr.userId);
+  const course = enr && allCourses().find((c) => c.id === enr.courseId);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderVerifyPage(enr, user, course));
 });
 
 // ---------- NCYSA admin ----------

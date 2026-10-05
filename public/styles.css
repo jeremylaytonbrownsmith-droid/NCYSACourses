@@ -1035,3 +1035,14 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .topnav .brandmarks { display: inline-flex; align-items: center; gap: 8px; }
 .topnav .brandmarks img { height: 30px; width: auto; display: block; }
 .topnav .brandmarks .bdiv { width: 1px; height: 24px; background: var(--line); }
+
+/* ---------- certificate verify block (QR + public verify URL) ---------- */
+.certificate { position: relative; }
+.certificate .cert-verify {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+}
+.certificate .cert-qr { width: 84px; height: 84px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+.certificate .cert-verify-txt { font-size: .8rem; color: var(--ink-soft); text-align: left; line-height: 1.5; }
+.certificate .cert-verify-txt a { font-weight: 700; word-break: break-all; }
+@media print { .certificate .cert-verify { break-inside: avoid; } }
