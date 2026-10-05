@@ -2152,6 +2152,63 @@ function analyticsCard(an) {
   </div>`;
 }
 
+// Learner detail drawer: one person's whole history in a slide-out panel, built
+// from the already-loaded dashboard rows (org-scoped server-side). Quick actions:
+// view/verify a certificate, or reset a record. Admin daily-use tool.
+function openLearnerDrawer(userId, rows) {
+  const mine = (rows || []).filter((r) => r.userId === userId);
+  if (!mine.length) return;
+  const name = mine[0].learner || 'Learner';
+  const email = mine[0].email || '';
+  const completed = mine.filter((r) => r.completedAt).length;
+  const fmtDur = (a, b) => { if (!a || !b) return '—'; const ms = new Date(b) - new Date(a); return ms >= 0 ? fmtMs(ms) : '—'; };
+  const bar = (r) => {
+    if (!r.totalModules) return r.completedAt ? '✓' : '—';
+    const pct = Math.max(0, Math.min(100, Math.round((r.modulesComplete / r.totalModules) * 100)));
+    return `<span class="pbar"><span style="width:${pct}%"></span></span><span class="pbar-lbl">${r.modulesComplete}/${r.totalModules}</span>`;
+  };
+  const host = document.getElementById('drawerHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'drawerHost' });
+  host.innerHTML = `<div class="drawer-overlay" id="drawerOverlay"><aside class="drawer" role="dialog" aria-modal="true" aria-label="Learner details">
+    <div class="drawer-head">
+      <div><h3>${esc(name)}</h3><div class="meta">${esc(email)}</div></div>
+      <button class="drawer-close" id="drawerClose" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-sub">${mine.length} course${mine.length === 1 ? '' : 's'} · ${completed} completed</div>
+    <div class="drawer-body">
+      ${mine.map((r) => `<div class="dr-course">
+        <div class="dr-ctitle">${esc(r.course || 'Course')}</div>
+        <div class="dr-row">${r.completedAt ? '<span class="pill-done">✓ Complete</span>' : '<span class="pill-prog">In progress</span>'} <span class="dr-prog">${bar(r)}</span></div>
+        <dl class="dr-meta">
+          <dt>Started</dt><dd>${r.startedAt ? new Date(r.startedAt).toLocaleDateString() : '—'}</dd>
+          <dt>Completed</dt><dd>${r.completedAt ? new Date(r.completedAt).toLocaleDateString() : '—'}</dd>
+          <dt>Time</dt><dd>${esc(fmtDur(r.startedAt, r.completedAt))}</dd>
+          <dt>Certificate</dt><dd>${r.certId ? esc(r.certId) : '—'}</dd>
+        </dl>
+        <div class="dr-actions">
+          ${r.certId ? `<a class="btn btn-ghost btn-sm" href="#/cert/${esc(r.certId)}">View certificate</a>
+            <button class="btn btn-ghost btn-sm dr-copy" data-id="${esc(r.certId)}">Copy verify link</button>` : ''}
+          ${r.courseId ? `<button class="btn btn-ghost btn-sm dr-reset" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}" data-name="${esc(name)}">Reset / delete</button>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </aside></div>`;
+  const close = () => { host.innerHTML = ''; document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.getElementById('drawerOverlay').addEventListener('click', (e) => { if (e.target.id === 'drawerOverlay') close(); });
+  document.getElementById('drawerClose').addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+  host.querySelectorAll('.dr-copy').forEach((b) => b.addEventListener('click', () => {
+    try { navigator.clipboard?.writeText(location.origin + '/verify/' + b.dataset.id); } catch (e) { /* ignore */ }
+    toast('Verify link copied.');
+  }));
+  host.querySelectorAll('.dr-reset').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm(`Reset ${b.dataset.name}'s record for this course? This clears their progress (and certificate) for it.`)) return;
+    b.disabled = true;
+    try { await api('/api/admin/enrollments', { method: 'DELETE', body: { userId: b.dataset.user, courseId: b.dataset.course } }); close(); viewAdmin(); }
+    catch (e) { alert('Could not reset: ' + e.message); b.disabled = false; }
+  }));
+}
+
 async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
@@ -2305,7 +2362,7 @@ async function viewAdmin() {
       <div class="table-scroll"><table class="admin-table">
         <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
-          <td data-label="Learner">${esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
+          <td data-label="Learner">${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner)}</button>` : esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
           <td data-label="Status">${statusCell(c)}</td>
           <td data-label="Time to complete">${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
@@ -2325,6 +2382,12 @@ async function viewAdmin() {
     }));
   }
   if (els.table) {
+    // Delegated: clicking a learner's name opens their detail drawer. Bound once
+    // on the persistent table container so it survives every re-render.
+    els.table.addEventListener('click', (e) => {
+      const b = e.target.closest('.learner-link');
+      if (b && b.dataset.user) openLearnerDrawer(b.dataset.user, rows);
+    });
     ['input', 'change'].forEach((ev) => {
       els.search.addEventListener(ev, renderTable); els.course.addEventListener(ev, renderTable);
       if (els.org) els.org.addEventListener(ev, renderTable);

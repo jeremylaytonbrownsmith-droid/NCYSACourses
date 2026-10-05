@@ -1098,3 +1098,23 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .course-prog { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .course-prog .prog-label { font-size: .85rem; color: var(--ink-soft); line-height: 1.4; }
 .prog-ring { flex: none; }
+
+/* ---------- learner detail drawer ---------- */
+.learner-link { font: inherit; font-weight: 600; }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(23,34,79,.35); z-index: 60; display: flex; justify-content: flex-end; animation: drawerFade .15s ease; }
+@keyframes drawerFade { from { opacity: 0; } to { opacity: 1; } }
+.drawer { width: min(440px, 94vw); height: 100%; background: #fff; box-shadow: -10px 0 30px rgba(23,34,79,.18); overflow-y: auto; animation: drawerIn .2s ease; display: flex; flex-direction: column; }
+@keyframes drawerIn { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 20px 22px 8px; }
+.drawer-head h3 { margin: 0; }
+.drawer-head .meta { color: var(--ink-soft); font-size: .86rem; margin-top: 2px; word-break: break-all; }
+.drawer-close { border: 0; background: none; font-size: 1.7rem; line-height: 1; cursor: pointer; color: var(--ink-soft); padding: 0 4px; }
+.drawer-sub { padding: 0 22px 12px; color: var(--ink-soft); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--line); }
+.drawer-body { padding: 16px 22px 30px; display: flex; flex-direction: column; gap: 14px; }
+.dr-course { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.dr-ctitle { font-weight: 800; margin-bottom: 8px; }
+.dr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.dr-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 12px; font-size: .86rem; }
+.dr-meta dt { color: var(--ink-soft); } .dr-meta dd { margin: 0; font-weight: 600; }
+.dr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (prefers-reduced-motion: reduce) { .drawer-overlay, .drawer { animation: none; } }
