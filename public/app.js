@@ -189,6 +189,24 @@ const orgFromHash = (h) => (h.match(/^#\/org\/([\w-]+)/) || [])[1] || DEFAULT_OR
 const orgPortal = (orgId, page) => (orgId && orgId !== DEFAULT_ORG) ? `#/org/${orgId}/${page}` : `#/${page}`;
 // Minimal chrome for the no-login "watch & redirect" page: brand only, no links.
 let navMinimal = false;
+// The org marks shown in the admin dashboard lockup. Starts with the two NC orgs;
+// viewAdmin fills it from the live catalog so OMG (and any future org with courses)
+// appears automatically. null until the dashboard loads.
+let platformLogos = null;
+function platformLogoFor(orgId, audience) {
+  if (orgId === 'omg') return { src: '/media/omg-logo.png', alt: 'OMG' };
+  if (audience === 'referees') return { src: '/media/ncsra-logo.png', alt: 'NCSRA' };
+  if (orgId && orgId !== DEFAULT_ORG) return { src: orgLogo(orgId), alt: String(orgId).toUpperCase() };
+  return { src: '/media/ncysa-logo.png', alt: 'NCYSA' };
+}
+function computePlatformLogos(courses) {
+  const seen = new Set(); const out = [];
+  const add = (m) => { if (!seen.has(m.src)) { seen.add(m.src); out.push(m); } };
+  add({ src: '/media/ncysa-logo.png', alt: 'NCYSA' });  // owner identity stays stable, leading
+  add({ src: '/media/ncsra-logo.png', alt: 'NCSRA' });
+  for (const c of (courses || [])) add(platformLogoFor(c.orgId || DEFAULT_ORG, c.audience));
+  return out.slice(0, 6);
+}
 
 function renderNav() {
   const user = me?.user;
@@ -206,14 +224,16 @@ function renderNav() {
   const onAdminArea = /^#\/(admin|staff-training)/.test(location.hash || '');
   const globalStaff = user && (user.role === 'admin' || user.role === 'editor');
   if (onAdminArea && globalStaff && !orgCtx && !PRODUCT_DOMAINS.has(location.hostname)) {
+    // Always lead with the two NC orgs; any other org with courses (OMG now, and
+    // future orgs automatically) is appended once the dashboard data loads.
+    const marks = (platformLogos && platformLogos.length) ? platformLogos
+      : [{ src: '/media/ncysa-logo.png', alt: 'NCYSA' }, { src: '/media/ncsra-logo.png', alt: 'NCSRA' }];
     brandLogo = '<span class="brandmarks">'
-      + '<img src="/media/getmatchready-mark.svg" alt="GetMatchReady" />'
-      + '<span class="bdiv"></span>'
-      + '<img src="/media/ncysa-logo.png" alt="NCYSA" />'
-      + '<img src="/media/ncsra-logo.png" alt="NCSRA" />'
+      + '<img src="/media/getmatchready-mark.svg" alt="GetMatchReady" /><span class="bdiv"></span>'
+      + marks.map((m) => `<img src="${esc(m.src)}" alt="${esc(m.alt)}" />`).join('')
       + '</span>';
     brandName = 'GetMatchReady';
-    brandSub = 'NCYSA · NCSRA · Education &amp; Training';
+    brandSub = marks.map((m) => m.alt).join(' · ') + ' · Education &amp; Training';
   }
   const logoHref = orgCtx ? `#/org/${orgCtx}/referees` : '#/';
   if (navMinimal) {
@@ -2213,6 +2233,9 @@ async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
   const analytics = computeAnalytics(d.enrollments || d.completions || []);
+  // Refresh the dashboard lockup to include every org that has courses (e.g. OMG).
+  platformLogos = computePlatformLogos(d.courses);
+  renderNav();
   app.innerHTML = `
     <div class="admin-wrap">
       <div class="admin-head">

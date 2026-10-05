@@ -33,6 +33,10 @@ test('dashboard Organization filter separates OMG records from NCYSA/NCSRA', asy
   await page.goto('/#/admin');
   await expect(page.locator('#fltOrg')).toBeVisible();
 
+  // The dashboard lockup auto-includes OMG once it has a course (plus NCYSA/NCSRA).
+  await expect(page.locator('.brandmarks img[alt="OMG"]')).toBeVisible();
+  await expect(page.locator('.brandmarks img[alt="NCYSA"]')).toBeVisible();
+
   // Narrow to this learner, then flip the Organization filter.
   await page.fill('#fltSearch', email);
   await page.selectOption('#fltOrg', 'OMG');
