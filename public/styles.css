@@ -1058,3 +1058,43 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .rate-track { display: inline-block; width: 90px; height: 7px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .rate-track > span { display: block; height: 100%; border-radius: 99px; }
 .rate-pct { font-variant-numeric: tabular-nums; font-size: .82rem; color: var(--ink-soft); min-width: 34px; }
+
+/* ===================== whole-app aesthetics pass ===================== */
+/* Brand-neutral polish only — no entity colors are changed here. */
+
+/* Skeleton loader (shimmer) shown during slow route loads. */
+.skel-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+.skeleton { position: relative; overflow: hidden; background: var(--line); border-radius: 8px; }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: shimmer 1.3s infinite; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.sk-title { height: 30px; width: 240px; margin-bottom: 12px; }
+.sk-sub { height: 16px; width: 360px; max-width: 80%; margin-bottom: 28px; }
+.skel-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 24px; }
+.skel-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.sk-thumb { height: 150px; border-radius: 0; }
+.skel-pad { padding: 20px; }
+.skel-pad .sk-line { height: 14px; margin-bottom: 10px; }
+.skel-pad .sk-line.short { width: 60%; }
+@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
+
+/* Toast: slide up on show (keeps horizontal centering). */
+#toast { transform: translate(-50%, 10px); transition: opacity .25s ease, transform .25s ease; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.error { background: var(--danger); }
+
+/* Friendlier empty states. */
+.empty { color: var(--ink-soft); font-size: 0.92rem; text-align: center; padding: 22px 16px;
+  background: var(--bg); border: 1px dashed var(--line); border-radius: 12px; }
+td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
+
+/* Card + button polish (keeps each brand's colors; just depth + motion). */
+.course-card { border: 1px solid var(--line); transition: transform .15s ease, box-shadow .15s ease; }
+.course-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(23,34,79,.12); }
+.btn-primary, .btn-accent { box-shadow: 0 1px 2px rgba(23,34,79,.12); transition: transform .12s ease, box-shadow .15s ease, background .15s ease; }
+.btn-primary:hover, .btn-accent:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(23,34,79,.18); }
+
+/* Course-player progress ring. */
+.course-prog { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.course-prog .prog-label { font-size: .85rem; color: var(--ink-soft); line-height: 1.4; }
+.prog-ring { flex: none; }

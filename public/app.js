@@ -888,8 +888,10 @@ async function viewCourse(courseId, lessonId) {
             <span class="cobrand-name">${esc(course.coBrandName)}</span>
           </div>` : ''}
           <h2>${esc(course.title)}</h2>
-          <div class="prog-label">${progress.completedLessons} of ${progress.totalLessons} lessons complete · ${progress.percent}%</div>
-          <div class="progress-track"><div class="progress-fill" style="width:${progress.percent}%"></div></div>
+          <div class="course-prog">
+            ${progressRing(progress.percent)}
+            <div class="prog-label">${progress.completedLessons} of ${progress.totalLessons} lessons complete</div>
+          </div>
         </div>
         <div class="curriculum-lessons">
         ${course.lessons.map((l, i) => {
@@ -3753,8 +3755,29 @@ const routes = [
 function startLoading() {
   const bar = document.getElementById('loadbar');
   if (bar) { bar.classList.add('active'); bar.style.width = '45%'; requestAnimationFrame(() => (bar.style.width = '75%')); }
-  // Show a spinner only if the view is slow to load (avoids flicker on instant/local data).
-  return setTimeout(() => { app.innerHTML = '<div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><span>Loading…</span></div>'; }, 200);
+  // Show a skeleton only if the view is slow to load (avoids flicker on instant/local data).
+  return setTimeout(() => { app.innerHTML = skeletonHtml(); }, 200);
+}
+// A generic shimmer skeleton shown during slow route loads — reads as "content is
+// coming" instead of a bare spinner. Brand-neutral (greys only).
+// Circular progress ring (on-brand via var(--accent), so each org keeps its color).
+function progressRing(pct) {
+  const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  const r = 26, c = 2 * Math.PI * r, off = c * (1 - p / 100);
+  return `<svg class="prog-ring" viewBox="0 0 64 64" width="60" height="60" role="img" aria-label="${p}% complete">
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--line)" stroke-width="6"></circle>
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 32 32)"></circle>
+    <text x="32" y="37" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">${p}%</text>
+  </svg>`;
+}
+function skeletonHtml() {
+  const card = '<div class="skel-card"><div class="skeleton sk-thumb"></div><div class="skel-pad"><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div></div></div>';
+  return `<div class="skel-wrap" role="status" aria-live="polite" aria-label="Loading">
+    <div class="skeleton sk-title"></div>
+    <div class="skeleton sk-sub"></div>
+    <div class="skel-cards">${card.repeat(3)}</div>
+  </div>`;
 }
 function stopLoading(spinnerTimer) {
   clearTimeout(spinnerTimer);
