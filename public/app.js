@@ -2749,7 +2749,7 @@ async function viewCourseAdmin(flash) {
           <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
           <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
           <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
-          <label>Min. seconds / lesson<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Hold Continue this long on each reading lesson (0 = off)" /></label>
+          <label>Min. reading time / lesson (sec)<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Holds the Complete button this long on every reading lesson it generates, so learners can't skip through (0 = off). e.g. 15, 30, 45." /></label>
         </div>
         <div class="ai-cta">
           <button class="btn btn-ai" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
@@ -3365,6 +3365,14 @@ async function viewCourseAdmin(flash) {
         </label>`; })()}
         <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
     }
+    if (type === 'text') {
+      const sec = l && l.minSeconds != null ? Number(l.minSeconds) : 0;
+      return `${richTextField('html', 'Lesson content', l ? l.html : '', 240)}
+        <label>Minimum reading time (seconds)
+          <input name="minSeconds" type="number" min="0" max="3600" value="${sec}" placeholder="0 = no wait" />
+        </label>
+        <p class="form-hint"><strong>Anti-skip:</strong> holds the “Complete &amp; continue” button for this many seconds so the learner actually spends time on the reading before moving on (a countdown shows them the wait). Common values: 15, 30, 45. Use <strong>0</strong> to turn it off. Applies to this reading lesson — no SCORM or slides needed.</p>`;
+    }
     return richTextField('html', 'Lesson content', l ? l.html : '', 240);
   }
   function quizQ(q, i) {
@@ -3517,6 +3525,7 @@ async function viewCourseAdmin(flash) {
       const fd = new FormData(form);
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
+      if (type === 'text') { payload.minSeconds = fd.get('minSeconds'); }
       if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.videoUrlWebm = fd.get('videoUrlWebm') || undefined; payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
       if (type === 'scorm') {
         payload.packageId = fd.get('packageId');
