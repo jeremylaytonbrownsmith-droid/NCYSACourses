@@ -2277,7 +2277,7 @@ async function viewCourseAdmin(flash) {
         <div class="admin-head-actions">
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
           <button class="btn btn-ghost" id="storageBtn">Module storage</button>
-          <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
+          <button class="btn btn-ai" id="aiBuildBtn">✨ Build with AI</button>
           <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
           <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
         </div>
@@ -2533,7 +2533,7 @@ async function viewCourseAdmin(flash) {
           <label>Min. seconds / lesson<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Hold Continue this long on each reading lesson (0 = off)" /></label>
         </div>
         <div class="ai-cta">
-          <button class="btn btn-accent" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
+          <button class="btn btn-ai" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
           <span class="ai-note" id="aiBuildStatus"></span>
         </div>
       </form>
