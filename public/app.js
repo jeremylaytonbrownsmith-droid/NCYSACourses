@@ -2109,7 +2109,10 @@ function fmtMs(ms) {
   return rh ? `${d}d ${rh}h` : `${d}d`;
 }
 // Derive dashboard analytics from the enrollment rows (no extra server call).
-function computeAnalytics(rows) {
+function computeAnalytics(allRows, publishedIds) {
+  // Only summarize PUBLISHED courses — drafts and deleted courses shouldn't clutter
+  // the dashboard analytics. When no set is given (shouldn't happen), fall back to all.
+  const rows = publishedIds ? (allRows || []).filter((r) => publishedIds.has(r.courseId)) : (allRows || []);
   const now = Date.now(), DAY = 86400000;
   const total = rows.length;
   const done = rows.filter((r) => r.completedAt);
@@ -2232,7 +2235,8 @@ function openLearnerDrawer(userId, rows) {
 async function viewAdmin() {
   if (me?.user?.role === 'editor') { location.hash = '#/admin/courses'; return; } // designers have no dashboard
   const d = await api('/api/admin/overview');
-  const analytics = computeAnalytics(d.enrollments || d.completions || []);
+  const publishedIds = new Set((d.courses || []).filter((c) => c.published).map((c) => c.id));
+  const analytics = computeAnalytics(d.enrollments || d.completions || [], publishedIds);
   // Refresh the dashboard lockup to include every org that has courses (e.g. OMG).
   platformLogos = computePlatformLogos(d.courses);
   renderNav();
