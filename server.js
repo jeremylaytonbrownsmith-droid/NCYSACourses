@@ -633,7 +633,16 @@ function sendIndexHtml(req, res) {
 // Serve the SPA shell with per-domain title/preview (before the static handler,
 // which would otherwise return the raw index.html for "/").
 app.get(['/', '/index.html'], sendIndexHtml);
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // Let browsers fully cache immutable media (images, video, fonts) for a week,
+    // so repeat visits don't re-download them against Render bandwidth. HTML/JS/CSS
+    // stay revalidated (handled above) so new deploys are still picked up.
+    if (/\.(png|jpe?g|gif|webp|svg|ico|mp4|webm|woff2?|ttf|otf)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    }
+  },
+}));
 
 // GetMatchReady partnership proposal — a standalone, password-gated page served
 // at /proposal (e.g. getmatchready.app/proposal). Self-contained; not part of
