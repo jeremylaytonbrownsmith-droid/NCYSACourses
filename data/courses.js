@@ -33,8 +33,7 @@ module.exports = [
           <h3>How this course works</h3>
           <ul>
             <li>Lessons unlock <strong>in order</strong>. You must complete each lesson before the next one opens.</li>
-            <li>The video lesson requires you to actually watch it — skipping ahead is disabled and
-                you must watch nearly the entire video before you can continue.</li>
+            <li>Each lesson asks you to <strong>spend a few seconds</strong> on it before you can continue — so you actually read it.</li>
             <li>The course ends with a <strong>final exam</strong>. You need <strong>80%</strong> to pass.</li>
             <li>When you finish, you will receive a certificate, and NCYSA is automatically notified
                 so your license can be recorded.</li>
@@ -129,26 +128,6 @@ module.exports = [
           <p>Read the official, current laws for free at
           <a href="https://www.theifab.com/laws-of-the-game-documents/" target="_blank" rel="noopener">IFAB —
           Laws of the Game</a>.</p>`,
-      },
-      {
-        id: 'session-video',
-        type: 'video',
-        title: 'Video: A Grassroots Training Session in Action',
-        videoUrl: '/media/lesson-video.mp4',
-        videoUrlWebm: '/media/lesson-video.webm',
-        durationSeconds: 93,
-        // The watch gate: the learner must watch all but the last 2 seconds of
-        // real playback (generalized as duration - 2 seconds).
-        minWatchSeconds: 91,
-        html: `
-          <p>Watch this training session demonstration from start to finish. As you watch, look for:</p>
-          <ul>
-            <li>How quickly players get a ball at their feet (no lines, no laps, no lectures),</li>
-            <li>Water breaks and safety checkpoints,</li>
-            <li>The coach teaching through short “freeze” moments instead of long speeches.</li>
-          </ul>
-          <p><strong>Note:</strong> skipping ahead is disabled. You must watch almost the entire
-          video before you can continue to the next lesson.</p>`,
       },
       {
         id: 'session-design',

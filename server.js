@@ -94,7 +94,30 @@ function finalizeRefereeCourse() {
   save();
 }
 
-// One-time: make sure the referee course TITLE has no "Regional" in it (the
+// One-time cleanup of the Grassroots Coaching License (a demo course): remove the
+// unrelated self-hosted sample video lesson (it was 13 MB served from Render), and
+// put a 15-second reading gate on every text lesson so learners spend a moment on
+// each one. The final exam already has 5 questions. Runs once; respects later edits.
+const GRASSROOTS_FIX_FLAG = 'grassroots-cleanup-v1';
+function fixGrassrootsCourse() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[GRASSROOTS_FIX_FLAG]) return;
+  const course = db.courses.find((c) => c.id === 'grassroots-coaching-license');
+  if (!course) { db.migrations[GRASSROOTS_FIX_FLAG] = new Date().toISOString(); save(); return; }
+  // Drop the sample video lesson (and clean the welcome text's mention of it).
+  course.lessons = (course.lessons || []).filter((l) => l.id !== 'session-video' && l.type !== 'video');
+  const welcome = course.lessons.find((l) => l.id === 'welcome');
+  if (welcome && /video lesson requires/i.test(welcome.html || '')) {
+    welcome.html = welcome.html.replace(/<li>\s*The video lesson requires[\s\S]*?<\/li>\s*/i, '');
+  }
+  // 15-second reading gate on every text lesson.
+  for (const l of course.lessons) if (l.type === 'text') l.minSeconds = 15;
+  db.migrations[GRASSROOTS_FIX_FLAG] = new Date().toISOString();
+  save();
+}
+
+
 // completion screen and certificate show the title). Runs once; only touches a
 // title that still contains "regional", so a deliberate title is left alone.
 const REFEREE_TITLE_FLAG = 'referee-title-fix-v1';
@@ -3570,7 +3593,7 @@ if (require.main === module) {
       try {
         seedCourses(); seedAdmin(); seedEditor(); seedOwner(); seedPartner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
-        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder();
+        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
       } catch (e) {
         console.error('[boot] a seed/migration failed (continuing to serve):', e && e.stack || e);
       }

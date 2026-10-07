@@ -34,8 +34,11 @@ test('full learner journey through the coaching license course', async ({ page }
 
   // --- 3. Enroll (via the Coaches Portal) -----------------------------------
   await page.goto('/#/coaches');
-  await expect(page.locator('.course-card h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
-  await page.click('.enroll-btn');
+  // Scope to the Grassroots card specifically — other tests may publish coaches
+  // courses that also appear here, so a bare `.course-card` would be ambiguous.
+  const grassrootsCard = page.locator('.course-card', { hasText: 'NCYSA Grassroots Soccer Coaching License' });
+  await expect(grassrootsCard.locator('h3')).toContainText('NCYSA Grassroots Soccer Coaching License');
+  await grassrootsCard.locator('.enroll-btn').click();
   await expect(page.locator('.curriculum')).toContainText('NCYSA Grassroots Soccer Coaching License');
   await expect(page.locator('.lesson-pane h1')).toContainText('Welcome');
   await page.screenshot({ path: `${SNAP}/03-course-player-lesson1.png`, fullPage: true });
@@ -48,49 +51,22 @@ test('full learner journey through the coaching license course', async ({ page }
   await expect(page.locator('.lesson-pane h1')).toContainText('Welcome'); // still on lesson 1
   await page.screenshot({ path: `${SNAP}/04-locked-lesson-blocked.png` });
 
-  // --- 5. Complete the five reading lessons ---------------------------------
-  const readings = ['Welcome', 'Role of the Grassroots Coach', 'Player Development',
-                    'Player Health', 'Laws of the Game'];
-  for (const title of readings) {
-    await expect(page.locator('.lesson-pane h1')).toContainText(title.split(' ')[0]);
-    await page.click('#completeBtn');
-    await page.waitForTimeout(300);
+  // --- 5. Reading lessons: the first shows the 15-second reading gate; complete
+  //        the rest via the API so the journey stays fast (the gate is a client
+  //        reading pace, not a server rule). The old sample video lesson was removed. ---
+  await expect(page.locator('.lesson-pane h1')).toContainText('Welcome');
+  await expect(page.locator('#completeBtn')).toBeDisabled(); // 15-second reading gate is active
+  const COURSE = 'grassroots-coaching-license';
+  const prog = await (await page.request.get(`/api/courses/${COURSE}`)).json();
+  for (const l of prog.course.lessons) {
+    if (l.type === 'text') await page.request.post(`/api/courses/${COURSE}/lessons/${l.id}/complete`, { data: {} });
   }
+  // Reload so the SPA re-fetches progress — it lands on the first incomplete
+  // lesson: the final exam.
+  await page.reload();
 
-  // --- 6. The video lesson & the 58-of-60-seconds gate -----------------------
-  await expect(page.locator('.lesson-pane h1')).toContainText('Training Session in Action');
-  const completeBtn = page.locator('#completeBtn');
-  await expect(completeBtn).toBeDisabled(); // gate closed before any watching
-  await page.screenshot({ path: `${SNAP}/05-video-gate-locked.png`, fullPage: true });
-
-  // Attempt to cheat: seek straight to the end. The player must snap back.
-  await page.waitForFunction(() => document.getElementById('lessonVideo').readyState >= 1);
-  await page.evaluate(() => { document.getElementById('lessonVideo').currentTime = 55; });
-  await expect(page.locator('#toast')).toContainText('Skipping ahead is disabled');
-  const posAfterSeek = await page.evaluate(() => document.getElementById('lessonVideo').currentTime);
-  expect(posAfterSeek).toBeLessThan(2);
-  await page.screenshot({ path: `${SNAP}/06-video-seek-blocked.png` });
-
-  // Watch the video for real. (Test-only: crank playbackRate so the video plays
-  // in a fraction of wall-clock; watch-time still accrues from real playback.)
-  // No muting — the app forbids it and clicking #playBtn is a real user gesture,
-  // which is what permits playback.
-  await page.evaluate(() => {
-    const v = document.getElementById('lessonVideo');
-    v.playbackRate = 8;
-  });
-  await page.click('#playBtn');
-  await expect(page.locator('#watchLabel')).toContainText('Requirement met', { timeout: 90_000 });
-  await expect(completeBtn).toBeEnabled();
-  await page.screenshot({ path: `${SNAP}/07-video-gate-satisfied.png`, fullPage: true });
-  await completeBtn.click();
-
-  // --- 7. Remaining reading lessons (session design + resources) --------------
-  await expect(page.locator('.lesson-pane h1')).toContainText('Play–Practice–Play');
-  await page.click('#completeBtn');
-  await expect(page.locator('.lesson-pane h1')).toContainText('Coaching Resources');
-  await expect(page.locator('.lesson-content a', { hasText: 'Learning Center' }).first()).toBeVisible();
-  await page.click('#completeBtn');
+  // Reopen the course — it lands on the first incomplete lesson: the final exam.
+  await page.goto(`/#/course/${COURSE}`);
 
   // --- 8. Final exam: fail once, then pass ------------------------------------
   await expect(page.locator('.lesson-pane h1')).toContainText('Final Exam');
@@ -138,13 +114,13 @@ test('full learner journey through the coaching license course', async ({ page }
   await page.fill('#email', 'admin@ncysa.org');
   await page.fill('#password', 'wrong-password');
   await page.click('button:has-text("Sign in")');
-  await expect(page.locator('#formError')).toContainText('Incorrect'); // wrong password rejected
+  await expect(page.locator('#formError')).toContainText('incorrect', { ignoreCase: true }); // wrong password rejected (generic message)
   await page.fill('#password', 'ncysa-staff-2026');
   await page.click('button:has-text("Sign in")');
   await page.click('.nav-dashboard');
 
   const record = page.locator('.admin-table tr', { hasText: 'Jordan Ellis' });
-  await expect(record).toContainText('9/9');          // module progress column
+  await expect(record).toContainText('8/8');          // module progress column (8 lessons after the video was removed)
   await expect(record).toContainText('✓ Complete');   // status column
   await expect(page.locator('#exportCsvBtn')).toBeVisible(); // Excel export
   await expect(page.locator('.admin-card', { hasText: 'NCYSA notifications' }))
