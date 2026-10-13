@@ -3779,6 +3779,48 @@ const KB_LEARNER = [
   },
 ];
 
+// Referee recertification questions. Shown as their own section on the Help page
+// because the recert flow (NCSRA Step 3) has a few questions the general articles
+// above don’t cover — most often “it won’t accept my email” at account creation.
+const KB_REFEREE = [
+  {
+    q: 'Step 3 won’t accept my email when I create my account.',
+    a: `<p>Two quick fixes clear this up almost every time:</p>
+        <ul>
+          <li>Use <strong>Create account</strong> (not Sign in), and type your email with
+              <strong>no spaces</strong> — phone keyboards often add one after the address, which
+              makes it look invalid.</li>
+          <li>The portal <strong>accepts any valid email</strong> to create your account. If you
+              recently changed your email in Arbiter or elsewhere, that does <strong>not</strong>
+              block you here — the portal doesn’t check your email against Arbiter.</li>
+        </ul>
+        <p>Still stuck? Email NCSRA Administrator Erick Varone with a screenshot of the message and
+           the exact email you’re typing.</p>`,
+  },
+  {
+    q: 'Which email should I use for recertification?',
+    a: `<p>Use the <strong>same email you have listed in your Arbiter account</strong> so NCSRA can
+        match your completion to your referee record. If your emails differ, go ahead and finish
+        anyway — the <strong>certificate</strong> is what counts, and you’ll email that to the
+        administrator to confirm your recertification.</p>`,
+  },
+  {
+    q: 'How do I get credit? What do I do with my certificate?',
+    a: `<p>When you finish all the course modules, a <strong>completion certificate</strong> is
+        issued automatically with a unique ID. To receive credit, <strong>email that certificate
+        to NCSRA Administrator Erick Varone</strong> when you follow up to confirm your 2027
+        Recertification. He’ll process it and have your 2027 badge mailed to the address on your
+        Arbiter account.</p>`,
+  },
+  {
+    q: 'How long is the course, and can I stop and come back?',
+    a: `<p>Plan for about <strong>an hour and a half</strong>. The course is broken into modules that
+        unlock <strong>in order</strong> — each opens once you finish the one before it. You can stop
+        at any time; when you sign back in with the same email, a <strong>“Resume where you left
+        off”</strong> button brings you right back to where you were.</p>`,
+  },
+];
+
 function kbAccordion(items) {
   return `<div class="kb-list">${items.map((it) => `
     <details class="kb-item">
@@ -3799,6 +3841,9 @@ function viewHelp() {
 
       <h3 class="kb-heading">Knowledge Base articles — for learners</h3>
       ${kbAccordion(KB_LEARNER)}
+
+      <h3 class="kb-heading">Referee recertification</h3>
+      ${kbAccordion(KB_REFEREE)}
 
       ${isDesigner ? `
         <h3 class="kb-heading">Course designer resources</h3>
