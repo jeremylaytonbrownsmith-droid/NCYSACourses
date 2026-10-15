@@ -2459,6 +2459,65 @@ app.delete('/api/admin/enrollments', requireDashboard, (req, res) => {
   res.json({ ok: true, removedEnrollments: gone.length, removedAccount });
 });
 
+// Per-module progress for one learner in one course. Powers the admin
+// "reset a single module" tool, so a learner stuck on one module (e.g. an
+// uploaded SCORM package we can't edit) can redo just that module instead of
+// having their whole course wiped.
+app.get('/api/admin/learner-modules', requireDashboard, (req, res) => {
+  const userId = String(req.query.userId || '');
+  const courseId = String(req.query.courseId || '');
+  if (!userId || !courseId) return res.status(400).json({ error: 'userId and courseId are required.' });
+  const course = allCourses().find((c) => c.id === courseId);
+  if (!course) return res.status(404).json({ error: 'No matching course.' });
+  // A partner may only inspect its own org's courses.
+  const scope = reqOrgScope(req);
+  if (scope && (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  const db = load();
+  const progress = getProgress(db, userId, courseId);
+  const modules = (course.lessons || []).map((l, i) => {
+    const rec = progress.find((p) => p.lessonId === l.id);
+    let status = 'not started';
+    if (rec && rec.completed) status = 'completed';
+    else if (rec) status = 'in progress';
+    return { id: l.id, num: i + 1, title: l.title || `Module ${i + 1}`, type: l.type, status, completed: !!(rec && rec.completed) };
+  });
+  res.json({ courseId, title: course.title, modules });
+});
+
+// Reset ONE module for a learner: clears just that module's progress so they can
+// retake it, leaving the rest of the course untouched. If the course had been
+// completed, resetting a module necessarily un-completes it (and invalidates the
+// certificate, whose validity keys off the completion timestamp).
+app.post('/api/admin/reset-module', requireDashboard, (req, res) => {
+  const userId = String(req.body?.userId || '');
+  const courseId = String(req.body?.courseId || '');
+  const lessonId = String(req.body?.lessonId || '');
+  if (!userId || !courseId || !lessonId) return res.status(400).json({ error: 'userId, courseId and lessonId are required.' });
+  const course = allCourses().find((c) => c.id === courseId);
+  if (!course) return res.status(404).json({ error: 'No matching course.' });
+  const scope = reqOrgScope(req);
+  if (scope && (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  if (!(course.lessons || []).some((l) => l.id === lessonId)) return res.status(404).json({ error: 'No such module in this course.' });
+  const db = load();
+  const enr = db.enrollments.find((e) => e.userId === userId && e.courseId === courseId);
+  if (!enr) return res.status(404).json({ error: 'No matching record.' });
+  const before = db.lessonProgress.length;
+  db.lessonProgress = db.lessonProgress.filter((p) => !(p.userId === userId && p.courseId === courseId && p.lessonId === lessonId));
+  const removed = before - db.lessonProgress.length;
+  // A reset module means the course is no longer complete. Clear completion + cert
+  // (cert validity keys off completedAt) and drop its completion notification.
+  let certCleared = false;
+  if (enr.completedAt) {
+    const certId = enr.certId;
+    enr.completedAt = null;
+    enr.certId = null;
+    if (certId) db.notifications = db.notifications.filter((n) => !String(n.body || '').includes(certId));
+    certCleared = true;
+  }
+  save();
+  res.json({ ok: true, removed, certCleared });
+});
+
 // Send a test email so staff can verify mail delivery is configured correctly.
 app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
   const to = String(req.body?.to || '').trim() || req.user.email;

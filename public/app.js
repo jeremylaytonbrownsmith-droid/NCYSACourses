@@ -2210,8 +2210,10 @@ function openLearnerDrawer(userId, rows) {
         <div class="dr-actions">
           ${r.certId ? `<a class="btn btn-ghost btn-sm" href="#/cert/${esc(r.certId)}">View certificate</a>
             <button class="btn btn-ghost btn-sm dr-copy" data-id="${esc(r.certId)}">Copy verify link</button>` : ''}
-          ${r.courseId ? `<button class="btn btn-ghost btn-sm dr-reset" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}" data-name="${esc(name)}">Reset / delete</button>` : ''}
+          ${r.courseId ? `<button class="btn btn-ghost btn-sm dr-modules" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}">Reset a module…</button>
+            <button class="btn btn-ghost btn-sm dr-reset" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}" data-name="${esc(name)}">Reset / delete</button>` : ''}
         </div>
+        ${r.courseId ? `<div class="dr-modwrap" data-course="${esc(r.courseId)}"></div>` : ''}
       </div>`).join('')}
     </div>
   </aside></div>`;
@@ -2229,6 +2231,41 @@ function openLearnerDrawer(userId, rows) {
     b.disabled = true;
     try { await api('/api/admin/enrollments', { method: 'DELETE', body: { userId: b.dataset.user, courseId: b.dataset.course } }); close(); viewAdmin(); }
     catch (e) { alert('Could not reset: ' + e.message); b.disabled = false; }
+  }));
+  // "Reset a module…" — loads this learner's modules for the course and lets the
+  // admin clear just one (so a learner stuck on a single module can retake it
+  // without losing the rest of the course).
+  async function renderModules(wrap, userId, courseId) {
+    wrap.innerHTML = '<div class="dr-modloading">Loading modules…</div>';
+    let data;
+    try { data = await api(`/api/admin/learner-modules?userId=${encodeURIComponent(userId)}&courseId=${encodeURIComponent(courseId)}`); }
+    catch (e) { wrap.innerHTML = `<div class="dr-modloading">Could not load modules: ${esc(e.message)}</div>`; return; }
+    const pill = (s) => s === 'completed' ? '<span class="dr-mod-dot done">✓</span>' : s === 'in progress' ? '<span class="dr-mod-dot prog">●</span>' : '<span class="dr-mod-dot none">○</span>';
+    wrap.innerHTML = `<div class="dr-modlist">
+      <div class="dr-modhint">Reset one module so this learner can retake just that module. The rest of the course is untouched.</div>
+      ${(data.modules || []).map((m) => `<div class="dr-mod">
+        <span class="dr-mod-s">${pill(m.status)}</span>
+        <span class="dr-mod-t">${m.num}. ${esc(m.title)}</span>
+        ${m.status === 'not started'
+          ? '<span class="dr-mod-ns">not started</span>'
+          : `<button class="btn btn-ghost btn-sm dr-mod-reset" data-lesson="${esc(m.id)}" data-title="${esc(m.title)}">Reset</button>`}
+      </div>`).join('')}
+    </div>`;
+    wrap.querySelectorAll('.dr-mod-reset').forEach((rb) => rb.addEventListener('click', async () => {
+      if (!confirm(`Reset the module "${rb.dataset.title}" for this learner? They'll redo just this module; the rest of the course is kept. If their course was marked complete, that completion and its certificate will be cleared.`)) return;
+      rb.disabled = true;
+      try {
+        await api('/api/admin/reset-module', { method: 'POST', body: { userId, courseId, lessonId: rb.dataset.lesson } });
+        toast('Module reset — the learner can retake it now.');
+        await renderModules(wrap, userId, courseId);
+      } catch (e) { alert('Could not reset module: ' + e.message); rb.disabled = false; }
+    }));
+  }
+  host.querySelectorAll('.dr-modules').forEach((b) => b.addEventListener('click', () => {
+    const wrap = host.querySelector(`.dr-modwrap[data-course="${CSS.escape(b.dataset.course)}"]`);
+    if (!wrap) return;
+    if (wrap.innerHTML.trim()) { wrap.innerHTML = ''; return; } // toggle closed
+    renderModules(wrap, b.dataset.user, b.dataset.course);
   }));
 }
 
