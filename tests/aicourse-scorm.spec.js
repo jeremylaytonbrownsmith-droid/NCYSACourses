@@ -179,7 +179,7 @@ test('the Course Designer Export panel opens and downloads a package through the
   await card.locator('.publish-course').click();
   const panel = card.locator('.publish-panel');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('.pp-card')).toHaveCount(4); // SCORM 1.2, 2004, Web, Hosted link
+  await expect(panel.locator('.pp-card')).toHaveCount(6); // Web, SCORM 1.2, 2004, PDF, PPTX, Hosted link
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),

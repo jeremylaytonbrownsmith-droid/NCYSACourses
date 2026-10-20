@@ -2613,7 +2613,8 @@ async function viewCourseAdmin(flash) {
     document.getElementById('newCoursePanel').innerHTML = '<div class="editor-form"><p class="meta">Loading integration details…</p></div>';
     bindIntegration(list);
   });
-  const FORMAT_LABEL = { scorm12: 'SCORM 1.2', scorm2004: 'SCORM 2004', web: 'Web page' };
+  const FORMAT_LABEL = { scorm12: 'SCORM 1.2', scorm2004: 'SCORM 2004', web: 'Web page', pdf: 'PDF', pptx: 'PowerPoint' };
+  const FORMAT_EXT = { pdf: 'pdf', pptx: 'pptx' }; // everything else is a .zip
   document.querySelectorAll('.publish-course').forEach((b) => b.addEventListener('click', () => {
     const cid = b.dataset.course, title = b.dataset.title || 'course';
     const slot = document.querySelector(`.panel-slot[data-course="${cid}"]`);
@@ -2922,9 +2923,11 @@ async function viewCourseAdmin(flash) {
 
   function publishPanel(cid, title) {
     const cards = [
+      { fmt: 'web', ico: '🌐', t: 'Web page (no LMS) — recommended', d: 'A self-contained site that opens in any browser, online or off, with the quiz fully interactive. Best for in-person use.' },
       { fmt: 'scorm12', ico: '🎓', t: 'SCORM 1.2', d: 'For most LMS platforms — the standard choice.' },
       { fmt: 'scorm2004', ico: '🧩', t: 'SCORM 2004', d: 'For newer LMSs that prefer the 2004 standard.' },
-      { fmt: 'web', ico: '🌐', t: 'Web page (no LMS)', d: 'A self-contained site that opens in any browser — no LMS needed.' },
+      { fmt: 'pdf', ico: '📄', t: 'PDF handout', d: 'A static document for printing. The quiz prints with an answer key.' },
+      { fmt: 'pptx', ico: '📊', t: 'PowerPoint', d: 'Static slides for classroom projection. The quiz prints with an answer key.' },
     ];
     return `<div class="publish-panel">
       <div class="pp-head"><h3>Export / publish “${esc(title)}”</h3><button class="pp-close" type="button" aria-label="Close">×</button></div>
@@ -2951,7 +2954,8 @@ async function viewCourseAdmin(flash) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = cid + '-' + fmt + '.zip';
+        const base = (title || cid).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || cid;
+        a.href = url; a.download = base + '-' + fmt + '.' + (FORMAT_EXT[fmt] || 'zip');
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
         setStatus('✓ ' + (FORMAT_LABEL[fmt] || 'Package') + ' downloaded.', 'ok');
