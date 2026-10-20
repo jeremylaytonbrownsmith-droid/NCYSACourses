@@ -52,6 +52,9 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;letter-spacing:-.01em;marg
 .mark{font-family:var(--display);font-weight:800;font-size:1.25rem;letter-spacing:-.02em;color:var(--ink)}
 .mark b{color:var(--accent);font-weight:800}
 .tag{font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.navlink{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font:700 .82rem var(--display);color:var(--accent);border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:999px;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease;white-space:nowrap}
+.navlink:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(23,34,79,.14)}
+.topnav{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 
 .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0c1330,#17224f);color:#fff;border-radius:20px;padding:40px 34px}
 .hero .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:40px 40px;-webkit-mask-image:radial-gradient(120% 90% at 80% 0%,#000 30%,transparent 75%);mask-image:radial-gradient(120% 90% at 80% 0%,#000 30%,transparent 75%)}
@@ -173,7 +176,10 @@ footer a{color:var(--accent);text-decoration:underline}
 <div class="wrap" id="doc" hidden>
   <div class="top">
     <div class="mark">GetMatch<b>Ready</b></div>
-    <div class="tag">Prepared for Officials Management Group (OMG / OMS). October 2026. Confidential.</div>
+    <div class="topnav">
+      <a class="navlink" href="https://ncysa-learn.onrender.com/#/referees" target="_blank" rel="noopener">NCSRA referee courses →</a>
+      <div class="tag">Prepared for Officials Management Group (OMG / OMS). October 2026. Confidential.</div>
+    </div>
   </div>
 
   <div class="hero">
@@ -182,12 +188,12 @@ footer a{color:var(--accent);text-decoration:underline}
       <div class="hero-copy">
         <div class="eyebrow">License proposal</div>
         <h1>Deliver training to <em>every official</em>, on a platform that's already live.</h1>
-        <p class="sub">GetMatchReady certifies referees in production today, and plugs straight into your application system. Two ways to put it to work: license it, or own it later, with me building it into your multi-sport platform.</p>
+        <p class="sub">GetMatchReady certifies referees in production today, and plugs straight into your application system. Three ways to put it to work: <em>pay as you grow</em>, license it flat, or own it later — with me building it into your multi-sport platform.</p>
       </div>
       <div class="stat" role="group" aria-label="Pricing summary">
         <div class="big">$24,000</div>
         <div class="stat-mid">
-          <div class="cap"><b style="color:#fff">per year, all-in</b> for the OMS platform — setup and integration included. A <b style="color:#fff">flat fee, no per-official charges</b>, and you can own it outright for $72,000 with every license dollar credited. <b style="color:#fff">Prefer monthly? It can be billed monthly — about $2,000/month.</b></div>
+          <div class="cap"><b style="color:#fff">per year at a full ~10,000-user ramp</b> on the pay-as-you-grow plan — and it <b style="color:#fff">starts near zero</b> while uptake is low, so cost tracks real usage. Prefer one predictable number? A <b style="color:#fff">flat $24,000/yr</b> (setup included) or <b style="color:#fff">own it for $72,000</b>, with every license dollar credited, are both on the table.</div>
         </div>
       </div>
     </div>
@@ -195,10 +201,47 @@ footer a{color:var(--accent);text-decoration:underline}
 
   <div class="dlbar"><a class="dlbtn" href="/downloads/GetMatchReady-Proposal.pdf" download><span class="ic">↓</span> Download PDF</a></div>
 
+  <section aria-labelledby="grow-h">
+    <div class="eyebrow2">The offer — OMS · recommended</div>
+    <h2 id="grow-h">Pay as you grow</h2>
+    <p class="lead">Built for how OMS actually adopts this: you start near zero while uptake is low, and cost rises only as real usage does. A service-and-support agreement keeps the player hosted, maintained and supported — no programmer needed on your side.</p>
+    <div class="opts">
+      <div class="opt reco">
+        <div class="ribbon">Recommended</div>
+        <h3>Platform &plus; usage</h3>
+        <div class="one">Support keeps it running; usage scales only with real adoption.</div>
+        <div class="hd">$300<small> / month support</small></div>
+        <dl>
+          <dt>Setup &amp; integration (one-time)</dt><dd>$1,500</dd>
+          <dt>Support &amp; hosting</dt><dd>$300/mo</dd>
+          <dt>Active users — first 1,000</dt><dd>$4.00 / user·yr</dd>
+          <dt>1,001–5,000</dt><dd>$3.00</dd>
+          <dt>5,001–15,000</dt><dd>$2.00</dd>
+          <dt>Annual usage minimum</dt><dd>$1,500/yr</dd>
+        </dl>
+        <div class="foot">Near-zero while uptake is low; about $24,000/yr only at a full ~10,000-user ramp. An "active user" takes at least one module that year.</div>
+      </div>
+      <div class="opt">
+        <h3>Module building</h3>
+        <div class="one">I build your modules — online, plus an in-person version where you need it.</div>
+        <div class="hd">$250<small> / module</small></div>
+        <dl>
+          <dt>Standard (reading + quiz)</dt><dd>$250</dd>
+          <dt>Rich (video, interactions)</dt><dd>$500</dd>
+          <dt>Convert an existing test</dt><dd>$400</dd>
+          <dt>Bundle of 10 or more</dt><dd>15% off</dd>
+          <dt>Export (SCORM / web / PDF / PPT)</dt><dd>Included</dd>
+        </dl>
+        <div class="foot">Optional and per-project — add modules only as you need them, with each one exportable for in-person use too.</div>
+      </div>
+    </div>
+    <p class="rec"><b>Why this fits:</b> your cost tracks your usage, so there's no large upfront commitment while adoption ramps — and the per-module build option covers content when your team is stretched.</p>
+  </section>
+
   <section aria-labelledby="opts-h">
-    <div class="eyebrow2">The offer — OMS</div>
-    <h2 id="opts-h">Two ways forward for OMS</h2>
-    <p class="lead">The complete OMS platform — your branded referee portal, the modules, the signed integration, certificates and reporting. <b>Flat pricing, no per-official fees.</b> License it now, or own it later. Buying is always optional, never required.</p>
+    <div class="eyebrow2">The offer — OMS · fixed-price alternatives</div>
+    <h2 id="opts-h">Prefer a fixed price? Two flat alternatives</h2>
+    <p class="lead">If you'd rather have one predictable number than usage-based billing, the same complete OMS platform — your branded referee portal, the modules, the signed integration, certificates and reporting — is available at a <b>flat annual price with no per-official fees</b>. License it now, or own it later. Both are optional alternatives to Pay as you grow; buying is never required.</p>
 
     <div class="opts">
       <div class="opt">
