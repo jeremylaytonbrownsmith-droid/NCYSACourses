@@ -504,7 +504,7 @@ function courseCard(c) {
         : logoImg('thumb-logo')}</div>
       <div class="body">
         <h3>${esc(c.title)}</h3>
-        <div class="meta">${comingSoon ? 'Coming soon' : `${c.lessonCount} lessons · ~${c.estMinutes} min · Certificate included`}</div>
+        <div class="meta">${comingSoon ? 'Coming soon' : `${c.lessonCount} lessons · Certificate included`}</div>
         <p class="desc">${esc(c.tagline)}</p>
         ${foot}
       </div>
