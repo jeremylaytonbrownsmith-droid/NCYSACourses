@@ -1853,6 +1853,24 @@ app.post('/api/staff-access', (req, res) => {
 
 // ---------- catalog & enrollment ----------
 
+// Estimate a course's completion time from its actual content, so the catalog
+// never shows a misleading hand-typed number. Uses each lesson's enforced time
+// gate where set (SCORM / reading minSeconds, video minWatchSeconds / duration),
+// with sensible per-type fallbacks. The catalog shows max(this, the manual
+// estMinutes) — so it can never understate the real minimum, but an admin can
+// still set a higher number deliberately in the editor.
+function estimateCourseMinutes(course) {
+  let sec = 0;
+  for (const l of (course.lessons || [])) {
+    if (!l) continue;
+    const gate = Math.max(Number(l.minSeconds) || 0, Number(l.minWatchSeconds) || 0, Number(l.durationSeconds) || 0);
+    if (l.type === 'scorm' || l.type === 'video') sec += gate > 0 ? gate : 300; // module/video: real gate, else ~5 min
+    else if (l.type === 'quiz') sec += Math.max(gate, 120);                      // ~2 min to answer
+    else sec += Math.max(gate, 90);                                              // reading/slides ~1.5 min
+  }
+  return Math.max(1, Math.round(sec / 60));
+}
+
 app.get('/api/courses', (req, res) => {
   const user = currentUser(req);
   const isStaff = !!user && STAFF_ROLES.includes(user.role);
@@ -1876,7 +1894,7 @@ app.get('/api/courses', (req, res) => {
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
-        badge: c.badge, estMinutes: c.estMinutes, heroEmoji: c.heroEmoji,
+        badge: c.badge, estMinutes: Math.max(Number(c.estMinutes) || 0, estimateCourseMinutes(c)), heroEmoji: c.heroEmoji,
         audience: c.audience || 'everyone',
         orgId: orgOf(c),
         coBrandName: c.coBrandName || null,
