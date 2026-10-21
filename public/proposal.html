@@ -402,6 +402,48 @@ footer a{color:var(--accent);text-decoration:underline}
     <p class="note">Video sizes are estimates; per-GB rates are published rates (Bunny, AWS CloudFront). Vimeo figure is a typical paid-plan range. Hosting is passed through at actual cost (storage and CDN usage) — an estimate that scales with video watched, not a cap.</p>
   </section>
 
+  <section aria-labelledby="scale-h">
+    <div class="eyebrow2">Running cost at scale</div>
+    <h2 id="scale-h">What it costs to run — at 10,000 and 30,000 users</h2>
+    <p class="lead">So there are no surprises as you grow, here is the actual infrastructure cost to operate the whole platform at scale. The app and database are covered by your retainer; video is passed through at cost. Even at 30,000 users it is a few hundred dollars a month — a small fraction of the fee.</p>
+    <table style="width:100%;border-collapse:collapse;margin:10px 0 8px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:11px 12px;border-bottom:2px solid var(--line);color:var(--muted);font:600 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase">Scale</th>
+          <th style="text-align:left;padding:11px 12px;border-bottom:2px solid var(--line);color:var(--muted);font:600 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase">App hosting (Render)</th>
+          <th style="text-align:left;padding:11px 12px;border-bottom:2px solid var(--line);color:var(--muted);font:600 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase">Database (Firestore)</th>
+          <th style="text-align:left;padding:11px 12px;border-bottom:2px solid var(--line);color:var(--muted);font:600 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase">Video (Bunny, at cost)</th>
+          <th style="text-align:left;padding:11px 12px;border-bottom:2px solid var(--line);color:var(--muted);font:600 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase">≈ Total / month</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">Today (hundreds of users)</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~$25</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">free–$10</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~$1–5</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line);font-weight:700">~$30–40</td>
+        </tr>
+        <tr>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~10,000 active users</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~$85</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~$50</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line)">~$10</td>
+          <td style="padding:13px 12px;border-bottom:1px solid var(--line);font-weight:700">~$150</td>
+        </tr>
+        <tr>
+          <td style="padding:13px 12px;font-weight:700;color:var(--accent)">~30,000 active users</td>
+          <td style="padding:13px 12px">~$175–250</td>
+          <td style="padding:13px 12px">~$150</td>
+          <td style="padding:13px 12px">~$30</td>
+          <td style="padding:13px 12px;font-weight:800">~$400</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="delta">Running the full platform even at <b class="g">30,000 users is roughly $5,000/year</b> — covered within the retainer, with video billed at actual cost. You scale the instance <b>up</b> as you grow; there is no re-platforming and nothing to rebuild.</p>
+    <p class="note">Estimates from published pricing (Render, Google Firestore, Bunny CDN), not quotes; actual cost tracks real activity. At the tens-of-thousands level the app's progress data moves to on-demand loading — a small, already-scoped change — so the instance size stays modest.</p>
+  </section>
+
   <section aria-labelledby="zite-h">
     <div class="eyebrow2">Integration</div>
     <h2 id="zite-h">Plugs straight into your application system</h2>
