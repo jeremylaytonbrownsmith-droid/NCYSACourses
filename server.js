@@ -1853,12 +1853,11 @@ app.post('/api/staff-access', (req, res) => {
 
 // ---------- catalog & enrollment ----------
 
-// Estimate a course's completion time from its actual content, so the catalog
-// never shows a misleading hand-typed number. Uses each lesson's enforced time
-// gate where set (SCORM / reading minSeconds, video minWatchSeconds / duration),
-// with sensible per-type fallbacks. The catalog shows max(this, the manual
-// estMinutes) — so it can never understate the real minimum, but an admin can
-// still set a higher number deliberately in the editor.
+// Fallback estimate of a course's completion time from its actual content, used
+// ONLY when a course has no admin-set estMinutes. The editor's "Est. minutes" is
+// authoritative and shown exactly as typed; this just keeps a brand-new course
+// from reading "~0 min". Uses each lesson's enforced time gate where set (SCORM /
+// reading minSeconds, video minWatchSeconds / duration), with per-type fallbacks.
 function estimateCourseMinutes(course) {
   let sec = 0;
   for (const l of (course.lessons || [])) {
@@ -1894,7 +1893,7 @@ app.get('/api/courses', (req, res) => {
       const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
-        badge: c.badge, estMinutes: Math.max(Number(c.estMinutes) || 0, estimateCourseMinutes(c)), heroEmoji: c.heroEmoji,
+        badge: c.badge, estMinutes: Math.max(1, Math.round(Number(c.estMinutes) || estimateCourseMinutes(c))), heroEmoji: c.heroEmoji,
         audience: c.audience || 'everyone',
         orgId: orgOf(c),
         coBrandName: c.coBrandName || null,
