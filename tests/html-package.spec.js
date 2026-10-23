@@ -27,16 +27,16 @@ test('an HTML package (no imsmanifest, has index.html) uploads as kind "html"', 
   expect(body.packageId).toBeTruthy();
 });
 
-test('a lesson from an HTML package gets a real time gate and the htmlPackage flag', async ({ playwright }) => {
+test('a lesson from an HTML package carries the htmlPackage flag and no forced timer', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();
   const up = await (await api.post(`/api/admin/scorm?name=Html${Date.now()}`, { headers: { 'content-type': 'application/zip' }, data: htmlZip() })).json();
   const course = (await (await api.post('/api/admin/courses', { data: { title: `HTML Course ${Date.now()}`, audience: 'referees' } })).json()).course;
-  // No minMinutes given → HTML default gate of 5 minutes.
+  // No minMinutes → no time gate; the module gates itself and the learner marks it complete.
   await api.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'scorm', title: 'Mentor Foundations', packageId: up.packageId, launchFile: up.launchFile, htmlPackage: true } });
   const lesson = (await (await api.get(`/api/admin/courses/${course.id}`)).json()).course.lessons[0];
   expect(lesson.htmlPackage).toBe(true);
-  expect(lesson.minSeconds).toBe(300);
+  expect(lesson.minSeconds).toBe(0);
 });
 
 test('an HTML module completes via the time gate + mark-complete, with a certificate', async ({ playwright }) => {

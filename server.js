@@ -2608,13 +2608,15 @@ function buildLesson(body) {
     const htmlPackage = !!body.htmlPackage;
     // Minimum time (seconds) a learner must spend in the module before its
     // completion is accepted — the anti-skip gate. Set via "minMinutes" in the
-    // Course Designer; minMinutes:0 disables the gate. Defaults when unspecified —
-    // and an HTML package defaults to a real gate (not 0), since it has no
-    // content-driven completion to fall back on.
+    // Course Designer; minMinutes:0 disables the gate. Defaults to no gate: a
+    // SCORM module reports its own completion, and an HTML package gates itself
+    // internally (you can't reach the end without going through it) and is marked
+    // done by the learner's "mark complete" click — so a time countdown is just
+    // a misleading extra. An admin can still set one explicitly if they want.
     let minSeconds;
     if (body.minMinutes != null) minSeconds = Math.max(0, Math.round(Number(body.minMinutes) * 60)) || 0;
     else if (body.minSeconds != null) minSeconds = Math.max(0, Math.round(Number(body.minSeconds))) || 0;
-    else minSeconds = htmlPackage ? 300 : DEFAULT_SCORM_MIN_SECONDS;
+    else minSeconds = DEFAULT_SCORM_MIN_SECONDS;
     // Per-slide review time (seconds) for our slideshow player: how long a learner
     // must stay on each slide before "Next" enables. Set via the "Time on each
     // slide" dropdown in the Course Designer (0 = off, otherwise 30/45/60/90).

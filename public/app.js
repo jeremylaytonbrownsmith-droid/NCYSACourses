@@ -1320,7 +1320,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     actionsEl.innerHTML =
       (required > 0
         ? `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div><span class="meta" id="scormHint"></span></div>`
-        : `<span class="meta" id="scormHint">When you’ve worked through the whole module, click below.</span>`) +
+        : `<span class="meta" id="scormHint">Complete the whole module above, then click below to continue.</span>`) +
       `<button class="btn btn-primary" id="htmlDoneBtn"${required > 0 ? ' disabled' : ''} style="margin-top:10px">Mark complete &amp; continue</button>`;
   } else if (required > 0 && actionsEl) {
     actionsEl.innerHTML =
@@ -1340,7 +1340,7 @@ function renderScormLesson(pane, course, lesson, lp) {
       const h = document.getElementById('scormHint');
       if (h && !done) h.innerHTML = remaining > 0
         ? `Work through the whole module. The <strong>Mark complete</strong> button unlocks in <strong>${fmt(remaining)}</strong>.`
-        : `Finished? Click <strong>Mark complete &amp; continue</strong>.`;
+        : `Complete the whole module above, then click <strong>Mark complete &amp; continue</strong> to move on.`;
       return;
     }
     const hint = document.getElementById('scormHint');
