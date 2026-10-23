@@ -2602,13 +2602,19 @@ function buildLesson(body) {
     // lesson can never point outside its package folder.
     const packageId = String(body.packageId || '').replace(/[^A-Za-z0-9._-]/g, '');
     const launchFile = (String(body.launchFile || 'index.html').replace(/[^A-Za-z0-9._/-]/g, '').replace(/\.\.+/g, '') || 'index.html');
+    // An HTML package (a "Web" export, e.g. from US Soccer) has no SCORM runtime
+    // to report completion, so completion is driven by the time gate plus a
+    // "mark complete" action in the player. The learner view keys off this flag.
+    const htmlPackage = !!body.htmlPackage;
     // Minimum time (seconds) a learner must spend in the module before its
     // completion is accepted — the anti-skip gate. Set via "minMinutes" in the
-    // Course Designer; minMinutes:0 disables the gate. Defaults when unspecified.
+    // Course Designer; minMinutes:0 disables the gate. Defaults when unspecified —
+    // and an HTML package defaults to a real gate (not 0), since it has no
+    // content-driven completion to fall back on.
     let minSeconds;
     if (body.minMinutes != null) minSeconds = Math.max(0, Math.round(Number(body.minMinutes) * 60)) || 0;
     else if (body.minSeconds != null) minSeconds = Math.max(0, Math.round(Number(body.minSeconds))) || 0;
-    else minSeconds = DEFAULT_SCORM_MIN_SECONDS;
+    else minSeconds = htmlPackage ? 300 : DEFAULT_SCORM_MIN_SECONDS;
     // Per-slide review time (seconds) for our slideshow player: how long a learner
     // must stay on each slide before "Next" enables. Set via the "Time on each
     // slide" dropdown in the Course Designer (0 = off, otherwise 30/45/60/90).
@@ -2624,7 +2630,7 @@ function buildLesson(body) {
     if (Array.isArray(body.hiddenSlides)) {
       hiddenSlides = [...new Set(body.hiddenSlides.map((n) => Math.round(Number(n))).filter((n) => Number.isInteger(n) && n >= 1))].sort((a, b) => a - b).slice(0, 2000);
     }
-    return { ...base, html: sanitizeLessonHtml(body.html), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides };
+    return { ...base, html: sanitizeLessonHtml(body.html), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides, ...(htmlPackage ? { htmlPackage: true } : {}) };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -3087,17 +3093,36 @@ async function ingestScormUpload(req, nameHint) {
     catch { throw Object.assign(new Error('That file is not a valid .zip.'), { status: 400 }); }
     const files = directory.files.filter((f) => f.type === 'File');
     const manEntry = files.find((f) => /(^|\/)imsmanifest\.xml$/i.test(f.path));
-    if (!manEntry) throw Object.assign(new Error('Not a SCORM package — no imsmanifest.xml inside the .zip.'), { status: 400 });
-
-    // The manifest may sit inside a wrapping folder; everything is relative to it.
-    const rootPrefix = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
-    const manifest = (await manEntry.buffer()).toString('utf8');
-    const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
-    const launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
-    const title = decodeEntities(
-      ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
-        || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
-    );
+    let kind, rootPrefix, launchFile, title;
+    if (manEntry) {
+      // A SCORM package — the manifest names the launch file and may sit inside a
+      // wrapping folder; everything is relative to it.
+      kind = 'scorm';
+      rootPrefix = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
+      const manifest = (await manEntry.buffer()).toString('utf8');
+      const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
+      launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
+      title = decodeEntities(
+        ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
+          || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
+      );
+    } else {
+      // No SCORM manifest — accept a plain HTML package (e.g. a US Soccer "Web"
+      // export) by launching its index.html. Pick the SHALLOWEST index.html so a
+      // wrapping folder is stripped and a top-level (language-chooser) page wins.
+      const htmls = files.filter((f) => /\.html?$/i.test(f.path));
+      const depth = (p) => p.split('/').length;
+      const indexEntry =
+        htmls.filter((f) => /(^|\/)index\.html?$/i.test(f.path)).sort((a, b) => depth(a.path) - depth(b.path))[0]
+        || htmls.sort((a, b) => depth(a.path) - depth(b.path))[0];
+      if (!indexEntry)
+        throw Object.assign(new Error('Not a course package — no imsmanifest.xml (SCORM) and no index.html (HTML) inside the .zip.'), { status: 400 });
+      kind = 'html';
+      rootPrefix = indexEntry.path.slice(0, indexEntry.path.length - path.basename(indexEntry.path).length);
+      launchFile = path.basename(indexEntry.path);
+      try { title = decodeEntities(((await indexEntry.buffer()).toString('utf8').match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim(); }
+      catch { title = ''; }
+    }
 
     const packageId = slugify(nameHint || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
     dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
@@ -3164,7 +3189,7 @@ async function ingestScormUpload(req, nameHint) {
     const warning = !fs.existsSync(path.join(dest, launchFile))
       ? `Uploaded, but the launch file "${launchFile}" wasn't found in the package — double-check it plays.`
       : null;
-    return { packageId, launchFile, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, videoReport, warning };
+    return { packageId, launchFile, kind, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, videoReport, warning };
   } catch (e) {
     // A failed upload must not leave a half-written package folder or temp zip
     // behind — that would silently eat disk on every retry.
@@ -3219,6 +3244,7 @@ app.post('/api/v1/scorm', async (req, res) => {
   const minMinutes = q.minMinutes != null && q.minMinutes !== '' ? Number(q.minMinutes) : undefined;
   const lesson = buildLesson({
     type: 'scorm', title, packageId: meta.packageId, launchFile: meta.launchFile,
+    htmlPackage: meta.kind === 'html',
     ...(Number.isFinite(minMinutes) ? { minMinutes } : {}),
   });
 

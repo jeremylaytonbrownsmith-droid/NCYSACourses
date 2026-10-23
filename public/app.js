@@ -1306,6 +1306,9 @@ function renderScormLesson(pane, course, lesson, lp) {
   // minimum amount of real time in it (so clicking to the last slide doesn't
   // finish it instantly). Server enforces this; here we track time and show it.
   const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 300));
+  // An HTML "Web" package (e.g. US Soccer) has no SCORM runtime to self-report, so
+  // it completes via the time gate PLUS a "mark complete" button the learner clicks.
+  const isHtml = !!lesson.htmlPackage;
   const AWAY_LIMIT = 180; // seconds hidden (tab away) before this module resets
   let active = Math.max(0, Number(saved.activeSeconds) || 0);
   let done = false;
@@ -1313,7 +1316,13 @@ function renderScormLesson(pane, course, lesson, lp) {
   const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s)) % 60).padStart(2, '0')}`;
 
   const actionsEl = document.getElementById('scormActions');
-  if (required > 0 && actionsEl) {
+  if (isHtml && actionsEl) {
+    actionsEl.innerHTML =
+      (required > 0
+        ? `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div><span class="meta" id="scormHint"></span></div>`
+        : `<span class="meta" id="scormHint">When you’ve worked through the whole module, click below.</span>`) +
+      `<button class="btn btn-primary" id="htmlDoneBtn"${required > 0 ? ' disabled' : ''} style="margin-top:10px">Mark complete &amp; continue</button>`;
+  } else if (required > 0 && actionsEl) {
     actionsEl.innerHTML =
       `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div>` +
       `<span class="meta" id="scormHint"></span></div>`;
@@ -1323,6 +1332,17 @@ function renderScormLesson(pane, course, lesson, lp) {
     const req = (r && r.required != null) ? r.required : required;
     const fill = document.getElementById('scormFill');
     if (fill && req > 0) fill.style.width = Math.min(100, (active / req) * 100) + '%';
+    // HTML package: unlock the "mark complete" button once the time gate is met.
+    if (isHtml) {
+      const remaining = Math.max(0, req - active);
+      const b = document.getElementById('htmlDoneBtn');
+      if (b && !done) b.disabled = remaining > 0;
+      const h = document.getElementById('scormHint');
+      if (h && !done) h.innerHTML = remaining > 0
+        ? `Work through the whole module. The <strong>Mark complete</strong> button unlocks in <strong>${fmt(remaining)}</strong>.`
+        : `Finished? Click <strong>Mark complete &amp; continue</strong>.`;
+      return;
+    }
     const hint = document.getElementById('scormHint');
     if (!hint || done) return;
     // No time gate: show a plain instruction — never any "minimum time" wording.
@@ -1474,6 +1494,19 @@ function renderScormLesson(pane, course, lesson, lp) {
 
   paintGate({ activeSeconds: active, required });
   startBeat();
+
+  // HTML package: the learner marks it complete once the time gate is met. This
+  // sets the status the server needs (completed) and syncs — the server confirms
+  // the gate and completes the module just like a SCORM self-report would.
+  if (isHtml) {
+    document.getElementById('htmlDoneBtn')?.addEventListener('click', () => {
+      const b = document.getElementById('htmlDoneBtn');
+      if (b) { b.disabled = true; b.textContent = 'Saving…'; }
+      cmi['cmi.core.lesson_status'] = 'completed';
+      reachedEnd = true;
+      sync(0, null, true);
+    });
+  }
 
   // Remove the global, stop the heartbeat, and drop the visibility listener when
   // the learner leaves the lesson.
@@ -3306,7 +3339,7 @@ async function viewCourseAdmin(flash) {
               const data = await up.json().catch(() => ({}));
               if (!up.ok) throw new Error(data.error || `upload failed (HTTP ${up.status})`);
               const title = data.title || nameHint;
-              await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile } });
+              await api(`/api/admin/courses/${courseId}/lessons`, { method: 'POST', body: { type: 'scorm', title, packageId: data.packageId, launchFile: data.launchFile, htmlPackage: data.kind === 'html' } });
               okCount++; ok = true;
               line(`✓ Module ${i + 1}: “${esc(title)}” added${data.warning ? ` — ⚠ ${esc(data.warning)}` : ''}`);
               const v = data.video;
@@ -3390,6 +3423,7 @@ async function viewCourseAdmin(flash) {
         <p class="form-hint" style="margin-top:2px">Reuse a package that's already on the server (no re-upload) — handy for rebuilding a course from modules you uploaded before.</p>
         <input type="hidden" name="packageId" value="${l ? esc(l.packageId || '') : ''}" />
         <input type="hidden" name="launchFile" value="${l ? esc(l.launchFile || 'index.html') : ''}" />
+        <input type="hidden" name="htmlPackage" value="${l && l.htmlPackage ? '1' : ''}" />
         <input type="hidden" name="hiddenSlides" value="${l && Array.isArray(l.hiddenSlides) ? esc(JSON.stringify(l.hiddenSlides)) : '[]'}" />
         <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
           <button type="button" class="btn btn-ghost btn-sm" id="manageSlides">Manage slides</button>
@@ -3455,6 +3489,7 @@ async function viewCourseAdmin(flash) {
           }
           form.querySelector('[name=packageId]').value = data.packageId;
           form.querySelector('[name=launchFile]').value = data.launchFile || 'index.html';
+          const hp = form.querySelector('[name=htmlPackage]'); if (hp) hp.value = data.kind === 'html' ? '1' : '';
           const titleEl = form.querySelector('[name=title]');
           if (titleEl && !titleEl.value && data.title) titleEl.value = data.title;
           const v = data.video;
@@ -3573,6 +3608,7 @@ async function viewCourseAdmin(flash) {
         payload.launchFile = fd.get('launchFile') || 'index.html';
         payload.minMinutes = fd.get('minMinutes');
         payload.slideGateSeconds = fd.get('slideGateSeconds');
+        payload.htmlPackage = fd.get('htmlPackage') === '1';
         try { payload.hiddenSlides = JSON.parse(fd.get('hiddenSlides') || '[]'); } catch { payload.hiddenSlides = []; }
         if (!payload.packageId) { msg('Upload the SCORM .zip before saving this module.', true); return; }
       }
