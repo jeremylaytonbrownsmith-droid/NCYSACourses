@@ -1185,9 +1185,35 @@ function renderScormLesson(pane, course, lesson, lp) {
   const base = `/scorm/${encodeURIComponent(lesson.packageId || '')}/`;
   const launch = base + (lesson.launchFile || 'index.html');
   const missing = !lesson.packageId;
+  // "Before you start" tutorial panel. US Soccer's HTML "Web" packages (Mentor+)
+  // open as a facilitator *presentation console* — long, with its own session
+  // controls — which is confusing for a referee just trying to earn credit. Show
+  // a short, plain-language how-to above the module. An admin can override the
+  // wording per lesson via lesson.startGuide; otherwise we use a sensible default
+  // for these presenter-style modules. Collapsible and remembered per learner.
+  const isHtmlPkg = !!lesson.htmlPackage;
+  const guideBody = (lesson.startGuide && String(lesson.startGuide).trim())
+    ? String(lesson.startGuide)
+    : `<ol>
+         <li><strong>Choose how you’re taking it.</strong> On the module’s opening screen, pick <strong>“Review Independently”</strong> — you’re going through it on your own, so nothing is scored or shared with a room. Then click <strong>Start Session</strong>.</li>
+         <li><strong>Move through the slides.</strong> Use <strong>Next Slide</strong> / <strong>Previous Slide</strong> at the bottom of the module. It’s long (around 194 slides) — take your time. Your place is saved automatically, so you can stop and come back.</li>
+         <li><strong>Want a bigger view?</strong> Click <strong>⛶ Full screen</strong> just below, or use the <strong>☰ menu</strong> inside the module to hide its sidebar.</li>
+         <li><strong>Some videos are silent on purpose.</strong> A few clips have no narration by design — that’s normal. Keep going.</li>
+         <li><strong>You finish automatically.</strong> When you reach the last slide the module <strong>marks itself complete</strong> and your <strong>certificate is issued</strong> — you don’t need to click anything else. Leaving early? Choose <strong>Resume Later</strong>.</li>
+       </ol>`;
+  const guideHtml = (isHtmlPkg && !lp.completed && !missing)
+    ? `<div class="module-guide" id="moduleGuide">
+         <div class="mg-head">
+           <h3>📘 Before you start — how to get through this module</h3>
+           <button type="button" class="mg-toggle" id="mgToggle" aria-expanded="true" aria-controls="mgBody">Hide</button>
+         </div>
+         <div class="mg-body" id="mgBody">${guideBody}</div>
+       </div>`
+    : '';
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}
+    ${guideHtml}
     ${missing
       ? `<div class="card notice-card"><h3>Module not uploaded yet</h3><p>This module has no course package attached. An administrator can upload it in the Course Designer.</p></div>`
       : `<div class="scorm-controls">
@@ -1243,6 +1269,28 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   function bindNext() { document.getElementById('nextBtn')?.addEventListener('click', goNext); }
   bindNext();
+
+  // "Before you start" panel: collapse/expand, remembered per lesson so a returning
+  // learner isn't nagged. Defaults to open the first time they see this module.
+  const guideEl = document.getElementById('moduleGuide');
+  const mgToggle = document.getElementById('mgToggle');
+  if (guideEl && mgToggle) {
+    const key = `mg-collapsed:${lesson.id}`;
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(key) === '1'; } catch (_) { /* private mode */ }
+    const paint = () => {
+      guideEl.classList.toggle('collapsed', collapsed);
+      mgToggle.textContent = collapsed ? 'Show how to use this module' : 'Hide';
+      mgToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    };
+    paint();
+    mgToggle.addEventListener('click', () => {
+      collapsed = !collapsed;
+      try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (_) { /* ignore */ }
+      paint();
+    });
+  }
+
   if (missing) return;
 
   // Already completed → the learner is just reviewing. The embedded package still

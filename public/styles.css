@@ -834,6 +834,25 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .scorm-tip-mobile { display: none; }
 @media (max-width: 640px) { .scorm-tip-mobile { display: inline; } }
 
+/* "Before you start" tutorial panel shown above a presenter-style module. */
+.module-guide { border: 1px solid var(--line); border-left: 4px solid var(--brand);
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 14px 18px; margin: 0 0 14px; }
+.module-guide .mg-head { display: flex; align-items: center; gap: 12px; }
+.module-guide .mg-head h3 { margin: 0; font-size: 1.02rem; color: var(--brand); flex: 1; line-height: 1.3; }
+.module-guide .mg-toggle { flex: none; background: none; border: 1px solid var(--line);
+  color: var(--ink-soft); font-size: .82rem; font-weight: 600; padding: 4px 10px;
+  border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.module-guide .mg-toggle:hover { background: var(--bg); color: var(--ink); }
+.module-guide .mg-body { margin-top: 10px; }
+.module-guide .mg-body ol { margin: 0; padding-left: 1.2em; }
+.module-guide .mg-body li { margin: 0 0 8px; color: var(--ink-body); line-height: 1.5; }
+.module-guide .mg-body li:last-child { margin-bottom: 0; }
+.module-guide .mg-body strong { color: var(--ink); }
+.module-guide.collapsed .mg-body { display: none; }
+.module-guide.collapsed { border-left-color: var(--line); }
+.module-guide.collapsed .mg-head h3 { color: var(--ink-soft); }
+
 /* Bunny CDN box in the Module storage panel */
 .cdn-box { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; background: #f6f8fc; }
 .cdn-box.ok { background: #eef7f0; border-color: #cfe8d6; }
