@@ -1320,8 +1320,8 @@ function renderScormLesson(pane, course, lesson, lp) {
     actionsEl.innerHTML =
       (required > 0
         ? `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div><span class="meta" id="scormHint"></span></div>`
-        : `<span class="meta" id="scormHint">Complete the whole module above, then click below to continue.</span>`) +
-      `<button class="btn btn-primary" id="htmlDoneBtn"${required > 0 ? ' disabled' : ''} style="margin-top:10px">Mark complete &amp; continue</button>`;
+        : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you finish. Your place is saved if you leave.</span>`) +
+      `<div class="meta" style="margin-top:8px">Finished but it didn’t mark itself complete? <a href="#" id="htmlDoneBtn">Mark it complete</a>.</div>`;
   } else if (required > 0 && actionsEl) {
     actionsEl.innerHTML =
       `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div>` +
@@ -1332,15 +1332,17 @@ function renderScormLesson(pane, course, lesson, lp) {
     const req = (r && r.required != null) ? r.required : required;
     const fill = document.getElementById('scormFill');
     if (fill && req > 0) fill.style.width = Math.min(100, (active / req) * 100) + '%';
-    // HTML package: unlock the "mark complete" button once the time gate is met.
+    // HTML package: it marks itself complete when the learner finishes. If an
+    // admin set a minimum time, show that it also must be met (the server enforces
+    // both). The small fallback link stays available either way.
     if (isHtml) {
-      const remaining = Math.max(0, req - active);
-      const b = document.getElementById('htmlDoneBtn');
-      if (b && !done) b.disabled = remaining > 0;
       const h = document.getElementById('scormHint');
-      if (h && !done) h.innerHTML = remaining > 0
-        ? `Work through the whole module. The <strong>Mark complete</strong> button unlocks in <strong>${fmt(remaining)}</strong>.`
-        : `Complete the whole module above, then click <strong>Mark complete &amp; continue</strong> to move on.`;
+      if (h && !done && req > 0) {
+        const remaining = Math.max(0, req - active);
+        h.innerHTML = remaining > 0
+          ? `It completes when you finish the module — and after at least <strong>${fmt(req)}</strong> on it (<strong>${fmt(remaining)}</strong> to go).`
+          : `Finish the module to complete it.`;
+      }
       return;
     }
     const hint = document.getElementById('scormHint');
@@ -1499,12 +1501,15 @@ function renderScormLesson(pane, course, lesson, lp) {
   // sets the status the server needs (completed) and syncs — the server confirms
   // the gate and completes the module just like a SCORM self-report would.
   if (isHtml) {
-    document.getElementById('htmlDoneBtn')?.addEventListener('click', () => {
-      const b = document.getElementById('htmlDoneBtn');
-      if (b) { b.disabled = true; b.textContent = 'Saving…'; }
+    document.getElementById('htmlDoneBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
       cmi['cmi.core.lesson_status'] = 'completed';
       reachedEnd = true;
-      sync(0, null, true);
+      sync(0, (r) => {
+        // If an admin set a minimum time and it isn't met, the server won't
+        // complete it yet — tell the learner rather than failing silently.
+        if (r && !r.completed && r.remaining > 0) toast(`Spend a little more time on this module — about ${Math.ceil(r.remaining / 60)} min to go.`, true);
+      }, true);
     });
   }
 
