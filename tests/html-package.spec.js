@@ -39,6 +39,25 @@ test('a lesson from an HTML package carries the htmlPackage flag and no forced t
   expect(lesson.minSeconds).toBe(0);
 });
 
+test('import keeps a media/ folder that sits BESIDE (not under) index.html', async ({ playwright }) => {
+  // The US Soccer "Mentor+" bug: a big package unpacks into one wrapper folder,
+  // with index.html in app/ and the real videos in a sibling media/ folder. The
+  // extractor must strip ONLY the wrapper, never index.html's own folder, or the
+  // videos (and their audio) are silently dropped.
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();
+  const zip = new AdmZip();
+  zip.addFile('WRAP/app/index.html', Buffer.from('<!doctype html><title>Mentor+</title><video src="../media/clip.mp4"></video>', 'utf8'));
+  zip.addFile('WRAP/app/assets/main.js', Buffer.from('// player', 'utf8'));
+  zip.addFile('WRAP/media/clip.mp4', Buffer.from('FAKE-MP4-WITH-AUDIO', 'utf8')); // the sibling video
+  const up = await (await api.post(`/api/admin/scorm?name=MentorPlusMedia${Date.now()}`, { headers: { 'content-type': 'application/zip' }, data: zip.toBuffer() })).json();
+  expect(up.kind).toBe('html');
+  expect(up.launchFile).toBe('app/index.html');            // only WRAP/ stripped, app/ kept
+  const vid = await api.get(`/scorm/${up.packageId}/media/clip.mp4`); // the sibling video survived
+  expect(vid.status()).toBe(200);
+  expect(await vid.text()).toContain('FAKE-MP4-WITH-AUDIO');
+});
+
 test('an HTML module completes via the time gate + mark-complete, with a certificate', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();

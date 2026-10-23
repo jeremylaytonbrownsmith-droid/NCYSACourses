@@ -3183,6 +3183,21 @@ async function ingestScormUpload(req, nameHint) {
 
 // Validate + extract a local .zip (SCORM or HTML) into its package folder. Shared
 // by the upload and import paths; the caller owns removing tmpZip.
+// Longest directory prefix shared by EVERY path (forward-slash form). Used to
+// strip a single wrapping folder a zip unpacks into, without dropping sibling
+// folders. Returns '' when files sit at the root or share no common folder.
+function commonDirPrefix(paths) {
+  if (!paths.length) return '';
+  const dirsOf = (p) => p.split('/').slice(0, -1);
+  let common = dirsOf(paths[0]);
+  for (let i = 1; i < paths.length && common.length; i++) {
+    const d = dirsOf(paths[i]);
+    let k = 0;
+    while (k < common.length && k < d.length && common[k] === d[k]) k++;
+    common.length = k;
+  }
+  return common.length ? common.join('/') + '/' : '';
+}
 async function processLocalZip(tmpZip, nameHint) {
   let dest = null;   // package folder — cleaned up if extraction fails
   try {
@@ -3193,17 +3208,22 @@ async function processLocalZip(tmpZip, nameHint) {
     let directory;
     try { directory = await unzipper.Open.file(tmpZip); }
     catch { throw Object.assign(new Error('That file is not a valid .zip.'), { status: 400 }); }
-    const files = directory.files.filter((f) => f.type === 'File');
+    // Ignore macOS/Windows archive cruft so it never defeats the wrapper-strip
+    // below (a stray __MACOSX/ sibling would otherwise force a '' common prefix).
+    const files = directory.files.filter((f) => f.type === 'File'
+      && !/(^|\/)__MACOSX\//.test(f.path)
+      && !/(^|\/)\.DS_Store$/i.test(f.path)
+      && !/(^|\/)Thumbs\.db$/i.test(f.path));
     const manEntry = files.find((f) => /(^|\/)imsmanifest\.xml$/i.test(f.path));
-    let kind, rootPrefix, launchFile, title;
+    let kind, launchEntryPath, title;
     if (manEntry) {
-      // A SCORM package — the manifest names the launch file and may sit inside a
-      // wrapping folder; everything is relative to it.
+      // A SCORM package — the manifest names the launch file, relative to the
+      // manifest's own folder.
       kind = 'scorm';
-      rootPrefix = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
+      const manDir = manEntry.path.slice(0, manEntry.path.toLowerCase().lastIndexOf('imsmanifest.xml'));
       const manifest = (await manEntry.buffer()).toString('utf8');
-      const launchRaw = (manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html';
-      launchFile = launchRaw.replace(/^\.?\//, '').replace(/\\/g, '/');
+      const launchRaw = ((manifest.match(/<resource\b[^>]*\bhref="([^"]+)"/i) || [])[1] || 'index.html').replace(/^\.?\//, '').replace(/\\/g, '/');
+      launchEntryPath = (manDir + launchRaw).replace(/\\/g, '/');
       title = decodeEntities(
         ((manifest.match(/<organization\b[^>]*>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
           || manifest.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim()
@@ -3211,7 +3231,7 @@ async function processLocalZip(tmpZip, nameHint) {
     } else {
       // No SCORM manifest — accept a plain HTML package (e.g. a US Soccer "Web"
       // export) by launching its index.html. Pick the SHALLOWEST index.html so a
-      // wrapping folder is stripped and a top-level (language-chooser) page wins.
+      // top-level (language-chooser) page wins over a deeper one.
       const htmls = files.filter((f) => /\.html?$/i.test(f.path));
       const depth = (p) => p.split('/').length;
       const indexEntry =
@@ -3220,11 +3240,17 @@ async function processLocalZip(tmpZip, nameHint) {
       if (!indexEntry)
         throw Object.assign(new Error('Not a course package — no imsmanifest.xml (SCORM) and no index.html (HTML) inside the .zip.'), { status: 400 });
       kind = 'html';
-      rootPrefix = indexEntry.path.slice(0, indexEntry.path.length - path.basename(indexEntry.path).length);
-      launchFile = path.basename(indexEntry.path);
+      launchEntryPath = indexEntry.path.replace(/\\/g, '/');
       try { title = decodeEntities(((await indexEntry.buffer()).toString('utf8').match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim(); }
       catch { title = ''; }
     }
+    // Strip ONLY the wrapping folder shared by every file (e.g. the
+    // "MENTOR_PLUS_V1_PRODUCTION_MASTER/" a zip unpacks into) — never the launch
+    // page's own folder. Sibling folders like media/ that sit NEXT TO (not under)
+    // the launch page are kept, which is what fixes "it didn't pull the whole
+    // media folder" on big US Soccer presenter packages.
+    const rootPrefix = commonDirPrefix(files.map((f) => f.path.replace(/\\/g, '/')));
+    const launchFile = launchEntryPath.slice(rootPrefix.length).replace(/^\/+/, '') || 'index.html';
 
     const packageId = slugify(nameHint || title || 'module') + '-' + crypto.randomBytes(3).toString('hex');
     dest = path.resolve(SCORM_DIR, packageId); // absolute, so containment checks hold even when SCORM_DIR is relative
