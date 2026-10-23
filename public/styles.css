@@ -397,6 +397,13 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .admin-grid { display: grid; gap: 22px; margin-top: 24px; }
 .admin-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; overflow-x: auto; }
 .admin-card h2 { font-size: 1.1rem; margin-bottom: 14px; }
+/* Keep a long list (notifications, records) as a compact panel that scrolls
+   inside its card instead of pushing everything else off the screen. */
+.card-scroll { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+#completionsTable { max-height: 520px; overflow-y: auto; }
+.count-pill { display: inline-block; background: #1f3a5f; color: #fff; font-weight: 700; font-size: 0.72rem; line-height: 1; border-radius: 999px; padding: 3px 9px; vertical-align: middle; margin-left: 4px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count-pill { background: #2fd39c; color: #06231a; } }
+:root[data-theme="dark"] .count-pill { background: #2fd39c; color: #06231a; }
 .course-intro { background: #eef3fa; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 10px; padding: 12px 18px; margin: 0 0 16px; }
 .course-intro > summary { font-weight: 700; cursor: pointer; color: var(--brand); list-style: none; }
 .course-intro > summary::-webkit-details-marker { display: none; }

@@ -2325,6 +2325,15 @@ async function viewAdmin() {
         <div class="stat-tile prog"><div class="st-num">${(d.enrollments || []).filter((e) => !e.completedAt).length}</div><div class="st-lbl">In progress</div></div>
       </div>
       <div class="admin-grid">
+        <div class="admin-card">
+          <h2>NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
+          <div class="card-scroll">
+          ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
+            <div class="notif"><h3>${esc(n.title)}</h3>
+              <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')
+            : '<p class="empty">No notifications yet.</p>'}
+          </div>
+        </div>
         ${analyticsCard(analytics)}
         <div class="admin-card">
           <div class="card-head">
@@ -2350,13 +2359,6 @@ async function viewAdmin() {
             <label class="date-flt">To <input id="fltTo" type="date" /></label>
           </div>
           <div id="completionsTable"></div>
-        </div>
-        <div class="admin-card">
-          <h2>NCYSA notifications</h2>
-          ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
-            <div class="notif"><h3>${esc(n.title)}</h3>
-              <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')
-            : '<p class="empty">No notifications yet.</p>'}
         </div>
         <div class="admin-card">
           <h2>Email outbox</h2>
