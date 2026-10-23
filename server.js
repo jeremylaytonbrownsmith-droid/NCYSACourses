@@ -920,6 +920,20 @@ app.get('/:slug', (req, res, next) => {
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const SCORM_DIR = process.env.SCORM_DIR || path.join(DATA_DIR, 'scorm');
 const BUNDLED_SCORM_DIR = path.join(__dirname, 'public', 'scorm'); // e.g. the sample module
+
+// Remove orphaned upload/import temp zips. These are transient (a successful
+// ingest deletes its own), so any left behind are leftovers from a crash or an
+// interrupted big upload/import — and a multi-GB orphan silently eats disk until
+// the instance 502s. Runs on boot so a restart always reclaims that space.
+function cleanupStaleUploads() {
+  try {
+    for (const n of fs.readdirSync(SCORM_DIR)) {
+      if (/^\.(upload|import)-[0-9a-f]+\.zip$/i.test(n)) {
+        try { fs.rmSync(path.join(SCORM_DIR, n), { force: true }); console.log('[cleanup] removed orphaned temp upload', n); } catch { /* ignore */ }
+      }
+    }
+  } catch { /* SCORM_DIR may not exist yet — nothing to clean */ }
+}
 // Images uploaded into lessons from the Course Designer. Like SCORM_DIR, point
 // this at the PERSISTENT disk in production so images survive redeploys.
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(DATA_DIR, 'uploads');
@@ -3122,6 +3136,15 @@ async function importScormFromUrl(rawUrl, nameHint) {
   let tmpZip = null;
   try {
     fs.mkdirSync(SCORM_DIR, { recursive: true });
+    // Refuse if the disk is too tight to hold the download + its extraction — a
+    // multi-GB import that fills the disk can crash the instance (502).
+    try {
+      const st = await fs.promises.statfs(SCORM_DIR);
+      const freeBytes = st.bavail * st.bsize;
+      if (freeBytes < 6 * 1024 * 1024 * 1024) {
+        throw Object.assign(new Error(`Not enough free disk to import (${(freeBytes / 1e9).toFixed(1)} GB free, need ~6 GB). Clean up module storage or enlarge the disk, then retry.`), { status: 507 });
+      }
+    } catch (e) { if (e && e.status) throw e; /* statfs unavailable — skip the check */ }
     tmpZip = path.resolve(SCORM_DIR, `.import-${crypto.randomBytes(6).toString('hex')}.zip`);
     await downloadToFile(url, tmpZip, MAX_UPLOAD_BYTES);
     return await processLocalZip(tmpZip, nameHint);
@@ -3793,6 +3816,7 @@ if (require.main === module) {
       // failing migration can never stop the server from listening — the site
       // stays up (degraded at worst) instead of going fully down on boot.
       try {
+        cleanupStaleUploads();
         seedCourses(); seedAdmin(); seedEditor(); seedOwner(); seedPartner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
         fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
