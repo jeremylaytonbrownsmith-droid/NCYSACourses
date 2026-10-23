@@ -3418,6 +3418,11 @@ async function viewCourseAdmin(flash) {
           <button type="button" class="btn btn-ghost btn-sm" id="scormUpload">Upload package</button>
           <span id="scormStatus" class="meta">${has ? `Current package: <strong>${esc(l.packageId)}</strong> (${esc(l.launchFile || 'index.html')})` : 'No package uploaded yet.'}</span>
         </div>
+        <div class="form-row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px">
+          <input type="url" id="scormImportUrl" placeholder="…or paste a direct download link (for files over 2 GB)" style="flex:1;min-width:240px;padding:6px 8px" />
+          <button type="button" class="btn btn-ghost btn-sm" id="scormImport">Import from link</button>
+        </div>
+        <p class="form-hint" style="margin-top:2px">Too big to upload from the browser? Put the .zip in <strong>Dropbox</strong> (desktop app is most reliable for large files), make a share link, and paste it here — the server downloads and processes it directly.</p>
         <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
           <select id="existingPkg" style="max-width:100%;padding:6px 8px"><option value="">— or attach a module already uploaded —</option></select>
           <button type="button" class="btn btn-ghost btn-sm" id="useExisting">Use this</button>
@@ -3509,6 +3514,31 @@ async function viewCourseAdmin(flash) {
             : err.message);
         }
         finally { up.disabled = false; }
+      });
+      // Import from a direct-download link — for packages too big to upload from
+      // the browser (the server fetches and processes it).
+      const imp = document.getElementById('scormImport');
+      if (imp) imp.addEventListener('click', async () => {
+        const status = document.getElementById('scormStatus');
+        const urlEl = document.getElementById('scormImportUrl');
+        const url = (urlEl && urlEl.value || '').trim();
+        if (!url) { status.textContent = 'Paste a direct download link first.'; return; }
+        const nameHint = (form.querySelector('[name=title]')?.value || 'module').replace(/\.zip$/i, '');
+        imp.disabled = true;
+        status.textContent = 'Importing from link… the server is downloading and processing the file. Large packages can take a few minutes — you can wait here.';
+        try {
+          const r = await api('/api/admin/scorm/import-url', { method: 'POST', body: { url, name: nameHint } });
+          form.querySelector('[name=packageId]').value = r.packageId;
+          form.querySelector('[name=launchFile]').value = r.launchFile || 'index.html';
+          const hp = form.querySelector('[name=htmlPackage]'); if (hp) hp.value = r.kind === 'html' ? '1' : '';
+          const titleEl = form.querySelector('[name=title]');
+          if (titleEl && !titleEl.value && r.title) titleEl.value = r.title;
+          const v = r.video;
+          const vLine = v ? `<br>${v.level === 'ok' ? '✅' : v.level === 'warn' ? '⚠️' : v.level === 'error' ? '❌' : 'ℹ️'} <span class="meta">${esc(v.message)}</span>` : '';
+          status.innerHTML = `✓ Imported: <strong>${esc(r.title || r.packageId)}</strong>` + (r.warning ? ` — ⚠ ${esc(r.warning)}` : ' — now click “Save lesson”.') + vLine;
+        } catch (err) {
+          status.textContent = '✗ ' + err.message;
+        } finally { imp.disabled = false; }
       });
       // Attach an already-uploaded package (no re-upload). Populate the picker from
       // module storage; on "Use this", recover the launch file from its manifest.

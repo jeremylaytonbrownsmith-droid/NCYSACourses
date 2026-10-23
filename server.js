@@ -3063,15 +3063,81 @@ const MAX_UPLOAD_BYTES = Math.round((Number(process.env.MAX_UPLOAD_GB) || 5) * 1
 // (key-authenticated) so the two can never drift apart. Throws an Error carrying
 // a `.status` and a client-safe message on a bad upload; cleans up any
 // half-written package folder or temp zip on failure.
+function isPrivateIp(ip) {
+  return /^(10\.|127\.|0\.|169\.254\.|192\.168\.|::1$|::$|fc|fd|fe80)/i.test(ip)
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+}
+
+// Validate an import URL: https only, force a Dropbox direct download, and block
+// internal/loopback hosts (SSRF) unless a test flag allows it.
+async function normalizeImportUrl(rawUrl) {
+  let u;
+  try { u = new URL(String(rawUrl || '').trim()); } catch { throw Object.assign(new Error('Enter a valid https link.'), { status: 400 }); }
+  // https only in production; http is allowed only under the test flag (local server).
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && process.env.ALLOW_PRIVATE_IMPORT === '1')) {
+    throw Object.assign(new Error('The link must start with https://'), { status: 400 });
+  }
+  if (/(^|\.)dropbox\.com$/i.test(u.hostname)) u.searchParams.set('dl', '1'); // force a direct download
+  if (process.env.ALLOW_PRIVATE_IMPORT !== '1') {
+    const dns = require('dns').promises;
+    let addrs;
+    try { addrs = await dns.lookup(u.hostname, { all: true }); } catch { throw Object.assign(new Error('Could not resolve that host.'), { status: 400 }); }
+    for (const a of addrs) if (isPrivateIp(a.address)) throw Object.assign(new Error('That host is not allowed.'), { status: 400 });
+  }
+  return u.toString();
+}
+
+// Stream a URL to a file, following redirects and enforcing a byte cap.
+function downloadToFile(url, dest, maxBytes) {
+  const https = require('https');
+  const http = require('http');
+  return new Promise((resolve, reject) => {
+    let redirects = 0;
+    const go = (u) => {
+      const lib = u.startsWith('http://') ? http : https;
+      const r = lib.get(u, { headers: { 'User-Agent': 'GetMatchReady-Importer' } }, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirects < 6) {
+          redirects++; res.resume(); return go(new URL(res.headers.location, u).toString());
+        }
+        if (res.statusCode !== 200) { res.resume(); return reject(Object.assign(new Error(`Download failed (HTTP ${res.statusCode}). Make sure the link is a DIRECT download to the .zip.`), { status: 400 })); }
+        let received = 0;
+        const ws = fs.createWriteStream(dest);
+        res.on('data', (c) => { received += c.length; if (received > maxBytes) { r.destroy(); ws.destroy(); reject(Object.assign(new Error(`That file is over the ${(maxBytes / 1e9).toFixed(0)} GB import limit.`), { status: 413 })); } });
+        res.on('error', reject); ws.on('error', reject); ws.on('finish', resolve);
+        res.pipe(ws);
+      });
+      r.on('error', reject);
+      r.setTimeout(30 * 60 * 1000, () => r.destroy(new Error('Download timed out.')));
+    };
+    go(url);
+  });
+}
+
+// Fetch a .zip from a public https URL to disk, then ingest it exactly like an
+// upload — so a package too big for a browser upload (US Soccer's ~3 GB masters)
+// can be imported from a Dropbox/Drive/Box direct link. The SERVER downloads it,
+// so there's no browser size cap or timeout.
+async function importScormFromUrl(rawUrl, nameHint) {
+  const url = await normalizeImportUrl(rawUrl);
+  let tmpZip = null;
+  try {
+    fs.mkdirSync(SCORM_DIR, { recursive: true });
+    tmpZip = path.resolve(SCORM_DIR, `.import-${crypto.randomBytes(6).toString('hex')}.zip`);
+    await downloadToFile(url, tmpZip, MAX_UPLOAD_BYTES);
+    return await processLocalZip(tmpZip, nameHint);
+  } finally {
+    if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
+  }
+}
+
 async function ingestScormUpload(req, nameHint) {
-  let dest = null;   // package folder — cleaned up if extraction fails
-  let tmpZip = null; // temp upload file — always removed
+  let tmpZip = null;
   try {
     const declared = Number(req.headers['content-length'] || 0);
     if (declared && declared > MAX_UPLOAD_BYTES) {
       throw Object.assign(new Error(`That file is ${(declared / 1e9).toFixed(2)} GB — over the ${(MAX_UPLOAD_BYTES / 1e9).toFixed(0)} GB limit.`), { status: 413 });
     }
-    // 1) Stream the request body to a temp file on disk (bounded), never to RAM.
+    // Stream the request body to a temp file on disk (bounded), never to RAM.
     fs.mkdirSync(SCORM_DIR, { recursive: true });
     tmpZip = path.resolve(SCORM_DIR, `.upload-${crypto.randomBytes(6).toString('hex')}.zip`);
     await new Promise((resolve, reject) => {
@@ -3086,6 +3152,17 @@ async function ingestScormUpload(req, nameHint) {
       ws.on('finish', resolve);
       req.pipe(ws);
     });
+    return await processLocalZip(tmpZip, nameHint);
+  } finally {
+    if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
+  }
+}
+
+// Validate + extract a local .zip (SCORM or HTML) into its package folder. Shared
+// by the upload and import paths; the caller owns removing tmpZip.
+async function processLocalZip(tmpZip, nameHint) {
+  let dest = null;   // package folder — cleaned up if extraction fails
+  try {
     const uploadBytes = fs.statSync(tmpZip).size;
     if (!uploadBytes) throw Object.assign(new Error('No file received.'), { status: 400 });
 
@@ -3193,10 +3270,9 @@ async function ingestScormUpload(req, nameHint) {
       : null;
     return { packageId, launchFile, kind, title, bytes: uploadBytes, cdn: cdn.cdn, cdnVideos: cdn.count || 0, videoReport, warning };
   } catch (e) {
-    // A failed upload must not leave a half-written package folder or temp zip
-    // behind — that would silently eat disk on every retry.
+    // A failed ingest must not leave a half-written package folder behind — that
+    // would silently eat disk on every retry. (The temp zip is the caller's.)
     if (dest) { try { fs.rmSync(dest, { recursive: true, force: true }); } catch { /* ignore */ } }
-    if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
     throw e;
   }
 }
@@ -3214,6 +3290,17 @@ function sendScormUploadError(res, e) {
 
 app.post('/api/admin/scorm', requireEditorNotPartner, async (req, res) => {
   try { res.json(await ingestScormUpload(req, req.query.name)); }
+  catch (e) { sendScormUploadError(res, e); }
+});
+
+// Import a package from a direct-download link instead of a browser upload — for
+// files too big to upload from the browser (e.g. a ~3 GB US Soccer master). The
+// server downloads it, then ingests it exactly like an upload (SCORM or HTML).
+app.post('/api/admin/scorm/import-url', requireEditorNotPartner, async (req, res) => {
+  const url = String((req.body || {}).url || '').trim();
+  const name = String((req.body || {}).name || '').trim();
+  if (!url) return res.status(400).json({ error: 'Paste a direct download link to the .zip.' });
+  try { res.json(await importScormFromUrl(url, name)); }
   catch (e) { sendScormUploadError(res, e); }
 });
 
