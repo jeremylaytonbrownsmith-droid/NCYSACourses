@@ -3488,6 +3488,10 @@ async function viewCourseAdmin(flash) {
           <input type="url" id="scormImportUrl" placeholder="…or paste a direct download link (for files over 2 GB)" style="flex:1;min-width:240px;padding:6px 8px" />
           <button type="button" class="btn btn-ghost btn-sm" id="scormImport">Import from link</button>
         </div>
+        <label class="form-hint" style="display:flex;align-items:flex-start;gap:8px;margin-top:4px;cursor:pointer">
+          <input type="checkbox" id="scormNoCdn" style="margin-top:3px" />
+          <span>Keep this module's videos on the server (don't move them to the CDN). Use this for players that stream their own video — e.g. the US&nbsp;Soccer <strong>Mentor+</strong> presenter — if clips won't load after a normal import.</span>
+        </label>
         <p class="form-hint" style="margin-top:2px">Too big to upload from the browser? Put the .zip in <strong>Dropbox</strong> (desktop app is most reliable for large files), make a share link, and paste it here — the server downloads and processes it directly.</p>
         <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
           <select id="existingPkg" style="max-width:100%;padding:6px 8px"><option value="">— or attach a module already uploaded —</option></select>
@@ -3552,7 +3556,8 @@ async function viewCourseAdmin(flash) {
         up.disabled = true;
         status.textContent = `Uploading ${MB} MB… large modules can take several minutes on a slow connection — keep this tab open and don't switch networks.`;
         try {
-          const r = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}`, {
+          const noCdn = document.getElementById('scormNoCdn')?.checked ? '&nocdn=1' : '';
+          const r = await fetch(`/api/admin/scorm?name=${encodeURIComponent(nameHint)}${noCdn}`, {
             method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f,
           });
           const data = await r.json().catch(() => ({}));
@@ -3590,10 +3595,11 @@ async function viewCourseAdmin(flash) {
         const url = (urlEl && urlEl.value || '').trim();
         if (!url) { status.textContent = 'Paste a direct download link first.'; return; }
         const nameHint = (form.querySelector('[name=title]')?.value || 'module').replace(/\.zip$/i, '');
+        const noCdn = !!document.getElementById('scormNoCdn')?.checked;
         imp.disabled = true;
         status.textContent = 'Importing from link… the server is downloading and processing the file. Large packages can take a few minutes — you can wait here.';
         try {
-          const r = await api('/api/admin/scorm/import-url', { method: 'POST', body: { url, name: nameHint } });
+          const r = await api('/api/admin/scorm/import-url', { method: 'POST', body: { url, name: nameHint, noCdn } });
           form.querySelector('[name=packageId]').value = r.packageId;
           form.querySelector('[name=launchFile]').value = r.launchFile || 'index.html';
           const hp = form.querySelector('[name=htmlPackage]'); if (hp) hp.value = r.kind === 'html' ? '1' : '';

@@ -58,6 +58,21 @@ test('import keeps a media/ folder that sits BESIDE (not under) index.html', asy
   expect(await vid.text()).toContain('FAKE-MP4-WITH-AUDIO');
 });
 
+test('nocdn=1 keeps videos on the server (no .cdn marker, file served locally)', async ({ playwright }) => {
+  // For a player that streams its own video (Mentor+), keeping the clip local is
+  // the reliable path — it serves same-origin with audio, no CDN rewrite.
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();
+  const zip = new AdmZip();
+  zip.addFile('index.html', Buffer.from('<!doctype html><title>Pres</title><video src="media/clip.mp4"></video>', 'utf8'));
+  zip.addFile('media/clip.mp4', Buffer.from('FAKE-MP4-WITH-AUDIO', 'utf8'));
+  const up = await (await api.post(`/api/admin/scorm?name=KeepLocal${Date.now()}&nocdn=1`, { headers: { 'content-type': 'application/zip' }, data: zip.toBuffer() })).json();
+  expect(up.cdn).toBeFalsy();                                   // not offloaded
+  const vid = await api.get(`/scorm/${up.packageId}/media/clip.mp4`); // served from disk
+  expect(vid.status()).toBe(200);
+  expect(await vid.text()).toContain('FAKE-MP4-WITH-AUDIO');
+});
+
 test('an HTML module completes via the time gate + mark-complete, with a certificate', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();

@@ -3131,7 +3131,7 @@ function downloadToFile(url, dest, maxBytes) {
 // upload — so a package too big for a browser upload (US Soccer's ~3 GB masters)
 // can be imported from a Dropbox/Drive/Box direct link. The SERVER downloads it,
 // so there's no browser size cap or timeout.
-async function importScormFromUrl(rawUrl, nameHint) {
+async function importScormFromUrl(rawUrl, nameHint, opts = {}) {
   const url = await normalizeImportUrl(rawUrl);
   let tmpZip = null;
   try {
@@ -3147,13 +3147,13 @@ async function importScormFromUrl(rawUrl, nameHint) {
     } catch (e) { if (e && e.status) throw e; /* statfs unavailable — skip the check */ }
     tmpZip = path.resolve(SCORM_DIR, `.import-${crypto.randomBytes(6).toString('hex')}.zip`);
     await downloadToFile(url, tmpZip, MAX_UPLOAD_BYTES);
-    return await processLocalZip(tmpZip, nameHint);
+    return await processLocalZip(tmpZip, nameHint, opts);
   } finally {
     if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
   }
 }
 
-async function ingestScormUpload(req, nameHint) {
+async function ingestScormUpload(req, nameHint, opts = {}) {
   let tmpZip = null;
   try {
     const declared = Number(req.headers['content-length'] || 0);
@@ -3175,7 +3175,7 @@ async function ingestScormUpload(req, nameHint) {
       ws.on('finish', resolve);
       req.pipe(ws);
     });
-    return await processLocalZip(tmpZip, nameHint);
+    return await processLocalZip(tmpZip, nameHint, opts);
   } finally {
     if (tmpZip) { try { fs.rmSync(tmpZip, { force: true }); } catch { /* ignore */ } }
   }
@@ -3198,7 +3198,7 @@ function commonDirPrefix(paths) {
   }
   return common.length ? common.join('/') + '/' : '';
 }
-async function processLocalZip(tmpZip, nameHint) {
+async function processLocalZip(tmpZip, nameHint, opts = {}) {
   let dest = null;   // package folder — cleaned up if extraction fails
   try {
     const uploadBytes = fs.statSync(tmpZip).size;
@@ -3277,9 +3277,16 @@ async function processLocalZip(tmpZip, nameHint) {
 
     if (!wrote) throw Object.assign(new Error('The .zip was empty.'), { status: 400 });
     // Offload videos to the Bunny CDN if configured (streams; no-op otherwise).
+    // opts.noCdn keeps the videos on the server instead: some players (e.g. the
+    // US Soccer Mentor+ presenter) stream their own video in a way our CDN rewrite
+    // doesn't catch, so serving the files locally — exactly as they sit on disk —
+    // is the reliable path. Videos then play same-origin via sendFile (Range +
+    // audio), no shim, no CDN URL.
     let cdn = { cdn: false };
-    try { cdn = await offloadVideosToBunny(packageId, dest); }
-    catch (e) { cdn = { cdn: false, error: e.message }; }
+    if (!opts.noCdn) {
+      try { cdn = await offloadVideosToBunny(packageId, dest); }
+      catch (e) { cdn = { cdn: false, error: e.message }; }
+    }
     // Automatic video assurance on EVERY upload — so a broken course can't quietly
     // go live (nobody has to remember to run a check), and a package with no video
     // says so plainly. With 14 associations self-uploading, this is the safety net.
@@ -3338,7 +3345,7 @@ function sendScormUploadError(res, e) {
 }
 
 app.post('/api/admin/scorm', requireEditorNotPartner, async (req, res) => {
-  try { res.json(await ingestScormUpload(req, req.query.name)); }
+  try { res.json(await ingestScormUpload(req, req.query.name, { noCdn: req.query.nocdn === '1' })); }
   catch (e) { sendScormUploadError(res, e); }
 });
 
@@ -3349,7 +3356,7 @@ app.post('/api/admin/scorm/import-url', requireEditorNotPartner, async (req, res
   const url = String((req.body || {}).url || '').trim();
   const name = String((req.body || {}).name || '').trim();
   if (!url) return res.status(400).json({ error: 'Paste a direct download link to the .zip.' });
-  try { res.json(await importScormFromUrl(url, name)); }
+  try { res.json(await importScormFromUrl(url, name, { noCdn: !!(req.body || {}).noCdn })); }
   catch (e) { sendScormUploadError(res, e); }
 });
 
