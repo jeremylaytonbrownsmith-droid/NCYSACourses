@@ -1306,13 +1306,18 @@ function renderScormLesson(pane, course, lesson, lp) {
   // minimum amount of real time in it (so clicking to the last slide doesn't
   // finish it instantly). Server enforces this; here we track time and show it.
   const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 300));
-  // An HTML "Web" package (e.g. US Soccer) has no SCORM runtime to self-report, so
-  // it completes via the time gate PLUS a "mark complete" button the learner clicks.
+  // An HTML "Web" package (e.g. US Soccer's Mentor+) is served the same SCORM API
+  // as a SCORM package: if it talks to that API it self-reports completion and the
+  // learner never needs a button. We only surface a manual "mark complete" link as
+  // a last-resort safety net for a *dumb* HTML page that never touches the API.
   const isHtml = !!lesson.htmlPackage;
   const AWAY_LIMIT = 180; // seconds hidden (tab away) before this module resets
   let active = Math.max(0, Number(saved.activeSeconds) || 0);
   let done = false;
   let reachedEnd = saved.status === 'completed' || saved.status === 'passed';
+  // True once the package calls the SCORM API (Initialize/SetValue) — i.e. it is
+  // self-reporting, so the manual fallback link stays hidden for good.
+  let apiUsed = false;
   const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s)) % 60).padStart(2, '0')}`;
 
   const actionsEl = document.getElementById('scormActions');
@@ -1321,7 +1326,10 @@ function renderScormLesson(pane, course, lesson, lp) {
       (required > 0
         ? `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div><span class="meta" id="scormHint"></span></div>`
         : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you finish. Your place is saved if you leave.</span>`) +
-      `<div class="meta" style="margin-top:8px">Finished but it didn’t mark itself complete? <a href="#" id="htmlDoneBtn">Mark it complete</a>.</div>`;
+      // Hidden by default: only a non-self-reporting HTML page ever reveals this
+      // (see paintGate). Mentor+ and any SCORM-aware module self-complete, so the
+      // learner never sees a manual button.
+      `<div class="meta" id="htmlDoneRow" hidden style="margin-top:8px">Finished but it didn’t mark itself complete? <a href="#" id="htmlDoneBtn">Mark it complete</a>.</div>`;
   } else if (required > 0 && actionsEl) {
     actionsEl.innerHTML =
       `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div>` +
@@ -1343,6 +1351,11 @@ function renderScormLesson(pane, course, lesson, lp) {
           ? `It completes when you finish the module — and after at least <strong>${fmt(req)}</strong> on it (<strong>${fmt(remaining)}</strong> to go).`
           : `Finish the module to complete it.`;
       }
+      // Safety net: only a page that never reports to the SCORM API could strand a
+      // learner. If after 90s on the module it still hasn't reported, quietly offer
+      // the manual link. A self-reporting module (Mentor+) never trips this.
+      const row = document.getElementById('htmlDoneRow');
+      if (row) row.hidden = done || apiUsed || active < 90;
       return;
     }
     const hint = document.getElementById('scormHint');
@@ -1419,7 +1432,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   document.addEventListener('visibilitychange', onVisibility);
 
   window.API = {
-    LMSInitialize: function () { return 'true'; },
+    LMSInitialize: function () { apiUsed = true; return 'true'; },
     LMSFinish: function () { sync(0, null, true); return 'true'; }, // finish = terminal; server may report failed/incomplete
     LMSGetValue: function (k) { return cmi[k] != null ? String(cmi[k]) : ''; },
     LMSSetValue: function (k, v) {
@@ -1466,7 +1479,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     return st;
   }
   window.API_1484_11 = {
-    Initialize: function () { return 'true'; },
+    Initialize: function () { apiUsed = true; return 'true'; },
     Terminate: function () { map2004Status(); sync(0, null, true); return 'true'; },
     GetValue: function (k) { return s2[k] != null ? String(s2[k]) : ''; },
     SetValue: function (k, v) {
