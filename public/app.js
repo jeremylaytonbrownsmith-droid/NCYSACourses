@@ -3383,7 +3383,7 @@ async function viewCourseAdmin(flash) {
           <option value="text" ${t === 'text' ? 'selected' : ''}>Reading</option>
           <option value="video" ${t === 'video' ? 'selected' : ''}>Video</option>
           <option value="quiz" ${t === 'quiz' ? 'selected' : ''}>Exam / quiz</option>
-          <option value="scorm" ${t === 'scorm' ? 'selected' : ''}>SCORM module (upload)</option>
+          <option value="scorm" ${t === 'scorm' ? 'selected' : ''}>SCORM or HTML module (upload)</option>
         </select>
       </label>
       <label>Title<input name="title" value="${l ? esc(l.title) : ''}" required /></label>
@@ -3440,7 +3440,7 @@ async function viewCourseAdmin(flash) {
             ${[[0, 'Off — no per-slide wait'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '60 seconds'], [90, '90 seconds']].map(([v, t]) => `<option value="${v}" ${g === v ? 'selected' : ''}>${t}</option>`).join('')}
           </select>
         </label>`; })()}
-        <p class="form-hint">Upload the SCORM <strong>.zip</strong> export. It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
+        <p class="form-hint">Upload a <strong>SCORM</strong> or <strong>HTML</strong> <strong>.zip</strong> export (a US Soccer "Web" export works too — it's detected automatically). It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
     }
     if (type === 'text') {
       const sec = l && l.minSeconds != null ? Number(l.minSeconds) : 0;
