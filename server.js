@@ -1207,6 +1207,26 @@ function injectVideoError(html) {
   return html + script;
 }
 
+// Some third-party players (e.g. the US Soccer Mentor+ presenter) start their
+// <video> MUTED so the browser allows autoplay, then never unmute it — so the
+// clip's own audio (AAC, perfectly playable) stays silent and the learner has no
+// control to turn it on. Once the learner has actually interacted with the page
+// (a real gesture, so the browser won't block the audio), keep videos unmuted and
+// audible. Purely additive: a video that was never muted is left alone.
+function injectVideoAudioFix(html) {
+  const script = `<script>/* GMR: unmute module video after a user gesture */(function(){
+  var ok=false;
+  function unmute(v){try{if(v.muted)v.muted=false;if(!v.volume)v.volume=1;}catch(e){}}
+  function sweep(){if(ok){var a=document.getElementsByTagName('video');for(var i=0;i<a.length;i++)unmute(a[i]);}}
+  function gest(){ok=true;sweep();}
+  ['pointerdown','click','keydown','touchstart'].forEach(function(e){document.addEventListener(e,gest,true);});
+  document.addEventListener('play',function(e){var v=e.target;if(ok&&v&&v.tagName==='VIDEO')unmute(v);},true);
+  document.addEventListener('volumechange',function(e){var v=e.target;if(ok&&v&&v.tagName==='VIDEO'&&v.muted)unmute(v);},true);
+})();</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, script + '</body>');
+  return html + script;
+}
+
 // Open a Captivate video link in a NEW TAB — the same thing Captivate itself does.
 // Captivate's "open URL" video widget points at the Vimeo/YouTube WATCH page (e.g.
 // vimeo.com/<id>). Inside our lesson iframe, navigating there fails ("refused to
@@ -1406,6 +1426,7 @@ app.get('/scorm/:pkg/*', async (req, res) => {
         html = injectSlideGate(html, slideGateForPackage(pkg));
         html = injectVideoError(html);
         html = injectVideoEmbedFix(html);
+        html = injectVideoAudioFix(html);
         html = injectReferrerFix(html);
         // Let an embedded Vimeo/YouTube player see our domain so it can verify the
         // embed (overrides the stricter global Referrer-Policy for lesson content).

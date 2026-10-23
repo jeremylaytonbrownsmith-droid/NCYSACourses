@@ -2391,15 +2391,6 @@ async function viewAdmin() {
         <div class="stat-tile prog"><div class="st-num">${(d.enrollments || []).filter((e) => !e.completedAt).length}</div><div class="st-lbl">In progress</div></div>
       </div>
       <div class="admin-grid">
-        <div class="admin-card">
-          <h2>NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
-          <div class="card-scroll">
-          ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
-            <div class="notif"><h3>${esc(n.title)}</h3>
-              <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')
-            : '<p class="empty">No notifications yet.</p>'}
-          </div>
-        </div>
         ${analyticsCard(analytics)}
         <div class="admin-card">
           <div class="card-head">
@@ -2455,6 +2446,15 @@ async function viewAdmin() {
               <div><strong>Ref:</strong> ${esc(w.refId || '—')} · <strong>Module:</strong> ${esc(w.moduleId || '—')}${w.org ? ` · <strong>Org:</strong> ${esc(w.org)}` : ''}${w.httpStatus ? ` · HTTP ${esc(String(w.httpStatus))}` : ''}</div>
               <div class="meta" style="word-break:break-all">${esc(w.url || 'no webhook URL configured')}</div>
             </div>`).join('') : '<p class="empty">No partner webhooks sent yet.</p>'}
+        </div>
+        <div class="admin-card">
+          <h2>NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
+          <div class="card-scroll">
+          ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
+            <div class="notif"><h3>${esc(n.title)}</h3>
+              <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')
+            : '<p class="empty">No notifications yet.</p>'}
+          </div>
         </div>
       </div>
     </div>`;
