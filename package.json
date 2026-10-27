@@ -12,6 +12,9 @@
     "url": "https://github.com/jeremylaytonbrownsmith-droid/NCYSACourses"
   },
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
   "dependencies": {
     "adm-zip": "^0.5.16",
     "express": "^4.22.2",
