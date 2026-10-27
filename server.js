@@ -3598,6 +3598,24 @@ app.post('/api/admin/scorm/:pkg/serve-via-server', requireEditorNotPartner, (req
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Bulk version: switch EVERY CDN-backed uploaded module that is NOT our own
+// slideshow player (i.e. third-party SCORM/Evolve exports, whose pull-zone
+// delivery can fail) to stream its video through the server. Our slideshow
+// modules deliver fine from the CDN, so they keep their .cdn marker untouched.
+app.post('/api/admin/scorm/serve-all-via-server', requireEditorNotPartner, (req, res) => {
+  let names = [];
+  try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); } catch { /* none */ }
+  const switched = [];
+  for (const pkg of names) {
+    const dir = path.resolve(SCORM_DIR, pkg);
+    const marker = path.join(dir, '.cdn');
+    if (!fs.existsSync(marker)) continue;        // not CDN-backed
+    if (readSlideManifest(dir)) continue;        // our slideshow player delivers fine from the CDN — leave it
+    try { fs.rmSync(marker, { force: true }); switched.push(pkg); } catch { /* ignore */ }
+  }
+  res.json({ ok: true, switched: switched.length, packages: switched });
+});
+
 // Peek inside one uploaded package: the file tree with sizes, plus which files
 // look like video and whether the launch HTML references them. Diagnostic for
 // "the slides show but the video won't play".

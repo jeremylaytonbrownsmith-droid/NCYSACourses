@@ -3195,6 +3195,10 @@ async function viewCourseAdmin(flash) {
              <button class="btn btn-ghost" id="checkWiring">🔎 Check video wiring (all CDN modules)</button>
              <span class="meta" style="margin-left:8px">Fetches every video from its real CDN URL to confirm it actually delivers — catches a black screen before a learner does.</span>
            </p>
+           <p style="margin-top:6px">
+             <button class="btn btn-ghost" id="serveAllViaServer">🛠 Fix video playback on all modules</button>
+             <span class="meta" style="margin-left:8px">For the uploaded SCORM/Evolve modules whose CDN won't deliver ("media is corrupt" errors), switch their video to stream through the server. The slideshow modules that already work from the CDN are left alone. No re-upload.</span>
+           </p>
          </div>`
       : `<div class="cdn-box">
            <strong>☁️ Bunny CDN — not connected yet.</strong>
@@ -3228,6 +3232,15 @@ async function viewCourseAdmin(flash) {
         const r = await api('/api/admin/scorm/migrate-cdn', { method: 'POST', body: { packageId: pkg } });
         sMsg(`Moved 1 module (${r.videos} video). ✅ Now open that module and confirm the video still plays. If it does, come back and click “Move all”.`);
       } catch (e) { sMsg('Migration failed: ' + e.message, true); }
+      loadStorage();
+    });
+    document.getElementById('serveAllViaServer')?.addEventListener('click', async (ev) => {
+      if (!confirm('Switch the uploaded SCORM/Evolve modules to stream their video through the server (fixes the "media is corrupt" errors)? The slideshow modules that already work from the CDN are left alone. No re-upload.')) return;
+      const btn = ev.target; btn.disabled = true; btn.textContent = 'Fixing…';
+      try {
+        const r = await api('/api/admin/scorm/serve-all-via-server', { method: 'POST', body: {} });
+        sMsg(r.switched ? `Fixed ${r.switched} module(s). ✅ Open one of the recert modules and confirm the video plays.` : 'Nothing to change — no affected modules found.');
+      } catch (e) { sMsg('Could not fix: ' + e.message, true); }
       loadStorage();
     });
     document.getElementById('migrateAll')?.addEventListener('click', async (ev) => {
