@@ -261,9 +261,15 @@ function certOrgName(course) {
   return 'North Carolina Youth Soccer Association';
 }
 // Absolute base URL for building shareable links (verify pages, launch links).
+// Prefer an explicit PUBLIC_URL, then the domain the request actually came in on
+// — so a certificate earned on ncysalearn.app verifies at ncysalearn.app, not the
+// shared onrender host — falling back to Render's external URL only when there is
+// no request host (e.g. a background job).
 function baseUrl(req) {
-  return (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL
-    || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  const fromReq = (req && typeof req.get === 'function' && req.get('host'))
+    ? `${req.protocol}://${req.get('host')}` : '';
+  return (process.env.PUBLIC_URL || process.env.APP_URL || fromReq || process.env.RENDER_EXTERNAL_URL || '')
+    .replace(/\/+$/, '');
 }
 const escHtml = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
