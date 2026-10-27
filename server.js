@@ -3581,6 +3581,23 @@ app.post('/api/admin/scorm/migrate-cdn', requireEditorNotPartner, async (req, re
     results,
   });
 });
+// Stop using the Bunny CDN pull-zone for ONE package: remove its .cdn marker so
+// the player requests the video from us, and the serve path streams it back from
+// Bunny STORAGE (same-origin, Range-aware) via pipeBunnyVideo. Fixes modules whose
+// pull-zone delivery fails (e.g. some Evolve/Adapt SCORM exports show "media is
+// corrupt or unsupported") with NO re-upload — the video stays safe on Bunny.
+app.post('/api/admin/scorm/:pkg/serve-via-server', requireEditorNotPartner, (req, res) => {
+  const pkg = String(req.params.pkg).replace(/[^A-Za-z0-9._-]/g, '');
+  const base = path.resolve(SCORM_DIR, pkg);
+  const marker = path.join(base, '.cdn');
+  if (!base.startsWith(path.resolve(SCORM_DIR))) return res.status(400).json({ error: 'Bad package id.' });
+  try {
+    const had = fs.existsSync(marker);
+    if (had) fs.rmSync(marker, { force: true });
+    res.json({ ok: true, changed: had });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Peek inside one uploaded package: the file tree with sizes, plus which files
 // look like video and whether the launch HTML references them. Diagnostic for
 // "the slides show but the video won't play".

@@ -3314,6 +3314,14 @@ async function viewCourseAdmin(flash) {
         ? d.externalEmbeds.map((x) => `<strong>${esc(x.platform || 'URL')}</strong> in <em>${esc(x.file)}</em>${x.match ? ` — <code style="word-break:break-all">${esc(x.match)}</code>` : ''}<br><code style="white-space:pre-wrap;word-break:break-all">${esc(x.snippet)}</code>`).join('<br>')
         : 'None found.';
       const hits = d.tokenHits ? Object.entries(d.tokenHits).map(([k, v]) => `“${esc(k)}”: ${v.length ? esc(v.join(', ')) : 'not found'}`).join('<br>') : '';
+      // CDN-backed packages can be switched to stream their video through the
+      // server (fixes modules whose CDN pull-zone won't deliver, e.g. an Evolve
+      // export showing "media is corrupt or unsupported") — no re-upload needed.
+      const isCdn = (d.nonMedia || []).includes('.cdn');
+      const fixBtn = isCdn
+        ? `<br><br><button type="button" class="btn btn-primary btn-sm" id="serveViaServerBtn" data-pkg="${esc(pkg)}">🛠 Serve this video through the server (fixes playback)</button>
+           <div class="meta" style="margin-top:6px">Use this if a learner sees “media is corrupt or your browser doesn’t support it.” The video stays on Bunny; we just stream it ourselves so it plays reliably. Open the module afterward to confirm.</div>`
+        : '';
       document.getElementById('storageMsg').innerHTML =
         `<div style="text-align:left"><strong>${esc(pkg)}</strong> — ${d.fileCount} files, ${fmtBytes(d.totalBytes)}<br><br>` +
         `<u>Verdict:</u><br>${verdict}<br><br>` +
@@ -3321,8 +3329,15 @@ async function viewCourseAdmin(flash) {
         `<u>External video embeds:</u><br>${embeds}<br><br>` +
         `<u>How a bundled video is referenced:</u><br>${refs}<br><br>` +
         `<u>Raw token matches (reference only — NOT the verdict):</u><br>${hits}<br><br>` +
-        `<u>Player files (non-media):</u><br>${nonMedia}</div>`;
+        `<u>Player files (non-media):</u><br>${nonMedia}${fixBtn}</div>`;
       document.getElementById('storageMsg').className = 'editor-msg ok';
+      document.getElementById('serveViaServerBtn')?.addEventListener('click', async (ev) => {
+        const b = ev.currentTarget; b.disabled = true; b.textContent = 'Switching…';
+        try {
+          await api(`/api/admin/scorm/${b.dataset.pkg}/serve-via-server`, { method: 'POST', body: {} });
+          b.textContent = '✓ Now served through the server — open the module to confirm it plays.';
+        } catch (err) { b.disabled = false; b.textContent = '🛠 Serve this video through the server (fixes playback)'; sMsg('Could not switch: ' + err.message, true); }
+      });
     }));
   }
   function bulkScormPanel() {
