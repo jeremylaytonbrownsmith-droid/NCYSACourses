@@ -14,3 +14,5 @@ playwright-report/
 .dbg/
 .em/
 .prod-test/
+.cert-preview*/
+.guide-preview*/
