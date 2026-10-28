@@ -2341,15 +2341,28 @@ function openLearnerDrawer(userId, rows) {
     catch (e) { wrap.innerHTML = `<div class="dr-modloading">Could not load modules: ${esc(e.message)}</div>`; return; }
     const pill = (s) => s === 'completed' ? '<span class="dr-mod-dot done">✓</span>' : s === 'in progress' ? '<span class="dr-mod-dot prog">●</span>' : '<span class="dr-mod-dot none">○</span>';
     wrap.innerHTML = `<div class="dr-modlist">
-      <div class="dr-modhint">Reset one module so this learner can retake just that module. The rest of the course is untouched.</div>
-      ${(data.modules || []).map((m) => `<div class="dr-mod">
-        <span class="dr-mod-s">${pill(m.status)}</span>
-        <span class="dr-mod-t">${m.num}. ${esc(m.title)}</span>
-        ${m.status === 'not started'
-          ? '<span class="dr-mod-ns">not started</span>'
-          : `<button class="btn btn-ghost btn-sm dr-mod-reset" data-lesson="${esc(m.id)}" data-title="${esc(m.title)}">Reset</button>`}
-      </div>`).join('')}
+      <div class="dr-modhint"><strong>Reset</strong> lets a learner retake just that module. <strong>Mark complete</strong> credits a module for a learner who hit a genuine technical problem completing it (the rest of the course is untouched) — if it's the last one, the course finishes and their certificate is issued.</div>
+      ${(data.modules || []).map((m) => {
+        const btns = [];
+        if (m.status === 'not started') btns.push('<span class="dr-mod-ns">not started</span>');
+        if (!m.completed) btns.push(`<button class="btn btn-ghost btn-sm dr-mod-complete" data-lesson="${esc(m.id)}" data-title="${esc(m.title)}">Mark complete</button>`);
+        if (m.status !== 'not started') btns.push(`<button class="btn btn-ghost btn-sm dr-mod-reset" data-lesson="${esc(m.id)}" data-title="${esc(m.title)}">Reset</button>`);
+        return `<div class="dr-mod">
+          <span class="dr-mod-s">${pill(m.status)}</span>
+          <span class="dr-mod-t">${m.num}. ${esc(m.title)}</span>
+          ${btns.join(' ')}
+        </div>`;
+      }).join('')}
     </div>`;
+    wrap.querySelectorAll('.dr-mod-complete').forEach((cb) => cb.addEventListener('click', async () => {
+      if (!confirm(`Mark "${cb.dataset.title}" complete for this learner? Use this only when they hit a genuine technical problem completing it. If it's the last module, the course completes and their certificate is issued.`)) return;
+      cb.disabled = true;
+      try {
+        const r = await api('/api/admin/complete-module', { method: 'POST', body: { userId, courseId, lessonId: cb.dataset.lesson } });
+        toast(r.courseCompleted ? 'Marked complete — course finished and certificate issued. ✅' : 'Module marked complete.');
+        await renderModules(wrap, userId, courseId);
+      } catch (e) { alert('Could not mark complete: ' + e.message); cb.disabled = false; }
+    }));
     wrap.querySelectorAll('.dr-mod-reset').forEach((rb) => rb.addEventListener('click', async () => {
       if (!confirm(`Reset the module "${rb.dataset.title}" for this learner? They'll redo just this module; the rest of the course is kept. If their course was marked complete, that completion and its certificate will be cleared.`)) return;
       rb.disabled = true;

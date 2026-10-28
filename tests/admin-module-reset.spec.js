@@ -105,3 +105,26 @@ test('reset-module validates input and scope', async ({ playwright }) => {
   // Unknown course → 404.
   expect((await api.post('/api/admin/reset-module', { data: { userId: 'x', courseId: 'nope', lessonId: 'y' } })).status()).toBe(404);
 });
+
+test('admin can mark a module complete for a learner, issuing the certificate', async ({ playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  expect((await api.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
+  const stamp = Date.now();
+  const course = (await (await api.post('/api/admin/courses', { data: { title: `Credit ${stamp}`, audience: 'coaches' } })).json()).course;
+  await api.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'text', title: 'Only Module', html: '<p>x</p>' } });
+  await api.post(`/api/admin/courses/${course.id}/publish`, { data: { published: true } });
+  const lessonId = (await (await api.get(`/api/admin/courses/${course.id}`)).json()).course.lessons[0].id;
+
+  const learner = await playwright.request.newContext({ baseURL: BASE });
+  await learner.post('/api/register', { data: { firstName: 'Credit', lastName: 'Me', email: `credit+${stamp}@example.com` } });
+  const me = await (await learner.get('/api/me')).json();
+  const userId = me.user.id;
+  await learner.post(`/api/courses/${course.id}/enroll`);
+
+  // Not played through — admin credits it. It's the only module, so the course
+  // completes and a certificate is issued.
+  const r = await (await api.post('/api/admin/complete-module', { data: { userId, courseId: course.id, lessonId } })).json();
+  expect(r.completed).toBe(true);
+  expect(r.courseCompleted).toBe(true);
+  expect(r.certId).toBeTruthy();
+});

@@ -2577,6 +2577,34 @@ app.post('/api/admin/reset-module', requireDashboard, (req, res) => {
   res.json({ ok: true, removed, certCleared });
 });
 
+// Admin override: mark ONE module complete for a learner who hit a genuine
+// technical wall (e.g. a video that won't play on their device when it plays for
+// everyone else). Credits that module; if it was the last one outstanding, the
+// course completes and the certificate is issued — same as finishing normally.
+app.post('/api/admin/complete-module', requireDashboard, ah(async (req, res) => {
+  const userId = String(req.body?.userId || '');
+  const courseId = String(req.body?.courseId || '');
+  const lessonId = String(req.body?.lessonId || '');
+  if (!userId || !courseId || !lessonId) return res.status(400).json({ error: 'userId, courseId and lessonId are required.' });
+  const course = allCourses().find((c) => c.id === courseId);
+  if (!course) return res.status(404).json({ error: 'No matching course.' });
+  const scope = reqOrgScope(req);
+  if (scope && (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  if (!(course.lessons || []).some((l) => l.id === lessonId)) return res.status(404).json({ error: 'No such module in this course.' });
+  const db = load();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return res.status(404).json({ error: 'No matching learner.' });
+  let enr = db.enrollments.find((e) => e.userId === userId && e.courseId === courseId);
+  if (!enr) { enr = { userId, courseId, startedAt: new Date().toISOString(), completedAt: null, certId: null }; db.enrollments.push(enr); }
+  const rec = upsertProgress(db, userId, courseId, lessonId);
+  if (!rec.completed) { rec.completed = true; rec.completedAt = new Date().toISOString(); }
+  rec.adminCompleted = true; // audit: credited by an admin, not played through
+  if (rec.scorm) rec.scorm.status = 'completed';
+  save();
+  await maybeCompleteCourse(user, course);
+  res.json({ ok: true, completed: true, courseCompleted: !!enr.completedAt, certId: enr.certId || null });
+}));
+
 // Send a test email so staff can verify mail delivery is configured correctly.
 app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
   const to = String(req.body?.to || '').trim() || req.user.email;
