@@ -1149,7 +1149,10 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .dr-mod:first-of-type { border-top: 0; }
 .dr-mod-s { flex: 0 0 auto; width: 18px; text-align: center; }
 .dr-mod-t { flex: 1 1 auto; font-size: .88rem; font-weight: 600; }
-.dr-mod-ns { font-size: .78rem; color: var(--ink-soft); font-weight: 600; }
+.dr-mod-ns { flex: 0 0 auto; font-size: .78rem; color: var(--ink-soft); font-weight: 600; }
+/* Keep the row's action buttons uniform — Reset and Mark complete the same width,
+   on one line, aligned at the right edge so the column reads cleanly. */
+.dr-mod .btn-sm { flex: 0 0 auto; min-width: 118px; white-space: nowrap; text-align: center; justify-content: center; }
 .dr-mod-dot { font-weight: 800; }
 .dr-mod-dot.done { color: var(--success-dark); }
 .dr-mod-dot.prog { color: #4b55c9; }
