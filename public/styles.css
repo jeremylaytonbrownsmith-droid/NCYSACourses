@@ -1145,14 +1145,18 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .dr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .dr-modwrap:not(:empty) { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 .dr-modhint, .dr-modloading { font-size: .82rem; color: var(--ink-soft); margin-bottom: 8px; }
-.dr-mod { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.dr-mod { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
 .dr-mod:first-of-type { border-top: 0; }
 .dr-mod-s { flex: 0 0 auto; width: 18px; text-align: center; }
-.dr-mod-t { flex: 1 1 auto; font-size: .88rem; font-weight: 600; }
+.dr-mod-t { flex: 1 1 140px; font-size: .88rem; font-weight: 600; }
 .dr-mod-ns { flex: 0 0 auto; font-size: .78rem; color: var(--ink-soft); font-weight: 600; }
+/* Keep the action controls together as one block: they sit at the right of the
+   row, and when both buttons won't fit beside the title they wrap to their own
+   line (still right-aligned) instead of overflowing/clipping. */
+.dr-mod-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-left: auto; }
 /* Keep the row's action buttons uniform — Reset and Mark complete the same width,
    on one line, aligned at the right edge so the column reads cleanly. */
-.dr-mod .btn-sm { flex: 0 0 auto; min-width: 118px; white-space: nowrap; text-align: center; justify-content: center; }
+.dr-mod .btn-sm { flex: 0 0 auto; min-width: 104px; white-space: nowrap; text-align: center; justify-content: center; }
 .dr-mod-dot { font-weight: 800; }
 .dr-mod-dot.done { color: var(--success-dark); }
 .dr-mod-dot.prog { color: #4b55c9; }

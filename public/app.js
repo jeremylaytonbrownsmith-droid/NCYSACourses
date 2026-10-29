@@ -2350,7 +2350,7 @@ function openLearnerDrawer(userId, rows) {
         return `<div class="dr-mod">
           <span class="dr-mod-s">${pill(m.status)}</span>
           <span class="dr-mod-t">${m.num}. ${esc(m.title)}</span>
-          ${btns.join(' ')}
+          ${btns.length ? `<span class="dr-mod-actions">${btns.join('')}</span>` : ''}
         </div>`;
       }).join('')}
     </div>`;
