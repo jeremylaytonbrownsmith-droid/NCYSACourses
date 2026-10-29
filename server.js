@@ -836,7 +836,7 @@ function rateLimited(key, max, windowMs) {
 // Failed-password tracking for sign-in brute-force protection. Separate from the
 // generic limiter because only FAILURES count and a success clears them, so a
 // legitimate user is never locked out by their own successful login.
-const LOGIN_MAX_FAILURES = 10;      // per account+IP
+const LOGIN_MAX_FAILURES = 10;      // per account (not IP: X-Forwarded-For is spoofable)
 const LOGIN_WINDOW_MS = 15 * 60_000; // rolling 15 minutes
 const _loginFails = new Map();
 function loginBlocked(key) {
