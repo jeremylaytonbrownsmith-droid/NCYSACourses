@@ -118,16 +118,21 @@ function orgLogo(orgId) {
   return (b && b.coLogoUrl) || NCSRA_LOGO;
 }
 // Custom domains that belong to a partner org. When the app is served from one
-// of these hostnames, the landing page opens that org's portal instead of the
-// NCYSA chooser — so the partner's URL shows only their branding, no NCYSA.
-// NCYSA's own hosts (ncysa-learn.onrender.com, localhost) are NOT listed here,
-// so they behave exactly as before. Add www + the bare domain for each partner.
-const DOMAIN_ORG = {
-  'getmatchready.app': 'omg',
-  'www.getmatchready.app': 'omg',
-};
-// Product domains: the front door (bare URL) shows the MatchReady product page,
-// not an org portal. The org portal is still reachable at /omg (and #/org/…).
+// of these hostnames, the whole site is forced into that org (branding + portal),
+// never the NCYSA chooser.
+//
+// Deliberately EMPTY for now. getmatchready.app is the GetMatchReady *product*
+// domain (see PRODUCT_DOMAINS), not a customer org's portal — binding it to OMG
+// meant every page there (including the top-nav "Referees" link) rendered OMG,
+// which dumped NCSRA referees into OMG. Until a partner's own deal is finalized,
+// no domain is bound to a single org: referees default to NCSRA, and OMG stays
+// reachable on demand via /omg and #/org/omg/… for demos. When OMG (or any
+// partner) goes live on its OWN domain, add it here — e.g. 'omglearn.app':'omg'.
+// NCYSA's own hosts (ncysalearn.app, ncysa-learn.onrender.com, localhost) are
+// never listed here; they serve the NCYSA/NCSRA portal by default.
+const DOMAIN_ORG = {};
+// Product domains: the front door (bare URL) shows the GetMatchReady product page,
+// not an org portal. An org portal is still reachable at /omg (and #/org/…).
 const PRODUCT_DOMAINS = new Set(['getmatchready.app', 'www.getmatchready.app']);
 let activeOrg = DEFAULT_ORG;
 // Make the browser-tab icon and title match the org/domain in view — so OMG's
@@ -4223,13 +4228,10 @@ async function route() {
   if (domainOrg && (hash === '#/' || hash === '')) { location.hash = orgPortal(domainOrg, 'referees'); return; }
   navMinimal = /^#\/watch\//.test(hash);
   // On a partner domain the whole site is that org (so register/sign-in/etc. stay
-  // in-org); otherwise the hash decides. Default is NCYSA.
-  // EXCEPTION — the bare "Referees" portal (#/referees) always lands on the NCSRA
-  // (default-org) side, even when served from a partner's domain like
-  // getmatchready.app. Until a partner's own deal (e.g. OMG) is finalized,
-  // referees belong on NCSRA; the partner's own portal stays reachable at its
-  // explicit #/org/<slug>/referees link. Flip this back by removing the exception.
-  activeOrg = /^#\/referees$/.test(hash) ? DEFAULT_ORG : (domainOrg || orgFromHash(hash));
+  // in-org); otherwise the hash decides. Default is NCYSA. With DOMAIN_ORG empty,
+  // the bare "Referees" portal (#/referees) resolves to NCSRA everywhere; OMG is
+  // reached only via its explicit #/org/omg/… links.
+  activeOrg = domainOrg || orgFromHash(hash);
   await applyBrandForHash(hash); // resolve the in-view brand first…
   applyOrgChrome();              // …so the tab icon + title can match it
   renderNav(); // reflect navMinimal + brand for this route
