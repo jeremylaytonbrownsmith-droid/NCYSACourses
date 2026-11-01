@@ -118,21 +118,25 @@ function orgLogo(orgId) {
   return (b && b.coLogoUrl) || NCSRA_LOGO;
 }
 // Custom domains that belong to a partner org. When the app is served from one
-// of these hostnames, the whole site is forced into that org (branding + portal),
-// never the NCYSA chooser.
+// of these hostnames, the whole site is that org — its branding and its portal
+// (including the top-nav "Referees" link), never the NCYSA chooser.
 //
-// Deliberately EMPTY for now. getmatchready.app is the GetMatchReady *product*
-// domain (see PRODUCT_DOMAINS), not a customer org's portal — binding it to OMG
-// meant every page there (including the top-nav "Referees" link) rendered OMG,
-// which dumped NCSRA referees into OMG. Until a partner's own deal is finalized,
-// no domain is bound to a single org: referees default to NCSRA, and OMG stays
-// reachable on demand via /omg and #/org/omg/… for demos. When OMG (or any
-// partner) goes live on its OWN domain, add it here — e.g. 'omglearn.app':'omg'.
-// NCYSA's own hosts (ncysalearn.app, ncysa-learn.onrender.com, localhost) are
-// never listed here; they serve the NCYSA/NCSRA portal by default.
-const DOMAIN_ORG = {};
-// Product domains: the front door (bare URL) shows the GetMatchReady product page,
-// not an org portal. An org portal is still reachable at /omg (and #/org/…).
+// getmatchready.app IS OMG's domain. OMG (Officials Management Group) knows this
+// app as "GetMatchReady"; that's the product name they're presented with, and
+// OMG is the learning entity behind it. So on getmatchready.app everything is
+// OMG/GetMatchReady. NCYSA/NCSRA has its OWN domain and is never served here.
+//
+// The matching rule, enforced by this split: demo/serve NCYSA + NCSRA ONLY on
+// ncysalearn.app (and ncysa-learn.onrender.com / localhost, which default to the
+// NCYSA/NCSRA portal). Opening an NCYSA course on getmatchready.app would wrap it
+// in OMG chrome — so keep each org on its own domain. Add a new partner the same
+// way: 'theirdomain.app': 'theirorg'.
+const DOMAIN_ORG = {
+  'getmatchready.app': 'omg',
+  'www.getmatchready.app': 'omg',
+};
+// Product domains: the front door (bare URL) shows the GetMatchReady product page.
+// The OMG learning portal is reached from there via /omg (and #/org/omg/…).
 const PRODUCT_DOMAINS = new Set(['getmatchready.app', 'www.getmatchready.app']);
 let activeOrg = DEFAULT_ORG;
 // Make the browser-tab icon and title match the org/domain in view — so OMG's
