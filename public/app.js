@@ -4224,7 +4224,12 @@ async function route() {
   navMinimal = /^#\/watch\//.test(hash);
   // On a partner domain the whole site is that org (so register/sign-in/etc. stay
   // in-org); otherwise the hash decides. Default is NCYSA.
-  activeOrg = domainOrg || orgFromHash(hash);
+  // EXCEPTION — the bare "Referees" portal (#/referees) always lands on the NCSRA
+  // (default-org) side, even when served from a partner's domain like
+  // getmatchready.app. Until a partner's own deal (e.g. OMG) is finalized,
+  // referees belong on NCSRA; the partner's own portal stays reachable at its
+  // explicit #/org/<slug>/referees link. Flip this back by removing the exception.
+  activeOrg = /^#\/referees$/.test(hash) ? DEFAULT_ORG : (domainOrg || orgFromHash(hash));
   await applyBrandForHash(hash); // resolve the in-view brand first…
   applyOrgChrome();              // …so the tab icon + title can match it
   renderNav(); // reflect navMinimal + brand for this route
