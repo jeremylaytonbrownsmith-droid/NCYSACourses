@@ -3639,22 +3639,25 @@ app.post('/api/admin/scorm/:pkg/serve-via-server', requireEditorNotPartner, (req
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Bulk version: switch EVERY CDN-backed uploaded module that is NOT our own
-// slideshow player (i.e. third-party SCORM/Evolve exports, whose pull-zone
-// delivery can fail) to stream its video through the server. Our slideshow
-// modules deliver fine from the CDN, so they keep their .cdn marker untouched.
+// Bulk version: switch EVERY CDN-backed uploaded module to stream its video
+// through the server. The Bunny pull-zone has proven unreliable for video on
+// these US Soccer packages — cutting a clip off mid-stream (the "video dies
+// ~85%, module won't complete" bug) — and it fails for our own slideshow player
+// too, not just third-party SCORM/Evolve exports. So this no longer spares the
+// slideshow modules: reliability wins. Each video stays safe on Bunny STORAGE
+// and streams back same-origin (Range-aware) via pipeBunnyVideo. No re-upload.
 app.post('/api/admin/scorm/serve-all-via-server', requireEditorNotPartner, (req, res) => {
   let names = [];
   try { names = fs.readdirSync(SCORM_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); } catch { /* none */ }
-  const switched = [];
+  const switched = []; let cdnBacked = 0;
   for (const pkg of names) {
     const dir = path.resolve(SCORM_DIR, pkg);
     const marker = path.join(dir, '.cdn');
-    if (!fs.existsSync(marker)) continue;        // not CDN-backed
-    if (readSlideManifest(dir)) continue;        // our slideshow player delivers fine from the CDN — leave it
+    if (!fs.existsSync(marker)) continue;        // not CDN-backed — already served from the server
+    cdnBacked++;
     try { fs.rmSync(marker, { force: true }); switched.push(pkg); } catch { /* ignore */ }
   }
-  res.json({ ok: true, switched: switched.length, packages: switched });
+  res.json({ ok: true, switched: switched.length, cdnBacked, packages: switched });
 });
 
 // Peek inside one uploaded package: the file tree with sizes, plus which files

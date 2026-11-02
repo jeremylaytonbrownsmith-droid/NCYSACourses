@@ -3209,17 +3209,15 @@ async function viewCourseAdmin(flash) {
     const cdnBlock = d.bunny
       ? `<div class="cdn-box ok">
            <strong>☁️ Bunny CDN is connected.</strong>
-           ${d.cdnPending ? `<p>${d.cdnPending} module(s) still stream video from this server. <strong>Move one first as a test</strong>, open that module to confirm the video still plays, then move the rest — no re-upload needed.</p>
-             <button class="btn btn-accent" id="migrateOne" data-pkg="${esc(firstPending)}">Move 1 module (test)</button>
-             <button class="btn btn-ghost" id="migrateAll" style="margin-left:8px">Move all ${d.cdnPending}</button>`
-             : `<p>All modules with video are already served from the CDN. ✅</p>`}
+           ${d.cdnPending ? `<p>${d.cdnPending} module(s) stream video through the server — the reliable path. ✅ <span class="meta">(The CDN pull-zone has been dropping these videos mid-stream, so serving them from the server is intentional. No action needed.)</span></p>`
+             : ''}
            <p style="margin-top:10px">
              <button class="btn btn-ghost" id="checkWiring">🔎 Check video wiring (all CDN modules)</button>
              <span class="meta" style="margin-left:8px">Fetches every video from its real CDN URL to confirm it actually delivers — catches a black screen before a learner does.</span>
            </p>
            <p style="margin-top:6px">
              <button class="btn btn-ghost" id="serveAllViaServer">🛠 Fix video playback on all modules</button>
-             <span class="meta" style="margin-left:8px">For the uploaded SCORM/Evolve modules whose CDN won't deliver ("media is corrupt" errors), switch their video to stream through the server. The slideshow modules that already work from the CDN are left alone. No re-upload.</span>
+             <span class="meta" style="margin-left:8px">Switches every module's video to stream through the server instead of the CDN — the reliable path that fixes the "media is corrupt" / video-cuts-out errors. Covers all module types. No re-upload.</span>
            </p>
          </div>`
       : `<div class="cdn-box">
@@ -3257,12 +3255,15 @@ async function viewCourseAdmin(flash) {
       loadStorage();
     });
     document.getElementById('serveAllViaServer')?.addEventListener('click', async (ev) => {
-      if (!confirm('Switch the uploaded SCORM/Evolve modules to stream their video through the server (fixes the "media is corrupt" errors)? The slideshow modules that already work from the CDN are left alone. No re-upload.')) return;
+      if (!confirm('Switch every module\'s video to stream through the server instead of the CDN? This fixes the "media is corrupt" / video-cuts-out errors and works for all module types. No re-upload — the videos stay safe on Bunny.')) return;
       const btn = ev.target; btn.disabled = true; btn.textContent = 'Fixing…';
       try {
         const r = await api('/api/admin/scorm/serve-all-via-server', { method: 'POST', body: {} });
-        sMsg(r.switched ? `Fixed ${r.switched} module(s). ✅ Open one of the recert modules and confirm the video plays.` : 'Nothing to change — no affected modules found.');
-      } catch (e) { sMsg('Could not fix: ' + e.message, true); }
+        const msg = r.switched
+          ? `✅ Fixed ${r.switched} module(s) — video now streams through the server. Open a recert module and confirm it plays.`
+          : '✅ Already done — every module streams from the server.';
+        sMsg(msg); toast(msg);
+      } catch (e) { const m = 'Could not fix: ' + e.message; sMsg(m, true); toast(m, true); }
       loadStorage();
     });
     document.getElementById('migrateAll')?.addEventListener('click', async (ev) => {
