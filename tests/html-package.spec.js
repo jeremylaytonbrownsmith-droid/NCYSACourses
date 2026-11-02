@@ -73,6 +73,23 @@ test('nocdn=1 keeps videos on the server (no .cdn marker, file served locally)',
   expect(await vid.text()).toContain('FAKE-MP4-WITH-AUDIO');
 });
 
+test('third-party packages serve videos from the server by default (never the CDN)', async ({ playwright }) => {
+  // The permanent fix for the "video dies ~85%, module won't complete" bug: a
+  // third-party package (no slideshow manifest.js) is never offloaded to the flaky
+  // CDN — its videos serve from our own server automatically, no checkbox needed.
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();
+  const zip = new AdmZip();
+  zip.addFile('index.html', Buffer.from('<!doctype html><title>Evolve Export</title><video src="media/clip.mp4"></video>', 'utf8'));
+  zip.addFile('media/clip.mp4', Buffer.from('FAKE-MP4-WITH-AUDIO', 'utf8')); // no manifest.js → third-party
+  const up = await (await api.post(`/api/admin/scorm?name=ThirdParty${Date.now()}`, { headers: { 'content-type': 'application/zip' }, data: zip.toBuffer() })).json();
+  expect(up.cdn).toBeFalsy();                                   // not offloaded to the CDN
+  expect(up.videoReport.message).toContain('third-party');     // served from the server, by design
+  const vid = await api.get(`/scorm/${up.packageId}/media/clip.mp4`);
+  expect(vid.status()).toBe(200);                              // and it plays from disk
+  expect(await vid.text()).toContain('FAKE-MP4-WITH-AUDIO');
+});
+
 test('an HTML module completes via the time gate + mark-complete, with a certificate', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   expect((await api.post('/api/login', { data: DESIGNER })).ok()).toBeTruthy();

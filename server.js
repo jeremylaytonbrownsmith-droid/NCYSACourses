@@ -3337,8 +3337,19 @@ async function processLocalZip(tmpZip, nameHint, opts = {}) {
     // doesn't catch, so serving the files locally — exactly as they sit on disk —
     // is the reliable path. Videos then play same-origin via sendFile (Range +
     // audio), no shim, no CDN URL.
+    // Where videos are served from, decided by package type — an explicit noCdn
+    // request always forces server-serve:
+    //   • Our native slideshow modules (manifest.js / ITEMS) deliver reliably from
+    //     the Bunny CDN, so offload their videos there.
+    //   • Third-party packages (Evolve/SCORM exports, US Soccer Mentor+ — no slide
+    //     manifest) have flaky CDN pull-zone delivery that can cut a clip off
+    //     mid-stream (the "video dies ~85% and the module won't complete" bug), so
+    //     they serve from our own server by default and NEVER go onto the CDN.
+    // This makes the fix permanent: a new third-party upload can't inherit the
+    // broken path, so nobody has to remember to run "serve via server" after it.
+    const isSlideshow = !!readSlideManifest(dest);
     let cdn = { cdn: false };
-    if (!opts.noCdn) {
+    if (!opts.noCdn && isSlideshow) {
       try { cdn = await offloadVideosToBunny(packageId, dest); }
       catch (e) { cdn = { cdn: false, error: e.message }; }
     }
@@ -3361,14 +3372,16 @@ async function processLocalZip(tmpZip, nameHint, opts = {}) {
       } else if (cdn.error) {
         videoReport = { level: 'error', message: `Video upload to the CDN failed (${cdn.error}). The video stays on the server for now — re-upload once it’s resolved.` };
       } else {
-        // No offload happened: either the package has a bundled video in a format we
-        // don't auto-stream, or it has no embedded video at all. Tell them which.
+        // No CDN offload: the videos (if any) serve straight from our server. For a
+        // third-party package that's the DEFAULT now (reliable, avoids the CDN
+        // mid-stream cut-outs); for a slideshow module it means CDN is off or was
+        // explicitly kept local. Either way, say so plainly.
         let hasVid = false;
         (function walk(dir) { for (const n of fs.readdirSync(dir)) { const f = path.join(dir, n); if (fs.statSync(f).isDirectory()) walk(f); else if (/\.(mp4|m4v|webm|mov|ogg|m3u8)$/i.test(n)) hasVid = true; } })(dest);
         if (hasVid) {
-          videoReport = bunnyEnabled()
-            ? { level: 'warn', message: 'An embedded video is present but in a format we don’t auto-stream yet (e.g. .ogg or an .m3u8 stream). It may still play — tell Claude the format to CDN-optimize it.' }
-            : { level: 'ok', message: 'An embedded video is present; it will play from the server (CDN streaming is off for this instance).' };
+          videoReport = isSlideshow
+            ? { level: 'ok', message: 'An embedded video is present; it will play from the server (CDN streaming is off for this module).' }
+            : { level: 'ok', message: 'Embedded video will stream from the server — the reliable path for third-party modules, which avoids the CDN mid-stream cut-outs. No action needed.' };
         } else {
           videoReport = { level: 'info', message: 'No embedded video found — any external links (YouTube/Vimeo) will play from their source. If this module was meant to have an embedded video, the export didn’t include it.' };
         }

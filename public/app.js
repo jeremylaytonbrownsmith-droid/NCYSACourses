@@ -3540,7 +3540,7 @@ async function viewCourseAdmin(flash) {
         </div>
         <label class="form-hint" style="display:flex;align-items:flex-start;gap:8px;margin-top:4px;cursor:pointer">
           <input type="checkbox" id="scormNoCdn" style="margin-top:3px" />
-          <span>Keep this module's videos on the server (don't move them to the CDN). Use this for players that stream their own video — e.g. the US&nbsp;Soccer <strong>Mentor+</strong> presenter — if clips won't load after a normal import.</span>
+          <span>Force this module's videos to stay on the server (never the CDN). <strong>Usually unnecessary:</strong> third-party packages (Evolve/SCORM exports, US&nbsp;Soccer <strong>Mentor+</strong>) already serve from the server automatically. Check this only to keep one of our own slideshow modules off the CDN.</span>
         </label>
         <p class="form-hint" style="margin-top:2px">Too big to upload from the browser? Put the .zip in <strong>Dropbox</strong> (desktop app is most reliable for large files), make a share link, and paste it here — the server downloads and processes it directly.</p>
         <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
