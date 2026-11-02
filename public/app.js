@@ -52,6 +52,7 @@ let me = null;        // { user, unread }
 // dropped so they can click straight through to test a course end to end.
 // Learners are never affected — the gates are intact for anyone not on staff.
 const isStaffViewer = () => !!(me && me.user && ['admin', 'editor', 'partner'].includes(me.user.role));
+let adminPresenceTimer = null; // dashboard live-presence poll (cleared when you leave the dashboard)
 let videoTracker = null; // active video watch tracker (cleaned up on route change)
 
 // ---------- utilities ----------
@@ -2552,13 +2553,21 @@ async function viewAdmin() {
     const d = Math.floor(h / 24), rh = h % 24;
     return rh ? `${d}d ${rh}h` : `${d}d`;
   };
+  // Live-presence dot: green + pulsing for a learner working right now, a faint
+  // grey dot (with a "last active …" tooltip) for everyone we've seen before.
+  const fmtAgo = (s) => { if (s == null) return ''; if (s < 60) return 'just now'; const m = Math.round(s / 60); if (m < 60) return `${m}m ago`; const h = Math.round(m / 60); if (h < 24) return `${h}h ago`; return `${Math.round(h / 24)}d ago`; };
+  const presenceDot = (c) => c.activeNow
+    ? '<span class="live-dot" title="Working right now"></span>'
+    : (c.lastActiveSecondsAgo != null ? `<span class="seen-dot" title="Last active ${esc(fmtAgo(c.lastActiveSecondsAgo))}"></span>` : '<span class="seen-dot off" title="Not seen this session"></span>');
   function renderTable() {
     const list = filtered();
+    const liveCount = list.filter((c) => c.activeNow).length;
     els.table.innerHTML = list.length ? `
+      ${liveCount ? `<p class="live-banner"><span class="live-dot"></span> ${liveCount} working right now</p>` : ''}
       <div class="table-scroll"><table class="admin-table">
         <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
-          <td data-label="Learner">${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner)}</button>` : esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
+          <td data-label="Learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner)}</button>` : esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
           <td data-label="Status">${statusCell(c)}</td>
           <td data-label="Time to complete">${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
@@ -2591,6 +2600,21 @@ async function viewAdmin() {
       els.from.addEventListener(ev, renderTable); els.to.addEventListener(ev, renderTable);
     });
     renderTable();
+    // Keep the live-presence dots fresh: poll the cheap presence endpoint every
+    // ~45s and repaint (current filters/scroll preserved — no heavy overview
+    // refetch). Self-clears once you leave the dashboard.
+    if (adminPresenceTimer) { clearInterval(adminPresenceTimer); adminPresenceTimer = null; }
+    adminPresenceTimer = setInterval(async () => {
+      if (!document.body.contains(els.table)) { clearInterval(adminPresenceTimer); adminPresenceTimer = null; return; }
+      let p; try { p = await api('/api/admin/presence'); } catch { return; }
+      const ago = p.active || {}, win = p.activeWithinSeconds || 180;
+      for (const c of rows) {
+        const s = ago[c.userId];
+        if (s != null) c.lastActiveSecondsAgo = s;
+        c.activeNow = (s != null && s <= win);
+      }
+      renderTable();
+    }, 45000);
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;

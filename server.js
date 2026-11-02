@@ -2048,6 +2048,17 @@ const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
 const DEFAULT_SCORM_MIN_SECONDS = 0; // no time gate by default — the module's own "complete every element" requirement is the anti-skip
 const DEFAULT_SLIDE_GATE_SECONDS = 30; // per-slide review time for our slideshow player when a module doesn't set its own (matches the platform-wide behavior before it became configurable)
 
+// --- Live presence: "who's working right now" ------------------------------
+// A learner pings the watch/scorm/complete endpoints every few seconds while
+// they're actually in a module or video, so we simply remember the time of each
+// learner's last ping. Kept IN MEMORY on purpose: no database write (so no
+// Firestore cost, however often someone pings) and no persistence needed —
+// presence is live-only state; after a restart it just repopulates as people
+// ping again. The dashboard reads this to show a green "active now" dot.
+const lastActiveAt = new Map(); // userId -> epoch ms of the last heartbeat
+const PRESENCE_ACTIVE_MS = 3 * 60 * 1000; // "active now" = pinged within 3 minutes
+function markActive(userId) { if (userId) lastActiveAt.set(userId, Date.now()); }
+
 // The trustworthy length of a video lesson: the real duration observed from the
 // player once known, otherwise the (possibly approximate) configured value. This
 // lets a course designer paste a video without knowing its exact length — the
@@ -2067,6 +2078,7 @@ function videoRequired(lesson) {
 }
 
 app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, res) => {
+  markActive(req.user.id); // live presence: they're in a video right now
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -2132,6 +2144,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, ah(async 
 
 // Generic completion for text/video lessons.
 app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, ah(async (req, res) => {
+  markActive(req.user.id); // live presence: they just finished a lesson
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -2172,6 +2185,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, ah(as
 // a learner resumes where they left off. No score to grade — completion is the
 // signal that feeds the dashboard export.
 app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async (req, res) => {
+  markActive(req.user.id); // live presence: they're in a module right now
   const found = findLesson(req, res);
   if (!found) return;
   const { course, lesson, db } = found;
@@ -2462,6 +2476,8 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
       const total = course ? course.lessons.length : 0;
       const prog = course ? getProgress(db, e.userId, e.courseId) : [];
       const doneCount = course ? course.lessons.filter((l) => prog.some((p) => p.lessonId === l.id && p.completed)).length : 0;
+      const seen = lastActiveAt.get(e.userId) || 0;
+      const secondsAgo = seen ? Math.round((Date.now() - seen) / 1000) : null;
       return {
         userId: e.userId,
         learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
@@ -2469,6 +2485,9 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
         modulesComplete: doneCount, totalModules: total,
         completedAt: e.completedAt || null, certId: e.certId || null,
         startedAt: e.startedAt || null,
+        // Live presence (in-memory): active now = pinged within the window.
+        activeNow: secondsAgo != null && (Date.now() - seen) < PRESENCE_ACTIVE_MS,
+        lastActiveSecondsAgo: secondsAgo,
       };
     }).sort((a, b) => String(b.completedAt || b.startedAt || '').localeCompare(String(a.completedAt || a.startedAt || ''))),
     // NC-internal notifications/outbox are hidden from a partner (they may name
@@ -2489,6 +2508,17 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
       published: isPublished(c),
     })).sort((a, b) => a.title.localeCompare(b.title)),
   });
+});
+
+// Lightweight live-presence poll for the dashboard's green dots. Cheap enough to
+// call every ~minute: it only reads the in-memory presence map, never the DB.
+// Returns { userId: secondsSinceLastPing } so the client can repaint the dots
+// without re-fetching the whole overview.
+app.get('/api/admin/presence', requireDashboard, (req, res) => {
+  const now = Date.now();
+  const active = {};
+  for (const [uid, t] of lastActiveAt) active[uid] = Math.round((now - t) / 1000);
+  res.json({ active, activeWithinSeconds: Math.round(PRESENCE_ACTIVE_MS / 1000) });
 });
 
 // Delete a learner's record for a course — for clearing out test data before
