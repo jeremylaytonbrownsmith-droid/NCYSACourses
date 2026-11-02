@@ -2553,12 +2553,11 @@ async function viewAdmin() {
     const d = Math.floor(h / 24), rh = h % 24;
     return rh ? `${d}d ${rh}h` : `${d}d`;
   };
-  // Live-presence dot: green + pulsing for a learner working right now, a faint
-  // grey dot (with a "last active …" tooltip) for everyone we've seen before.
-  const fmtAgo = (s) => { if (s == null) return ''; if (s < 60) return 'just now'; const m = Math.round(s / 60); if (m < 60) return `${m}m ago`; const h = Math.round(m / 60); if (h < 24) return `${h}h ago`; return `${Math.round(h / 24)}d ago`; };
+  // Live-presence dot: a green pulsing dot for a learner working right now.
+  // Only light up people who are online right now; everyone else shows no dot.
   const presenceDot = (c) => c.activeNow
     ? '<span class="live-dot" title="Working right now"></span>'
-    : (c.lastActiveSecondsAgo != null ? `<span class="seen-dot" title="Last active ${esc(fmtAgo(c.lastActiveSecondsAgo))}"></span>` : '<span class="seen-dot off" title="Not seen this session"></span>');
+    : '';
   function renderTable() {
     const list = filtered();
     const liveCount = list.filter((c) => c.activeNow).length;
