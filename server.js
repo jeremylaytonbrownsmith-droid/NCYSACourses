@@ -1429,7 +1429,11 @@ app.get('/scorm/:pkg/*', async (req, res) => {
           html = injectCdnShim(html, fs.readFileSync(cdnFile, 'utf8').trim(), itemMap);
         }
         html = injectPlayerMobileFix(html);
-        html = injectSlideGate(html, slideGateForPackage(pkg));
+        // Staff (admin/editor/partner) get a no-wait preview so they can click
+        // straight through to test a module; learners keep the configured gate.
+        const gateViewer = currentUser(req);
+        const staffPreview = !!gateViewer && STAFF_ROLES.includes(gateViewer.role);
+        html = injectSlideGate(html, staffPreview ? 0 : slideGateForPackage(pkg));
         html = injectVideoError(html);
         html = injectVideoEmbedFix(html);
         html = injectVideoAudioFix(html);
@@ -2140,7 +2144,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, ah(as
     return res.status(400).json({ error: 'The exam must be submitted and passed, not marked complete.' });
 
   const rec = upsertProgress(db, req.user.id, course.id, lesson.id);
-  if (lesson.type === 'video') {
+  if (lesson.type === 'video' && !STAFF_ROLES.includes(req.user.role)) {
     const required = videoRequired(lesson);
     if (rec.watchedSeconds < required) {
       return res.status(403).json({
@@ -2216,7 +2220,11 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
   // Minimum time before completion counts. Modules uploaded before this gate
   // existed have no minSeconds field, so they fall back to the default (rather
   // than 0 = no gate) — the anti-skip protection applies without re-uploading.
-  const required = lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS;
+  // Staff (admin/editor/partner) previewing a module skip the dwell timer, so a
+  // test run completes the moment they reach the end. Learners keep the gate.
+  const required = STAFF_ROLES.includes(req.user.role)
+    ? 0
+    : (lesson.minSeconds != null ? Math.max(0, Number(lesson.minSeconds) || 0) : DEFAULT_SCORM_MIN_SECONDS);
   const timeMet = rec.scorm.activeSeconds >= required;
   const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
   const mapped = mapScormStatus(rec.scorm.status);

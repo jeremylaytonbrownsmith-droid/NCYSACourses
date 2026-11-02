@@ -47,6 +47,11 @@ const ICON_SOUND = svgIcon('<path d="M4 9v6h3l5 4V5L7 9z"/><path d="M16 9a3 3 0 
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
 let me = null;        // { user, unread }
+// Staff (admin/editor/partner) get a no-gate "preview" of any module: every
+// per-slide wait, module dwell timer, reading timer and video watch-gate is
+// dropped so they can click straight through to test a course end to end.
+// Learners are never affected — the gates are intact for anyone not on staff.
+const isStaffViewer = () => !!(me && me.user && ['admin', 'editor', 'partner'].includes(me.user.role));
 let videoTracker = null; // active video watch tracker (cleaned up on route change)
 
 // ---------- utilities ----------
@@ -963,7 +968,10 @@ function lessonHeader(lesson, course) {
   const logo = course && course.coLogoUrl
     ? `<img class="lesson-cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || '')}" />`
     : '';
-  return `<div class="lesson-kind-row"><div class="lesson-kind">${typeLabel[lesson.type]}</div>${logo}</div><h1>${esc(lesson.title)}</h1>`;
+  const staffBadge = isStaffViewer()
+    ? '<span class="staff-preview-badge" title="You are staff — per-slide waits, dwell timers and video watch-gates are off so you can test. Learners still have every gate.">⚡ Staff preview — gates off</span>'
+    : '';
+  return `<div class="lesson-kind-row"><div class="lesson-kind">${typeLabel[lesson.type]}</div>${staffBadge}${logo}</div><h1>${esc(lesson.title)}</h1>`;
 }
 
 async function completeLesson(course, lesson) {
@@ -987,9 +995,9 @@ async function completeLesson(course, lesson) {
 function renderSlidesLesson(pane, course, lesson, lp) {
   const slides = (Array.isArray(lesson.slides) ? lesson.slides : []).map((s) => (typeof s === 'string' ? { img: s } : s));
   if (!slides.length) return renderTextLesson(pane, course, lesson, lp);
-  const per = Math.max(0, lesson.slideSeconds != null ? Number(lesson.slideSeconds) : 15);
+  const per = isStaffViewer() ? 0 : Math.max(0, lesson.slideSeconds != null ? Number(lesson.slideSeconds) : 15);
   let idx = 0; const seen = new Set();
-  if (lp.completed) for (let i = 0; i < slides.length; i++) seen.add(i); // review: no gating
+  if (lp.completed || isStaffViewer()) for (let i = 0; i < slides.length; i++) seen.add(i); // review / staff preview: no gating
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
@@ -1150,7 +1158,7 @@ function renderTextLesson(pane, course, lesson, lp) {
   // so learners actually read the lesson instead of clicking straight through.
   // A completed lesson (review) is never re-gated.
   const minSeconds = Math.max(0, Number(lesson.minSeconds) || 0);
-  const gated = !lp.completed && minSeconds > 0;
+  const gated = !lp.completed && minSeconds > 0 && !isStaffViewer();
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     <div class="lesson-content">${lesson.html}</div>
@@ -1362,7 +1370,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   // Anti-skip time gate: a module only completes after the learner has spent a
   // minimum amount of real time in it (so clicking to the last slide doesn't
   // finish it instantly). Server enforces this; here we track time and show it.
-  const required = Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 300));
+  const required = isStaffViewer() ? 0 : Math.max(0, Number(lesson.minSeconds != null ? lesson.minSeconds : 300));
   // An HTML "Web" package (e.g. US Soccer's Mentor+) is served the same SCORM API
   // as a SCORM package: if it talks to that API it self-reports completion and the
   // learner never needs a button. We only surface a manual "mark complete" link as
@@ -1646,6 +1654,7 @@ function renderEmbedVideoLesson(pane, course, lesson, lp, embed) {
   const fill = document.getElementById('watchFill'), label = document.getElementById('watchLabel'), note = document.getElementById('gateNote');
   let watched = 0, unlocked = false;
   function unlock() { if (unlocked) return; unlocked = true; completeBtn.disabled = false; if (fill) fill.style.width = '100%'; if (label) label.textContent = 'Requirement met ✓'; if (note) note.textContent = 'You can continue.'; }
+  if (isStaffViewer()) { unlock(); if (note) note.textContent = 'Staff preview — gate off.'; } // staff test run: no watch gate
   function tick(sec) { watched = Math.max(watched, sec); if (fill) fill.style.width = Math.min(100, (watched / required) * 100) + '%'; if (label && !unlocked) label.textContent = Math.floor(watched) + 's / ' + required + 's'; if (watched >= required) unlock(); }
   const start = Date.now();
   const iv = setInterval(() => { tick((Date.now() - start) / 1000); if (unlocked) clearInterval(iv); }, 500);
@@ -1773,7 +1782,7 @@ function renderVideoLesson(pane, course, lesson, lp) {
   let serverWatched = lp.watchedSeconds || 0; // furthest point the server has credited
   let maxPlayed = serverWatched;              // furthest point reached via real playback
   let lastReported = serverWatched;           // last position sent to the server
-  let satisfied = lp.completed || serverWatched >= required;
+  let satisfied = lp.completed || isStaffViewer() || serverWatched >= required;
   let sending = false;
 
   function updateMeter() {

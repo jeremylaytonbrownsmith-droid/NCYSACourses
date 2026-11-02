@@ -239,7 +239,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 
 .lesson-pane { padding: 40px clamp(20px, 5vw, 64px); max-width: 860px; }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
-.lesson-kind-row { display: flex; align-items: center; gap: 14px; }
+.lesson-kind-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.staff-preview-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #fde68a; color: #7c5a00; font-weight: 700; font-size: .72rem; letter-spacing: .02em; white-space: nowrap; }
+:root:not([data-theme="light"]) .staff-preview-badge,
+:root[data-theme="dark"] .staff-preview-badge { background: #4a3b00; color: #ffe08a; }
 .lesson-cobrand-logo { height: 40px; width: auto; }
 .lesson-pane h1 { font-size: 1.75rem; letter-spacing: -0.01em; margin: 6px 0 20px; }
 /* Keep whatever a course designer pastes in — images, embeds, long links —
