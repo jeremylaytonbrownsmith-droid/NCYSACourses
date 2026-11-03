@@ -21,7 +21,7 @@ const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
-const { normalizeModuleDoc } = require('./lib/moduledoc');
+const { normalizeModuleDoc, enforceInfoSession } = require('./lib/moduledoc');
 const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
 const { buildDocument, DOC_FORMATS } = require('./lib/docexport');
 const courseSeed = require('./data/courses');
@@ -2963,6 +2963,9 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
     if (format === 'module') {
       const raw = await generateModuleDraft({ topic: b.topic, sourceText: b.sourceText, audience: b.audience, mode: b.mode, approxPages: b.approxPages });
       moduleDoc = normalizeModuleDoc(raw);
+      // A Tent Talk is an information session by definition: strip any graded
+      // blocks the model may have added, so "no test" is guaranteed every time.
+      if (b.mode === 'tenttalk') moduleDoc = enforceInfoSession(moduleDoc);
       if (!moduleDoc.pages.length) throw new Error('The AI returned an empty module. Try again with a clearer topic or more source material.');
     } else {
       draft = await generateCourseDraft({

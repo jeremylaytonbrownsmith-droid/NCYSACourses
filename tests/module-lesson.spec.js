@@ -2,7 +2,7 @@
 // then the full lifecycle — an admin creates a module lesson from authored JSON,
 // a learner enrolls and completes it, and a doc with no usable pages is rejected.
 const { test, expect } = require('@playwright/test');
-const { normalizeModuleDoc, BLOCK_TYPES } = require('../lib/moduledoc');
+const { normalizeModuleDoc, enforceInfoSession, BLOCK_TYPES } = require('../lib/moduledoc');
 
 const BASE = 'http://localhost:3100';
 const ADMIN = { email: 'admin@ncysa.org', password: 'ncysa-staff-2026' };
@@ -86,6 +86,24 @@ test('illustration keys and checklist heading survive; the tent-talk sample is a
   expect(hasAssessment).toBe(false);
   // completion still means something: the final page gates on the acknowledgment checklist
   expect(tent.pages[tent.pages.length - 1].completionRequires.length).toBeGreaterThan(0);
+});
+
+test('enforceInfoSession strips every graded block from a Tent Talk', () => {
+  const doc = normalizeModuleDoc({ pages: [
+    { title: 'A', completionRequires: ['kc', 'car'], blocks: [
+      { type: 'carousel', id: 'car', slides: [{ title: 's', body: 'b' }] },
+      { type: 'knowledgeCheck', id: 'kc', prompt: 'p', options: [{ id: 'a', text: 'a' }, { id: 'b', text: 'b' }], correctOptionId: 'a' } ] },
+    { title: 'Quiz only', completionRequires: ['final'], blocks: [
+      { type: 'assessment', id: 'final', items: [{ prompt: 'q', options: ['a', 'b'], correct: 0 }] } ] },
+  ] });
+  const info = enforceInfoSession(doc);
+  const types = info.pages.flatMap((p) => p.blocks.map((b) => b.type));
+  expect(types).not.toContain('knowledgeCheck');
+  expect(types).not.toContain('assessment');
+  expect(types).toContain('carousel');
+  // the page that was only a quiz is dropped; the surviving page keeps the carousel requirement
+  expect(info.pages).toHaveLength(1);
+  expect(info.pages[0].completionRequires).toEqual(['car']);
 });
 
 test('admin creates a module lesson, learner enrolls and completes it', async ({ playwright }) => {
