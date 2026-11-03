@@ -1261,11 +1261,26 @@ function renderModuleLesson(pane, course, lesson, lp) {
     const g = gfx(graphic);
     return g ? '<div class="gmr-fig">' + g + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>' : '<div class="gmr-vis"><b>Illustration</b>' + esc(brief || '') + '</div>';
   };
+  // Embed a real video when a block carries a URL: YouTube/Vimeo as a privacy
+  // iframe, any other http(s)/relative URL as an HTML5 <video>. Returns '' when
+  // there is no URL, so callers fall back to their text treatment.
+  function embedSrc(u) {
+    let m;
+    if ((m = u.match(/youtu\.be\/([\w-]+)/)) || (m = u.match(/[?&]v=([\w-]+)/)) || (m = u.match(/youtube\.com\/embed\/([\w-]+)/))) return 'https://www.youtube-nocookie.com/embed/' + m[1];
+    if ((m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/))) return 'https://player.vimeo.com/video/' + m[1];
+    return '';
+  }
+  function mediaEmbed(u, poster) {
+    if (!u) return '';
+    const emb = embedSrc(u);
+    if (emb) return '<div class="gmr-video"><iframe src="' + esc(emb) + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="Video"></iframe></div>';
+    return '<div class="gmr-video"><video controls preload="metadata"' + (poster ? ' poster="' + esc(poster) + '"' : '') + ' src="' + esc(u) + '"></video></div>';
+  }
   function markDone(id) { if (id) { state.done[id] = true; refreshGate(); renderRail(); } }
 
   // --- block renderers: each returns { html, wire(region)? } ---
   const R = {
-    narration: (b) => ({ html: '<div class="gmr-narr"><p class="gmr-nlab">Narration · ' + (b.durationSeconds || 0) + 's</p><p>' + esc(b.transcript) + '</p></div>' }),
+    narration: (b) => ({ html: '<div class="gmr-narr' + (b.videoUrl ? ' hasvid' : '') + '">' + mediaEmbed(b.videoUrl, b.poster) + '<p class="gmr-nlab">' + (b.videoUrl ? 'Watch' : 'Narration') + (b.durationSeconds ? ' · ' + b.durationSeconds + 's' : '') + '</p>' + (b.transcript ? '<p>' + esc(b.transcript) + '</p>' : '') + '</div>' }),
     prose: (b) => ({ html: '<div class="gmr-prose' + (b.emphasis ? ' em' : (b.lead ? ' lead' : '')) + '">' + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
     list: (b) => { const tag = b.ordered ? 'ol' : 'ul'; return { html: '<div class="gmr-blk">' + (b.heading ? '<h3 class="gmr-bh">' + esc(b.heading) + '</h3>' : '') + '<' + tag + ' class="gmr-lst' + (b.ordered ? ' ord' : '') + '">' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</' + tag + '></div>' }; },
     callout: (b) => ({ html: '<div class="gmr-callout">' + (b.heading ? '<h3>' + esc(b.heading) + '</h3>' : '') + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
@@ -1286,7 +1301,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
         dots.onclick = (e) => { const k = e.target.dataset.k; if (k != null) { i = +k; seen[i] = 1; draw(); bump(); } };
         draw(); if (noGate) markDone(b.id);
       } }; },
-    accordion: (b) => { const items = (b.items || []).map((it, ix) => { let body = ''; if (it.intro) body += '<p class="intro">' + esc(it.intro) + '</p>'; if (it.heading && it.heading !== it.label) body += '<p class="ah">' + esc(it.heading) + '</p>'; if (it.body) body += '<p>' + esc(it.body) + '</p>'; if (it.bullets && it.bullets.length) body += '<ul>' + it.bullets.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<details data-ix="' + ix + '"><summary>' + esc(it.label) + '</summary><div class="gmr-ab">' + body + '</div></details>'; }).join(''); return {
+    accordion: (b) => { const items = (b.items || []).map((it, ix) => { let body = ''; if (it.intro) body += '<p class="intro">' + esc(it.intro) + '</p>'; if (it.heading && it.heading !== it.label) body += '<p class="ah">' + esc(it.heading) + '</p>'; if (it.body) body += '<p>' + esc(it.body) + '</p>'; if (it.bullets && it.bullets.length) body += '<ul>' + it.bullets.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<details data-ix="' + ix + '"><summary><span class="gmr-accx" aria-hidden="true"></span><span class="gmr-aclabel">' + esc(it.label) + '</span></summary><div class="gmr-ab">' + body + '</div></details>'; }).join(''); return {
       html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-acc">' + items + '</div></div>',
       wire: (root) => { const ds = root.querySelectorAll('details'); const opened = {}; ds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) { opened[d.dataset.ix] = 1; if (Object.keys(opened).length >= ds.length) markDone(b.id); } })); if (noGate) markDone(b.id); } }; },
     scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + ((b.graphic || b.imageBrief) ? vis(b.graphic, b.imageBrief) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
@@ -1309,7 +1324,9 @@ function renderModuleLesson(pane, course, lesson, lp) {
   // knowledgeCheck + videoDecision: single correct, lesson hidden until submit.
   function question(b, tagTxt, kind) {
     const opts = b.options || [];
-    const vbrief = kind === 'video' && b.clipBrief ? '<div class="gmr-vbrief"><span class="pl">▶</span><div><b>Video unavailable — scene described</b>' + esc(b.clipBrief) + '</div></div>' : '';
+    const vbrief = kind !== 'video' ? ''
+      : (b.clipUrl ? mediaEmbed(b.clipUrl, b.poster)
+        : (b.clipBrief ? '<div class="gmr-vbrief"><span class="pl">▶</span><div><b>The scene</b>' + esc(b.clipBrief) + '</div></div>' : ''));
     const optHtml = opts.map((o) => '<div class="gmr-opt" data-id="' + esc(o.id) + '"><span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.text) + '</span></div>').join('');
     const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag ' + kind + '">' + tagTxt + '</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div>' + vbrief + '<div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><button class="btn btn-accent btn-sm gmr-sub" type="button" disabled>Submit answer</button><div class="gmr-fbslot" hidden></div></div></div>';
     return { html, wire: (root) => {
@@ -1396,7 +1413,8 @@ function renderModuleLesson(pane, course, lesson, lp) {
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
-    <div class="gmr-module">
+    <div class="gmr-module" id="gmrModule">
+      <div class="gmr-topbar"><button class="btn btn-ghost btn-sm" id="gmrFs" type="button">⛶ Full screen</button></div>
       <div class="gmr-rail" id="gmrRail"></div>
       <div class="gmr-page" id="gmrPage"></div>
       <div class="gmr-nav">
@@ -1487,6 +1505,24 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
   nextEl.addEventListener('click', () => go(1));
   prevEl.addEventListener('click', () => go(-1));
+
+  // Full screen: use the real Fullscreen API where available, else a CSS
+  // "fill the screen" fallback (iPhone Safari). Works on every device.
+  const fsBtn = pane.querySelector('#gmrFs'), moduleEl = pane.querySelector('#gmrModule');
+  if (fsBtn && moduleEl) {
+    const nativeGo = moduleEl.requestFullscreen || moduleEl.webkitRequestFullscreen;
+    const nativeOK = !!(document.fullscreenEnabled && nativeGo);
+    const setLabel = () => { const on = document.fullscreenElement === moduleEl || moduleEl.classList.contains('pseudo-fs'); fsBtn.textContent = on ? '✕ Exit full screen' : '⛶ Full screen'; };
+    const exitPseudo = () => { moduleEl.classList.remove('pseudo-fs'); document.body.classList.remove('pseudo-fs-lock'); document.removeEventListener('keydown', onEsc); setLabel(); };
+    function onEsc(e) { if (e.key === 'Escape') exitPseudo(); }
+    const enterPseudo = () => { moduleEl.classList.add('pseudo-fs'); document.body.classList.add('pseudo-fs-lock'); document.addEventListener('keydown', onEsc); setLabel(); };
+    fsBtn.addEventListener('click', () => {
+      if (document.fullscreenElement === moduleEl) { document.exitFullscreen(); return; }
+      if (moduleEl.classList.contains('pseudo-fs')) { exitPseudo(); return; }
+      if (nativeOK) { try { nativeGo.call(moduleEl); } catch (_) { enterPseudo(); } } else { enterPseudo(); }
+    });
+    document.addEventListener('fullscreenchange', setLabel);
+  }
   render();
 }
 
