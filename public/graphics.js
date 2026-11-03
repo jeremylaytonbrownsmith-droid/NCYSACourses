@@ -118,6 +118,21 @@
     'whistle': wrap(whistle(104, 60, 2.3)),
   };
 
+  // Real photo set (studio referee photography) keyed the same way as the SVGs.
+  // When a key is present here the renderer shows the photo; otherwise it draws the
+  // SVG diagram. Paths are relative so they resolve both in the app (/media/...) and
+  // in a published artifact (companion files under media/signals/).
+  var PHOTOS = {
+    'free-kick': 'media/signals/free-kick.png',
+    'card-high': 'media/signals/card-high.png',
+    'card-high-red': 'media/signals/card-high-red.png',
+    'card-low': 'media/signals/card-low.png',
+    'flag-up': 'media/signals/flag-up.png',
+    'flag-wave': 'media/signals/flag-up.png',
+    'flag-direction': 'media/signals/flag-direction.png',
+    'flag-down': 'media/signals/flag-down.png',
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = G;
   root.GMR_GRAPHICS = G;
+  root.GMR_PHOTOS = PHOTOS;
 })(typeof window !== 'undefined' ? window : this);

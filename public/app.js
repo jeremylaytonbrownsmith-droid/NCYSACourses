@@ -1174,7 +1174,14 @@ function renderModuleLesson(pane, course, lesson, lp) {
   if (noGate) PAGES.forEach((p) => (p.completionRequires || []).forEach((id) => { state.done[id] = true; }));
 
   const gfx = (name) => (window.GMR_GRAPHICS && name && window.GMR_GRAPHICS[name]) || '';
-  const vis = (graphic, brief) => { const g = gfx(graphic); return g ? '<div class="gmr-fig">' + g + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>' : '<div class="gmr-vis"><b>Illustration</b>' + esc(brief || '') + '</div>'; };
+  const photo = (name) => (window.GMR_PHOTOS && name && window.GMR_PHOTOS[name]) || '';
+  const thumb = (name) => { const p = photo(name); return p ? '<img class="gmr-pimg" src="' + p + '" alt="" loading="lazy">' : gfx(name); };
+  const vis = (graphic, brief) => {
+    const p = photo(graphic);
+    if (p) return '<div class="gmr-fig photo"><img class="gmr-pimg" src="' + p + '" alt="' + esc(brief || '') + '" loading="lazy">' + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>';
+    const g = gfx(graphic);
+    return g ? '<div class="gmr-fig">' + g + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>' : '<div class="gmr-vis"><b>Illustration</b>' + esc(brief || '') + '</div>';
+  };
   function markDone(id) { if (id) { state.done[id] = true; refreshGate(); renderRail(); } }
 
   // --- block renderers: each returns { html, wire(region)? } ---
@@ -1244,7 +1251,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
   // imageSelect fallback: text options, pick → feedback, correct satisfies.
   function imageSelect(b) {
-    const optHtml = (b.options || []).map((o) => { const th = gfx(o.graphic); return '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '">' + (th ? '<span class="gmr-othumb">' + th + '</span>' : '') + '<span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>'; }).join('');
+    const optHtml = (b.options || []).map((o) => { const th = thumb(o.graphic); return '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '">' + (th ? '<span class="gmr-othumb">' + th + '</span>' : '') + '<span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>'; }).join('');
     const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag image">Image select</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div><div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><div class="gmr-fbslot" hidden></div></div></div>';
     return { html, wire: (root) => {
       const slot = root.querySelector('.gmr-fbslot'), optEls = root.querySelectorAll('.gmr-opt');

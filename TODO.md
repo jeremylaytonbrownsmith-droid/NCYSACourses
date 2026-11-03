@@ -51,13 +51,13 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
     serializing to the same module doc. The textarea remains available as "advanced / paste JSON".
   - Done when: a module can be built end-to-end from the UI without touching JSON; smoke test added.
 
-- [ ] **Photo / uploaded images in module blocks.**
-  Blocks now draw a built-in SVG illustration via `graphic: "<key>"`, falling back to a captioned frame. The remaining
-  gap is real photos.
-  - Scope: let carousel/scenario/imageSelect also carry an uploaded image URL (reuse the existing image upload endpoint);
-    precedence = uploaded image, then `graphic`, then the captioned brief. `lib/moduledoc.js` whitelists an `image` field;
-    `public/app.js` + the demo player render it.
-  - Done when: a slide with an uploaded image shows it; one with only a `graphic` still draws the SVG; test added.
+- [ ] **Per-block uploaded image override + full-res photos.**
+  Blocks now show a real studio referee photo when `graphic` matches the photo set (`public/media/signals/`), else the
+  SVG diagram, else a captioned frame. Remaining gaps: (a) let a block point at its own uploaded image URL for one-off
+  art, and (b) the signal photos are ~200px (fine at display size) — pull full-res from Canva for large retina screens.
+  - Scope: `lib/moduledoc.js` whitelists an `image` field; precedence image → photo-set → `graphic` SVG → brief.
+    Regenerate/export the `media/signals/*` set at ~1000px.
+  - Done when: a block with its own image URL shows it; the set is crisp on retina; test added.
 
 - [ ] **Grow the illustration library and add an in-editor picker.**
   - Scope: add more `public/graphics.js` keys (offside, penalty, throw-in, corner, advantage signal, substitution) and a
@@ -96,6 +96,8 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
 - [x] **Drawn illustrations.** Shared `public/graphics.js` SVG library (card height, flag angles, field position, free
   kick, confrontation, bench, whistle) replaces the blank "Visual" placeholder; blocks reference one with `graphic`.
 - [x] **Step-circle progress.** The module rail is now numbered step circles (done/current/upcoming) with a connector.
+- [x] **Real referee photos.** A diverse studio-photo set (`public/media/signals/`, generated via Canva) renders for the
+  referee-signal `graphic` keys, with the SVG diagram as automatic fallback. `public/graphics.js` holds the photo manifest.
 - [x] **Tent Talk / information-session format.** A module with no assessment reads as an info session (no pass mark,
   completion on read-through + acknowledgment). Shipped the AR-flag-mechanics Tent Talk template and a second
   "Load template" button in the Course Designer.
