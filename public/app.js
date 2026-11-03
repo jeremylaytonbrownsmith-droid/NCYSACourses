@@ -1444,18 +1444,37 @@ function renderModuleLesson(pane, course, lesson, lp) {
     else if (isLast && ok) hintEl.textContent = 'Module requirements met';
     else hintEl.textContent = '';
   }
+  // Overall progress: each page contributes a fraction (its completed required
+  // tasks / its total). Pages already behind you count as whole. This advances on
+  // every interaction — markDone() re-renders the rail — not just on page turns.
+  function overallPct() {
+    if (PAGES.length <= 1) return state.page > 0 ? 100 : 0;
+    let acc = 0;
+    PAGES.forEach((p, i) => {
+      const req = p.completionRequires || [];
+      if (i < state.page) acc += 1;
+      else if (i === state.page) acc += req.length ? req.filter((id) => state.done[id]).length / req.length : 0;
+    });
+    return Math.round(acc / PAGES.length * 100);
+  }
   function renderRail() {
-    railEl.innerHTML = '';
+    const pct = overallPct();
+    let h = '<div class="gmr-railhead"><span class="gmr-railttl">Course progress</span>'
+      + '<div class="gmr-pbar"><span style="width:' + pct + '%"></span></div>'
+      + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
     PAGES.forEach((p, i) => {
       const done = i < state.page && pageSatisfied(i), cur = i === state.page;
-      const step = document.createElement('button');
-      step.type = 'button';
-      step.className = 'gmr-step' + (done ? ' done' : '') + (cur ? ' cur' : '');
-      step.title = i === 0 ? 'Start' : (p.title || ('Page ' + i));
-      step.setAttribute('aria-label', step.title);
-      step.innerHTML = '<span>' + (done ? '✓' : (i + 1)) + '</span>';
-      step.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
-      railEl.appendChild(step);
+      const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
+      const locked = !(noGate || i <= state.max);
+      h += '<li class="gmr-srow' + (done ? ' done' : '') + (cur ? ' cur' : '') + '" data-i="' + i + '"'
+        + (locked ? ' aria-disabled="true"' : '') + '>'
+        + '<span class="gmr-step">' + (done ? '✓' : (i + 1)) + '</span>'
+        + '<span class="gmr-slabel">' + esc(label) + '</span></li>';
+    });
+    railEl.innerHTML = h + '</ol>';
+    railEl.querySelectorAll('.gmr-srow').forEach((row) => {
+      const i = +row.getAttribute('data-i');
+      row.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
     });
   }
   function render() { drawPage(); refreshGate(); renderRail(); try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ } }

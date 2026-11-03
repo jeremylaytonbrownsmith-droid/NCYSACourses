@@ -1275,18 +1275,47 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
    app's system font stack, so a module adopts each org's colors and reads clean
    and consistent with the rest of the app — no bespoke display face. Buttons reuse
    the platform .btn classes; these rules handle layout and the block chrome. */
-.gmr-module { --gmr-soft: #f6f5f2; --gmr-line-2: #efede7; max-width: 760px; margin: 0 auto; }
+.gmr-module { --gmr-soft: #f6f5f2; --gmr-line-2: #efede7; max-width: 960px; margin: 0 auto;
+  display: grid; grid-template-columns: 216px minmax(0, 1fr); grid-template-areas: "rail page" "rail nav"; column-gap: 28px; align-items: start; }
 .gmr-region { display: contents; }
 
-/* progress rail */
-.gmr-rail { position: relative; display: flex; align-items: center; justify-content: space-between; margin: 0 auto 20px; max-width: 460px; }
-.gmr-rail::before { content: ""; position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; background: var(--line); z-index: 0; }
-.gmr-step { position: relative; z-index: 1; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font-size: .76rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; padding: 0; flex: none; transition: .15s; font-variant-numeric: tabular-nums; }
-.gmr-step:hover { border-color: var(--ink-soft); color: var(--ink); }
-.gmr-step.cur { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
-.gmr-step.done { border-color: var(--success); background: var(--success); color: #fff; }
+/* progress rail — a sticky left panel: course-progress bar + a labelled section list
+   whose connecting line fills as you advance (Captivate-style). The bar advances on
+   every completed interaction, not just page changes. */
+.gmr-rail { grid-area: rail; position: sticky; top: 16px; align-self: start; border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 14px 14px 8px; }
+.gmr-railhead { margin: 0 2px 12px; }
+.gmr-railttl { display: block; font-size: .66rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 7px; }
+.gmr-pbar { height: 7px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.gmr-pbar > span { display: block; height: 100%; width: 0; background: var(--success); border-radius: 99px; transition: width .35s ease; }
+.gmr-pct { display: block; margin-top: 5px; font-size: .74rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-.gmr-page { display: flex; flex-direction: column; gap: 18px; }
+.gmr-steps { list-style: none; margin: 0; padding: 0; }
+.gmr-srow { position: relative; display: flex; align-items: flex-start; gap: 11px; padding: 0 0 16px; cursor: pointer; }
+.gmr-srow:last-child { padding-bottom: 2px; }
+.gmr-srow[aria-disabled="true"] { cursor: default; }
+/* vertical connector centred on the 30px circle; coloured once the section is complete */
+.gmr-srow::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: 0; width: 2px; background: var(--line); transition: background .25s; }
+.gmr-srow:last-child::before { display: none; }
+.gmr-srow.done::before { background: var(--success); }
+.gmr-step { position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font-size: .78rem; font-weight: 800; display: grid; place-items: center; padding: 0; flex: none; transition: .18s; font-variant-numeric: tabular-nums; }
+.gmr-slabel { font-size: .82rem; line-height: 1.3; color: var(--ink-soft); padding-top: 5px; font-weight: 600; }
+.gmr-srow:hover .gmr-step { border-color: var(--ink-soft); color: var(--ink); }
+.gmr-srow:hover .gmr-slabel { color: var(--ink); }
+.gmr-srow.cur .gmr-step { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.gmr-srow.cur .gmr-slabel { color: var(--ink); font-weight: 800; }
+.gmr-srow.done .gmr-step { border-color: var(--success); background: var(--success); color: #fff; }
+
+/* phone: rail becomes a compact strip above the content — progress bar + circles */
+@media (max-width: 760px) {
+  .gmr-module { grid-template-columns: 1fr; grid-template-areas: "rail" "page" "nav"; }
+  .gmr-rail { position: static; margin-bottom: 14px; }
+  .gmr-steps { display: flex; flex-wrap: wrap; gap: 9px; }
+  .gmr-srow { padding: 0; }
+  .gmr-srow::before { display: none; }
+  .gmr-slabel { display: none; }
+}
+
+.gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 18px; }
 .gmr-phead { display: flex; flex-direction: column; gap: 4px; }
 .gmr-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin: 0; }
 .gmr-ptitle { font-size: 1.7rem; font-weight: 800; line-height: 1.12; margin: 0; color: var(--brand-dark); }
@@ -1342,8 +1371,8 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 
 .gmr-car { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card); }
 .gmr-stage { padding: 17px 18px 10px; } .gmr-stage h4 { margin: 0 0 5px; font-size: 1.1rem; font-weight: 800; color: var(--ink); } .gmr-stage p { margin: 0; color: var(--ink-soft); }
-.gmr-cctrl { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--gmr-line-2); background: var(--gmr-soft); }
-.gmr-dots { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+.gmr-cctrl { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--gmr-line-2); background: var(--gmr-soft); }
+.gmr-dots { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
 .gmr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); cursor: pointer; } .gmr-dot.on { background: var(--brand); } .gmr-dot.seen { background: var(--ink-soft); }
 
 .gmr-acc { display: flex; flex-direction: column; gap: 8px; }
@@ -1426,7 +1455,7 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-score .vr { font-weight: 800; text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; color: var(--ink); } .gmr-mini { font-size: .76rem; color: var(--ink-soft); margin-top: 6px; }
 
 /* nav */
-.gmr-nav { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.gmr-nav { grid-area: nav; display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
 .gmr-nav .btn-accent { margin-left: auto; }
 .gmr-hint { flex: 1; min-width: 0; text-align: center; font-size: .78rem; color: var(--ink-soft); }
 .gmr-ring { --p: 0; flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--success) calc(var(--p) * 1%), var(--line) 0); font-size: .64rem; font-weight: 800; color: var(--ink-soft); }
