@@ -1252,6 +1252,21 @@ function renderModuleLesson(pane, course, lesson, lp) {
   const state = { page: 0, done: {}, answers: {}, passed: false, max: 0 };
   if (noGate) PAGES.forEach((p) => (p.completionRequires || []).forEach((id) => { state.done[id] = true; }));
 
+  // Resume where the learner left off: persist page + completed interactions in
+  // localStorage, keyed by user + course + lesson. Best-effort (private windows,
+  // cleared storage, etc. just start fresh).
+  const SKEY = 'gmr:' + ((me && me.user && me.user.id) || 'anon') + ':' + (course.id || '') + ':' + (lesson.id || '');
+  function saveState() { try { localStorage.setItem(SKEY, JSON.stringify({ page: state.page, max: state.max, done: state.done })); } catch (e) { /* ignore */ } }
+  function loadState() {
+    try {
+      const r = JSON.parse(localStorage.getItem(SKEY) || 'null');
+      if (!r || typeof r !== 'object') return;
+      if (r.done && typeof r.done === 'object') Object.keys(r.done).forEach((k) => { if (r.done[k]) state.done[k] = true; });
+      state.max = Math.min(PAGES.length - 1, Math.max(state.max | 0, r.max | 0));
+      state.page = Math.min(PAGES.length - 1, Math.max(0, r.page | 0));
+    } catch (e) { /* ignore */ }
+  }
+
   const gfx = (name) => (window.GMR_GRAPHICS && name && window.GMR_GRAPHICS[name]) || '';
   const photo = (name) => (window.GMR_PHOTOS && name && window.GMR_PHOTOS[name]) || '';
   const thumb = (name) => { const p = photo(name); return p ? '<img class="gmr-pimg" src="' + p + '" alt="" loading="lazy">' : gfx(name); };
@@ -1465,14 +1480,19 @@ function renderModuleLesson(pane, course, lesson, lp) {
   // Overall progress: each page contributes a fraction (its completed required
   // tasks / its total). Pages already behind you count as whole. This advances on
   // every interaction — markDone() re-renders the rail — not just on page turns.
+  // Fraction of a page that's complete: whole if behind you, 0 if ahead, else the
+  // share of its required interactions that are done. Drives both the top bar and
+  // the ring on the current step (fills as you click/answer — Captivate-style).
+  function pageFrac(i) {
+    if (i < state.page) return 1;
+    if (i > state.page) return 0;
+    const req = PAGES[i].completionRequires || [];
+    return req.length ? req.filter((id) => state.done[id]).length / req.length : 0;
+  }
   function overallPct() {
     if (PAGES.length <= 1) return state.page > 0 ? 100 : 0;
     let acc = 0;
-    PAGES.forEach((p, i) => {
-      const req = p.completionRequires || [];
-      if (i < state.page) acc += 1;
-      else if (i === state.page) acc += req.length ? req.filter((id) => state.done[id]).length / req.length : 0;
-    });
+    for (let i = 0; i < PAGES.length; i++) acc += pageFrac(i);
     return Math.round(acc / PAGES.length * 100);
   }
   function renderRail() {
@@ -1480,20 +1500,27 @@ function renderModuleLesson(pane, course, lesson, lp) {
     let h = '<div class="gmr-railhead"><span class="gmr-railttl">Course progress</span>'
       + '<div class="gmr-pbar"><span style="width:' + pct + '%"></span></div>'
       + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
+    const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 15h5"/></svg>';
     PAGES.forEach((p, i) => {
       const done = i < state.page && pageSatisfied(i), cur = i === state.page;
       const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
       const locked = !(noGate || i <= state.max);
+      const cp = done ? 100 : Math.round(pageFrac(i) * 100);
       h += '<li class="gmr-srow' + (done ? ' done' : '') + (cur ? ' cur' : '') + '" data-i="' + i + '"'
-        + (locked ? ' aria-disabled="true"' : '') + '>'
-        + '<span class="gmr-step">' + (done ? '✓' : (i + 1)) + '</span>'
-        + '<span class="gmr-slabel">' + esc(label) + '</span></li>';
+        + (locked ? ' aria-disabled="true"' : '') + ' style="--cp:' + cp + '">'
+        + '<span class="gmr-ic">' + ICON + '</span>'
+        + '<span class="gmr-slabel">' + esc(label) + '</span>'
+        + '<span class="gmr-ringwrap"><svg class="gmr-ringel" viewBox="0 0 36 36" aria-hidden="true">'
+        + '<circle class="track" cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.4"/>'
+        + '<circle class="prog" cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="' + (100 - cp) + '" transform="rotate(-90 18 18)"/>'
+        + '</svg><span class="gmr-rcheck">✓</span></span></li>';
     });
     railEl.innerHTML = h + '</ol>';
     railEl.querySelectorAll('.gmr-srow').forEach((row) => {
       const i = +row.getAttribute('data-i');
       row.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
     });
+    saveState();
   }
   function render() { drawPage(); refreshGate(); renderRail(); try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ } }
   function go(dir) {
@@ -1523,6 +1550,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
     });
     document.addEventListener('fullscreenchange', setLabel);
   }
+  loadState();
   render();
 }
 
