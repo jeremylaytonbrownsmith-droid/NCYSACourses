@@ -131,6 +131,10 @@
     'flag-wave': 'media/signals/flag-up.png',
     'flag-direction': 'media/signals/flag-direction.png',
     'flag-down': 'media/signals/flag-down.png',
+    'card-face': 'media/signals/card-face.png',
+    'card-group': 'media/signals/card-group.png',
+    'confrontation': 'media/signals/confrontation.png',
+    'bench': 'media/signals/bench.png',
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = G;
   root.GMR_GRAPHICS = G;
