@@ -404,6 +404,53 @@ function setupOmgWebhookTest() {
   save();
 }
 
+// One-time: publish the interactive "Card Mechanics" module as a real OMG course
+// so it appears in Manage Courses (OMG org), not just as a loadable template. It
+// is built from the shipped sample (public/samples/card-mechanics.module.json)
+// as a single getmatchready.module/v1 lesson. The inner guard only creates it
+// when missing, so re-running never duplicates it; editing the course later in
+// the Course Designer is unaffected (the flag means this never overwrites it).
+const OMG_CARD_MECHANICS_FLAG = 'omg-card-mechanics-v1';
+function setupOmgCardMechanics() {
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (db.migrations[OMG_CARD_MECHANICS_FLAG]) return;
+  if (!db.courses.some((c) => c.id === 'omg-card-mechanics')) {
+    let moduleDoc;
+    try {
+      moduleDoc = normalizeModuleDoc(JSON.parse(fs.readFileSync(path.join(__dirname, 'public/samples/card-mechanics.module.json'), 'utf8')));
+    } catch (e) { return; } // sample not on disk yet — retry next boot
+    if (!moduleDoc.pages.length) return;
+    db.courses.push({
+      id: 'omg-card-mechanics',
+      orgId: 'omg',
+      title: 'Card Mechanics',
+      tagline: 'The mechanics of issuing a caution or send-off — clean, consistent, and visible.',
+      description: 'An interactive module on correct mechanics for issuing a card: positioning, showing the card, recording, and restarting. Built in the getmatchready.module/v1 block format.',
+      badge: 'Module',
+      estMinutes: moduleDoc.estimatedMinutes || 38,
+      audience: 'referees',
+      published: true,
+      coBrandName: 'OMG Referee Education',
+      coLogoUrl: '/media/omg-logo.png',
+      certOrg: 'Officials Management Group',
+      certTitle: 'Card Mechanics',
+      certPrefix: 'OMG',
+      certAccent: '#2f5a9e',
+      certAccent2: '#ce2b37',
+      lessons: [{
+        id: 'card-mechanics-' + crypto.randomBytes(3).toString('hex'),
+        type: 'module',
+        title: moduleDoc.title || 'Card Mechanics',
+        moduleDoc,
+      }],
+    });
+    console.log('[org] created OMG Card Mechanics module course');
+  }
+  db.migrations[OMG_CARD_MECHANICS_FLAG] = new Date().toISOString();
+  save();
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -4141,7 +4188,7 @@ if (require.main === module) {
         cleanupStaleUploads();
         seedCourses(); seedAdmin(); seedEditor(); seedOwner(); seedPartner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
-        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
+        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupOmgCardMechanics(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
       } catch (e) {
         console.error('[boot] a seed/migration failed (continuing to serve):', e && e.stack || e);
       }
