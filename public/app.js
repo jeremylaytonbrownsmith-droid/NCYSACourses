@@ -1448,9 +1448,10 @@ function renderModuleLesson(pane, course, lesson, lp) {
     railEl.innerHTML = '';
     PAGES.forEach((p, i) => {
       const done = i < state.page && pageSatisfied(i), cur = i === state.page;
+      const reached = i <= (state.max || 0);
       const step = document.createElement('button');
       step.type = 'button';
-      step.className = 'gmr-step' + (done ? ' done' : '') + (cur ? ' cur' : '');
+      step.className = 'gmr-step' + (done ? ' done' : '') + (cur ? ' cur' : '') + (reached ? ' reached' : '');
       step.title = i === 0 ? 'Start' : (p.title || ('Page ' + i));
       step.setAttribute('aria-label', step.title);
       step.innerHTML = '<span>' + (done ? '✓' : (i + 1)) + '</span>';
