@@ -3094,9 +3094,20 @@ async function viewCourseAdmin(flash) {
       </div>
       <div id="editorMsg" class="editor-msg"></div>
       <div id="newCoursePanel"></div>
+      ${list.length > 4 ? `<div class="course-toolbar">
+        <input id="courseSearch" type="search" placeholder="Search courses…" aria-label="Search courses" />
+        <div class="course-filters" id="courseFilters">
+          <button type="button" class="cf on" data-f="all">All</button>
+          <button type="button" class="cf" data-f="draft">Drafts</button>
+          <button type="button" class="cf" data-f="live">Live</button>
+          ${[...new Set(list.map((c) => c.orgId || 'ncysa'))].map((o) => `<button type="button" class="cf" data-f="org:${esc(o)}">${esc(o.toUpperCase())}</button>`).join('')}
+          <button type="button" class="cf" data-f="ai">✨ AI-made</button>
+        </div>
+        <span class="course-count" id="courseCount"></span>
+      </div>` : ''}
       <div class="course-admin-list">
         ${list.map((c) => `
-          <div class="admin-card course-admin" data-course="${c.id}">
+          <div class="admin-card course-admin" data-course="${c.id}" data-title="${esc(((c.title || '') + ' ' + (c.tagline || '') + ' ' + (c.coBrandName || '')).toLowerCase())}" data-org="${esc(c.orgId || 'ncysa')}" data-status="${c.published === false ? 'draft' : 'live'}" data-ai="${c.generatedByAi ? '1' : '0'}">
             <div class="course-admin-head">
               <div>
                 <span class="badge-inline">${esc(c.badge)}</span>
@@ -3146,6 +3157,35 @@ async function viewCourseAdmin(flash) {
 
   const msg = (t, err) => { const e = document.getElementById('editorMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
   if (typeof flash === 'string' && flash) msg(flash); // survive re-render after a save
+
+  // Course list search + filter (rendered only when there are several courses).
+  const courseSearch = document.getElementById('courseSearch');
+  const courseCount = document.getElementById('courseCount');
+  if (document.getElementById('courseFilters')) {
+    let activeFilter = 'all';
+    const cards = document.querySelectorAll('.course-admin');
+    const applyFilter = () => {
+      const q = ((courseSearch && courseSearch.value) || '').toLowerCase().trim();
+      let shown = 0;
+      cards.forEach((card) => {
+        let ok = true;
+        if (activeFilter === 'draft') ok = card.dataset.status === 'draft';
+        else if (activeFilter === 'live') ok = card.dataset.status === 'live';
+        else if (activeFilter === 'ai') ok = card.dataset.ai === '1';
+        else if (activeFilter.indexOf('org:') === 0) ok = card.dataset.org === activeFilter.slice(4);
+        if (ok && q) ok = (card.dataset.title || '').indexOf(q) !== -1;
+        card.hidden = !ok; if (ok) shown++;
+      });
+      if (courseCount) courseCount.textContent = (shown === cards.length ? `${cards.length}` : `${shown} of ${cards.length}`) + ` course${cards.length === 1 ? '' : 's'}`;
+    };
+    courseSearch && courseSearch.addEventListener('input', applyFilter);
+    document.querySelectorAll('#courseFilters .cf').forEach((b) => b.addEventListener('click', () => {
+      activeFilter = b.dataset.f;
+      document.querySelectorAll('#courseFilters .cf').forEach((x) => x.classList.toggle('on', x === b));
+      applyFilter();
+    }));
+    applyFilter();
+  }
 
   document.getElementById('newCourseBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = courseForm();
@@ -3360,6 +3400,7 @@ async function viewCourseAdmin(flash) {
     return `<div class="ai-studio">
       <div class="ai-hero">
         <span class="ai-badge">AI Studio</span>
+        <span class="ai-ready" id="aiReady" hidden>● AI ready</span>
         <div class="spark">✨</div>
         <h3>Build a course with AI</h3>
         <p>Describe a topic or paste your source material — AI writes the reading lessons and a graded quiz in your format. It’s saved as a private <strong>Draft</strong> you review and edit before publishing, and you can export any course to SCORM or a web page afterward.</p>
@@ -3436,6 +3477,9 @@ async function viewCourseAdmin(flash) {
         const w = document.getElementById('aiUnavailable');
         if (w) { w.hidden = false; w.className = 'editor-msg err'; w.textContent = 'AI generation isn’t turned on yet. Set ANTHROPIC_API_KEY in the environment and redeploy, then this will work.'; }
         const btn = document.getElementById('aiBuildSubmit'); if (btn) btn.disabled = true;
+      } else {
+        const r = document.getElementById('aiReady');
+        if (r) { r.hidden = false; r.title = 'ANTHROPIC_API_KEY is configured — generation is live.'; }
       }
     } catch (e) { /* non-fatal; the submit will report if unavailable */ }
     const form = document.getElementById('aiBuildForm');
