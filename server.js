@@ -16,7 +16,8 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 const QRCode = require('qrcode'); // certificate verify QR codes (generated as data URLs)
 
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
-const { onCourseCompleted, sendTestEmail } = require('./lib/notifier');
+const { onCourseCompleted, sendTestEmail, sendEmail } = require('./lib/notifier');
+const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
@@ -1960,9 +1961,12 @@ app.post('/api/courses/:courseId/enroll', requireAuth, (req, res) => {
   if (course.audience === 'staff' && !staffAuthorized(req)) return res.status(403).json({ error: 'This is a staff training — unlock the staff area with the access code first.', needsStaffCode: true });
   const db = load();
   if (!db.enrollments.some((e) => e.userId === req.user.id && e.courseId === course.id)) {
+    const startedAt = new Date().toISOString();
     db.enrollments.push({
       userId: req.user.id, courseId: course.id,
-      startedAt: new Date().toISOString(), completedAt: null, certId: null,
+      startedAt, completedAt: null, certId: null,
+      // Deadline for this learner, if the course sets one.
+      dueAt: compliance.computeDueAt(startedAt, course.dueDays),
     });
     save();
   }
@@ -2478,6 +2482,7 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
       const doneCount = course ? course.lessons.filter((l) => prog.some((p) => p.lessonId === l.id && p.completed)).length : 0;
       const seen = lastActiveAt.get(e.userId) || 0;
       const secondsAgo = seen ? Math.round((Date.now() - seen) / 1000) : null;
+      const comp = compliance.complianceOf(e);
       return {
         userId: e.userId,
         learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
@@ -2488,6 +2493,8 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
         // Live presence (in-memory): active now = pinged within the window.
         activeNow: secondsAgo != null && (Date.now() - seen) < PRESENCE_ACTIVE_MS,
         lastActiveSecondsAgo: secondsAgo,
+        // Deadline / compliance: state + whole days to the deadline (negative = overdue).
+        dueAt: e.dueAt || null, dueState: comp.state, dueDays: comp.days,
       };
     }).sort((a, b) => String(b.completedAt || b.startedAt || '').localeCompare(String(a.completedAt || a.startedAt || ''))),
     // NC-internal notifications/outbox are hidden from a partner (they may name
@@ -2520,6 +2527,103 @@ app.get('/api/admin/presence', requireDashboard, (req, res) => {
   for (const [uid, t] of lastActiveAt) active[uid] = Math.round((now - t) / 1000);
   res.json({ active, activeWithinSeconds: Math.round(PRESENCE_ACTIVE_MS / 1000) });
 });
+
+// ---- Deadline reminders ----------------------------------------------------
+function courseLink(course) {
+  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+  return `${base}/#/course/${course.id}`;
+}
+// Send one reminder email for an incomplete, dated enrollment. Uses the shared
+// mailer (SMTP if configured, otherwise it queues in the outbox).
+async function sendReminder(user, course, kind, comp) {
+  if (!user || !user.email) return false;
+  const name = String(user.name || '').split(' ')[0] || 'there';
+  const title = course.title || 'your course';
+  const link = courseLink(course);
+  const org = certOrgName(course);
+  let subject, line;
+  if (kind === 'overdue') {
+    const od = Math.abs(comp.days || 0);
+    subject = `Overdue: ${title}`;
+    line = `Your deadline for “${title}” has passed${od ? ` (${od} day${od === 1 ? '' : 's'} ago)` : ''}. Please finish it as soon as you can to stay current.`;
+  } else {
+    const d = Math.max(0, comp.days || 0);
+    subject = `Reminder: ${title} is due soon`;
+    line = `A quick reminder that “${title}” is due in ${d} day${d === 1 ? '' : 's'}. It only takes a little time to finish.`;
+  }
+  const body = `Hi ${name},\n\n${line}\n\nContinue the course: ${link}\n\nThank you,\n${org}`;
+  const html = `<p>Hi ${escHtml(name)},</p><p>${escHtml(line)}</p><p><a href="${escHtml(link)}">Continue the course →</a></p><p style="color:#667">${escHtml(org)}</p>`;
+  try { await sendEmail({ to: user.email, subject, body, html }); return true; }
+  catch (e) { return false; }
+}
+// Scan every incomplete, dated enrollment and send whatever reminders are due,
+// recording what was sent so no one is emailed twice. Returns the count sent.
+async function runReminderSweep() {
+  const db = load();
+  let sent = 0;
+  for (const e of db.enrollments) {
+    const kinds = compliance.dueReminders(e);
+    if (!kinds.length) continue;
+    const course = allCourses().find((c) => c.id === e.courseId);
+    const user = db.users.find((u) => u.id === e.userId);
+    if (!course || !user || !user.email) continue;
+    const comp = compliance.complianceOf(e);
+    for (const kind of kinds) {
+      if (await sendReminder(user, course, kind, comp)) {
+        e.reminders = e.reminders || {}; e.reminders[kind] = new Date().toISOString(); sent++;
+      }
+    }
+  }
+  if (sent) save();
+  return sent;
+}
+// Set, change or clear a learner's deadline for a course (admin override).
+app.post('/api/admin/enrollments/due', requireDashboard, (req, res) => {
+  const b = req.body || {};
+  const db = load();
+  const course = allCourses().find((c) => c.id === b.courseId);
+  if (!course) return res.status(404).json({ error: 'No matching course.' });
+  const scope = reqOrgScope(req);
+  if (scope && (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  const enr = db.enrollments.find((e) => e.userId === b.userId && e.courseId === b.courseId);
+  if (!enr) return res.status(404).json({ error: 'No matching record.' });
+  if (b.clear) { delete enr.dueAt; delete enr.reminders; }
+  else if (b.dueAt) { const d = new Date(b.dueAt); if (isNaN(d.getTime())) return res.status(400).json({ error: 'Invalid date.' }); enr.dueAt = d.toISOString(); enr.reminders = {}; }
+  else if (b.days != null) { enr.dueAt = compliance.computeDueAt(enr.startedAt || new Date().toISOString(), b.days); enr.reminders = {}; }
+  else return res.status(400).json({ error: 'Provide a date, a number of days, or clear.' });
+  save();
+  res.json({ ok: true, dueAt: enr.dueAt || null, dueState: compliance.complianceOf(enr).state });
+});
+// Send a reminder to one learner right now (manual nudge from the drawer).
+app.post('/api/admin/enrollments/remind', requireDashboard, ah(async (req, res) => {
+  const b = req.body || {};
+  const db = load();
+  const course = allCourses().find((c) => c.id === b.courseId);
+  if (!course) return res.status(404).json({ error: 'No matching course.' });
+  const scope = reqOrgScope(req);
+  if (scope && (course.orgId || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No matching record.' });
+  const enr = db.enrollments.find((e) => e.userId === b.userId && e.courseId === b.courseId);
+  if (!enr) return res.status(404).json({ error: 'No matching record.' });
+  if (enr.completedAt) return res.status(400).json({ error: 'This learner already completed the course.' });
+  const user = db.users.find((u) => u.id === b.userId);
+  if (!user || !user.email) return res.status(400).json({ error: 'No email on file for this learner.' });
+  const comp = compliance.complianceOf(enr);
+  const kind = comp.state === 'overdue' ? 'overdue' : 'duesoon';
+  const ok = await sendReminder(user, course, kind, comp);
+  if (ok) { enr.reminders = enr.reminders || {}; enr.reminders[kind] = new Date().toISOString(); save(); }
+  res.json({ ok, kind });
+}));
+// Run the full reminder sweep on demand (admin button + tests).
+app.post('/api/admin/reminders/run', requireDashboard, ah(async (req, res) => {
+  res.json({ ok: true, sent: await runReminderSweep() });
+}));
+// Reminder scheduler: a light sweep a few times a day. The dedupe in
+// dueReminders() keeps it from emailing anyone twice. Off under DISABLE_SCHEDULERS
+// (set in tests) so a sweep never fires mid-test.
+if (!process.env.DISABLE_SCHEDULERS) {
+  setTimeout(() => { runReminderSweep().catch(() => {}); }, 90000);
+  setInterval(() => { runReminderSweep().catch(() => {}); }, 6 * 3600 * 1000);
+}
 
 // Delete a learner's record for a course — for clearing out test data before
 // launch. Removes the enrollment, its lesson progress, and any completion
@@ -2766,6 +2870,9 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     // only ever create in its own org; others use the requested org (or default).
     orgId: reqOrgScope(req) || (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG),
     estMinutes: Math.max(1, Number(b.estMinutes) || 30),
+    // Deadline: days to finish from enrollment (0 = no deadline). Drives the
+    // compliance tracking + reminder emails.
+    dueDays: compliance.clampDueDays(b.dueDays),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: String(b.completionRedirectUrl || ''),
     publicVideoGate: !!b.publicVideoGate,
@@ -3027,6 +3134,17 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   if (b.orgId != null && reqOrgScope(req) === null) { const o = String(b.orgId).toLowerCase(); if (ORGS[o]) course.orgId = o; }
   if (b.publicVideoGate != null) course.publicVideoGate = !!b.publicVideoGate;
   if (b.estMinutes != null) course.estMinutes = Math.max(1, Number(b.estMinutes) || course.estMinutes);
+  // Deadline: setting/clearing it backfills a dueAt onto this course's incomplete
+  // enrollments that don't already have one, so an existing cohort gets the new
+  // deadline too (relative to when each learner started). Completed ones are left.
+  if (b.dueDays != null) {
+    course.dueDays = compliance.clampDueDays(b.dueDays);
+    for (const e of db.enrollments) {
+      if (e.courseId !== course.id || e.completedAt) continue;
+      if (course.dueDays) { if (!e.dueAt) e.dueAt = compliance.computeDueAt(e.startedAt, course.dueDays); }
+      else { delete e.dueAt; }
+    }
+  }
   save();
   res.json({ course });
 });

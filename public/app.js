@@ -2294,7 +2294,8 @@ function dashMetrics(enr, learnerCount) {
     if (e.startedAt) { const i = idx(e.startedAt); if (i >= 0 && i < days) started[i]++; }
     if (e.completedAt) { const i = idx(e.completedAt); if (i >= 0 && i < days) finished[i]++; }
   });
-  return { learnerCount, completed, inprog, newWk, doneWk, rate, sStarted: started, sDone: finished };
+  const overdue = enr.filter((e) => e.dueState === 'overdue').length;
+  return { learnerCount, completed, inprog, newWk, doneWk, rate, overdue, sStarted: started, sDone: finished };
 }
 function kpiDelta(n, noun) {
   return n > 0 ? `<span class="kpi-d up">▲ ${n} this week</span>` : `<span class="kpi-d flat">${noun}</span>`;
@@ -2353,12 +2354,14 @@ function openLearnerDrawer(userId, rows) {
         <dl class="dr-meta">
           <dt>Started</dt><dd>${r.startedAt ? new Date(r.startedAt).toLocaleDateString() : '—'}</dd>
           <dt>Completed</dt><dd>${r.completedAt ? new Date(r.completedAt).toLocaleDateString() : '—'}</dd>
+          <dt>Deadline</dt><dd>${r.dueAt ? new Date(r.dueAt).toLocaleDateString() + (r.dueState === 'overdue' ? ` · <strong style="color:#c22">overdue ${Math.abs(r.dueDays || 0)}d</strong>` : (r.dueState === 'duesoon' || r.dueState === 'ontrack') ? ` · ${r.dueDays}d left` : '') : '—'}</dd>
           <dt>Time</dt><dd>${esc(fmtDur(r.startedAt, r.completedAt))}</dd>
           <dt>Certificate</dt><dd>${r.certId ? esc(r.certId) : '—'}</dd>
         </dl>
         <div class="dr-actions">
           ${r.certId ? `<a class="btn btn-ghost btn-sm" href="#/cert/${esc(r.certId)}">View certificate</a>
             <button class="btn btn-ghost btn-sm dr-copy" data-id="${esc(r.certId)}">Copy verify link</button>` : ''}
+          ${(!r.completedAt && r.dueState && r.dueState !== 'none') ? `<button class="btn btn-ghost btn-sm dr-remind" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}">Send reminder</button>` : ''}
           ${r.courseId ? `<button class="btn btn-ghost btn-sm dr-modules" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}">Reset a module…</button>
             <button class="btn btn-ghost btn-sm dr-reset" data-user="${esc(r.userId)}" data-course="${esc(r.courseId)}" data-name="${esc(name)}">Reset / delete</button>` : ''}
         </div>
@@ -2374,6 +2377,14 @@ function openLearnerDrawer(userId, rows) {
   host.querySelectorAll('.dr-copy').forEach((b) => b.addEventListener('click', () => {
     try { navigator.clipboard?.writeText(location.origin + '/verify/' + b.dataset.id); } catch (e) { /* ignore */ }
     toast('Verify link copied.');
+  }));
+  host.querySelectorAll('.dr-remind').forEach((b) => b.addEventListener('click', async () => {
+    const old = b.textContent; b.disabled = true; b.textContent = 'Sending…';
+    try {
+      const r = await api('/api/admin/enrollments/remind', { method: 'POST', body: { userId: b.dataset.user, courseId: b.dataset.course } });
+      toast(r.ok ? `Reminder sent (${r.kind === 'overdue' ? 'overdue notice' : 'due-soon nudge'}).` : 'Could not send a reminder.', !r.ok);
+    } catch (e) { toast('Could not send: ' + e.message, true); }
+    b.disabled = false; b.textContent = old;
   }));
   host.querySelectorAll('.dr-reset').forEach((b) => b.addEventListener('click', async () => {
     if (!confirm(`Reset ${b.dataset.name}'s record for this course? This clears their progress (and certificate) for it.`)) return;
@@ -2463,6 +2474,9 @@ async function viewAdmin() {
           <button class="kpi" data-f="" style="--kc:#7c3aed">
             <div class="kpi-h"><span class="kpi-l">Completion rate</span></div>
             <div class="kpi-n">${m.rate}%</div><div class="kpi-bar"><span style="width:${m.rate}%"></span></div></button>
+          <button class="kpi${m.overdue ? ' alert' : ''}" data-f="overdue" style="--kc:#dc2626">
+            <div class="kpi-h"><span class="kpi-l">Overdue</span>${m.overdue ? '<span class="kpi-d over">needs attention</span>' : '<span class="kpi-d flat">all on track</span>'}</div>
+            <div class="kpi-n">${m.overdue}</div><div class="kpi-mini">Past their deadline</div></button>
         </div>`;
       })()}
       <div class="admin-grid">
@@ -2486,6 +2500,8 @@ async function viewAdmin() {
               <option value="">All statuses</option>
               <option value="done">Completed only</option>
               <option value="prog">In progress</option>
+              <option value="overdue">Overdue</option>
+              <option value="duesoon">Due soon</option>
             </select>
             <label class="date-flt">From <input id="fltFrom" type="date" /></label>
             <label class="date-flt">To <input id="fltTo" type="date" /></label>
@@ -2565,6 +2581,8 @@ async function viewAdmin() {
       if (course && c.course !== course) return false;
       if (status === 'done' && !c.completedAt) return false;
       if (status === 'prog' && c.completedAt) return false;
+      if (status === 'overdue' && c.dueState !== 'overdue') return false;
+      if (status === 'duesoon' && c.dueState !== 'duesoon') return false;
       if (from || to) {
         const w = whenOf(c);
         if (!w) return false;
@@ -2583,6 +2601,16 @@ async function viewAdmin() {
     return c.completedAt ? '✓' : '—';
   };
   const statusCell = (c) => c.completedAt ? '<span class="pill-done">✓ Complete</span>' : '<span class="pill-prog">In progress</span>';
+  // Deadline status pill (from the compliance engine).
+  const dueCell = (c) => {
+    const d = Math.abs(c.dueDays || 0);
+    switch (c.dueState) {
+      case 'overdue': return `<span class="due-pill overdue">Overdue ${d}d</span>`;
+      case 'duesoon': return `<span class="due-pill soon">Due ${d}d</span>`;
+      case 'ontrack': return `<span class="due-pill ok">${d}d left</span>`;
+      default: return '<span class="due-dash">—</span>';
+    }
+  };
   // How long the learner took, start of enrollment → completion. Wall-clock, so
   // it includes any breaks between sittings. Only shown once a course is done.
   const fmtDuration = (startIso, endIso) => {
@@ -2607,11 +2635,12 @@ async function viewAdmin() {
     els.table.innerHTML = list.length ? `
       ${liveCount ? `<p class="live-banner"><span class="live-dot"></span> ${liveCount} working right now</p>` : ''}
       <div class="table-scroll"><table class="admin-table">
-        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
+        <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Due</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
           <td data-label="Learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner)}</button>` : esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
           <td data-label="Status">${statusCell(c)}</td>
+          <td data-label="Due">${dueCell(c)}</td>
           <td data-label="Time to complete">${esc(fmtDuration(c.startedAt, c.completedAt))}</td>
           <td data-label="Completed">${c.completedAt ? new Date(c.completedAt).toLocaleString() : '—'}</td>
           <td data-label="Certificate">${esc(c.certId || '—')}</td>
@@ -3188,7 +3217,9 @@ async function viewCourseAdmin(flash) {
       <div class="form-row">
         <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
         <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
+        <label>Deadline — days to finish<input name="dueDays" type="number" min="0" max="365" value="${c ? (c.dueDays || 0) : 0}" placeholder="0 = none" /></label>
       </div>
+      <p class="form-hint">Set a deadline and every enrolled official is tracked against it — the dashboard flags anyone <strong>overdue</strong>, and reminder emails go out automatically as the date nears and after it passes. 0 = no deadline.</p>
       <label>Audience
         <select name="audience">
           ${[['everyone', 'Everyone (coaches & staff)'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']]

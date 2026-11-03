@@ -1119,9 +1119,10 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-wrap.dash .admin-card { box-shadow: 0 8px 28px rgba(30,41,90,.08); }
 
 /* Interactive KPI cards */
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 4px 0 20px; }
-@media (max-width: 880px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 460px) { .kpis { grid-template-columns: 1fr; } }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin: 4px 0 20px; }
+@media (max-width: 1040px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 680px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .kpis { grid-template-columns: 1fr; } }
 .kpi {
   text-align: left; background: #fff; border: 1px solid #e6e9f4; border-left: 4px solid var(--kc, #4f46e5);
   border-radius: 14px; padding: 15px 16px 11px; box-shadow: 0 2px 6px rgba(30,41,90,.05);
@@ -1137,6 +1138,16 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .kpi-d { font-size: .68rem; font-weight: 700; padding: 3px 8px; border-radius: 99px; white-space: nowrap; flex: 0 0 auto; }
 .kpi-d.up { background: #e7f6ee; color: #0f7b4f; }
 .kpi-d.flat { background: #eef0f6; color: #8a90a2; }
+.kpi-d.over { background: #fdeaea; color: #c22; }
+.kpi-mini { font-size: .74rem; color: var(--ink-soft); margin-top: 11px; }
+.kpi.alert { background: #fff6f6; border-color: #f3c4c4; }
+.kpi.alert .kpi-n { color: #c22; }
+/* Deadline / compliance pills in the records table */
+.due-pill { display: inline-block; white-space: nowrap; font-size: .76rem; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+.due-pill.overdue { background: #fdeaea; color: #c22; }
+.due-pill.soon { background: #fff3e0; color: #b06a00; }
+.due-pill.ok { background: #eef2fb; color: #5a6480; }
+.due-dash { color: var(--ink-soft); }
 .spark { display: block; width: 100%; height: 34px; margin-top: 4px; }
 .kpi-bar { height: 9px; background: #edeff6; border-radius: 99px; overflow: hidden; margin-top: 15px; }
 .kpi-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, #4f46e5); border-radius: 99px; }
