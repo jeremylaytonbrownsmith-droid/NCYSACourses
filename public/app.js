@@ -1500,17 +1500,20 @@ function renderModuleLesson(pane, course, lesson, lp) {
     let h = '<div class="gmr-railhead"><span class="gmr-railttl">Course progress</span>'
       + '<div class="gmr-pbar"><span style="width:' + pct + '%"></span></div>'
       + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
+    const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 15h5"/></svg>';
     PAGES.forEach((p, i) => {
       const done = i < state.page && pageSatisfied(i), cur = i === state.page;
       const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
       const locked = !(noGate || i <= state.max);
-      const hasReq = (p.completionRequires || []).length > 0;
-      const ring = cur && hasReq ? ' ring' : '';
-      const cp = cur && hasReq ? Math.round(pageFrac(i) * 100) : 0;
-      h += '<li class="gmr-srow' + (done ? ' done' : '') + (cur ? ' cur' : '') + ring + '" data-i="' + i + '"'
+      const cp = done ? 100 : Math.round(pageFrac(i) * 100);
+      h += '<li class="gmr-srow' + (done ? ' done' : '') + (cur ? ' cur' : '') + '" data-i="' + i + '"'
         + (locked ? ' aria-disabled="true"' : '') + ' style="--cp:' + cp + '">'
-        + '<span class="gmr-step"><span class="gmr-stepn">' + (done ? '✓' : (i + 1)) + '</span></span>'
-        + '<span class="gmr-slabel">' + esc(label) + '</span></li>';
+        + '<span class="gmr-ic">' + ICON + '</span>'
+        + '<span class="gmr-slabel">' + esc(label) + '</span>'
+        + '<span class="gmr-ringwrap"><svg class="gmr-ringel" viewBox="0 0 36 36" aria-hidden="true">'
+        + '<circle class="track" cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.4"/>'
+        + '<circle class="prog" cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="' + (100 - cp) + '" transform="rotate(-90 18 18)"/>'
+        + '</svg><span class="gmr-rcheck">✓</span></span></li>';
     });
     railEl.innerHTML = h + '</ol>';
     railEl.querySelectorAll('.gmr-srow').forEach((row) => {
