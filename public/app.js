@@ -909,7 +909,7 @@ async function viewCourse(courseId, lessonId) {
   const lesson = course.lessons.find((l) => l.id === lessonId) || course.lessons[0];
   const lp = progress.lessons.find((l) => l.id === lesson.id);
 
-  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', slides: 'Slides' };
+  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', slides: 'Slides', module: 'Interactive' };
   app.innerHTML = `
     ${course.instructions ? `<details class="course-intro" open>
       <summary>Start here — how this works</summary>
@@ -956,16 +956,17 @@ async function viewCourse(courseId, lessonId) {
   const pane = document.getElementById('lessonPane');
   // Modules get a wider, taller stage; reading lessons stay a comfortable
   // reading width.
-  pane.className = 'lesson-pane' + (lesson.type === 'scorm' ? ' scorm-lesson' : '');
+  pane.className = 'lesson-pane' + (lesson.type === 'scorm' || lesson.type === 'module' ? ' scorm-lesson' : '');
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
   else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
   else if (lesson.type === 'slides') renderSlidesLesson(pane, course, lesson, lp);
+  else if (lesson.type === 'module') renderModuleLesson(pane, course, lesson, lp);
   else renderTextLesson(pane, course, lesson, lp);
 }
 
 function lessonHeader(lesson, course) {
-  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module', slides: 'Slides' };
+  const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module', slides: 'Slides', module: 'Interactive module' };
   const logo = course && course.coLogoUrl
     ? `<img class="lesson-cobrand-logo" src="${esc(course.coLogoUrl)}" alt="${esc(course.coBrandName || '')}" />`
     : '';
@@ -1152,6 +1153,230 @@ function renderSlidesLesson(pane, course, lesson, lp) {
     else show(idx + 1);
   });
   show(0);
+}
+
+// --- Interactive block module (getmatchready.module/v1) ---------------------
+// A generic renderer for the block-authored module format: one page at a time,
+// each page a stack of typed blocks (narration, prose, carousel, accordion,
+// knowledge checks, a branching capstone, a scored assessment, …). Pages gate on
+// their `completionRequires` list — a knowledge check satisfies on submit (and
+// its lesson/payoff stays hidden until then: gateRevealBehindSubmit), a carousel
+// on viewing every slide, an assessment on passing. "Next" unlocks only when the
+// page's required blocks are done; the last page's completion completes the
+// lesson. Staff preview and review mode turn every gate off (like the slideshow
+// player) so testing is quick. Everything authored is escaped at render time.
+function renderModuleLesson(pane, course, lesson, lp) {
+  const doc = lesson.moduleDoc || { pages: [] };
+  const PAGES = Array.isArray(doc.pages) ? doc.pages : [];
+  if (!PAGES.length) return renderTextLesson(pane, course, lesson, lp);
+  const noGate = isStaffViewer() || lp.completed; // staff preview / review: gates off
+  const state = { page: 0, done: {}, answers: {}, passed: false, max: 0 };
+  if (noGate) PAGES.forEach((p) => (p.completionRequires || []).forEach((id) => { state.done[id] = true; }));
+
+  const imgBox = (brief) => '<div class="gmr-vis"><b>Visual</b>' + esc(brief || '') + '</div>';
+  function markDone(id) { if (id) { state.done[id] = true; refreshGate(); renderRail(); } }
+
+  // --- block renderers: each returns { html, wire(region)? } ---
+  const R = {
+    narration: (b) => ({ html: '<div class="gmr-narr"><p class="gmr-nlab">Narration · ' + (b.durationSeconds || 0) + 's</p><p>' + esc(b.transcript) + '</p></div>' }),
+    prose: (b) => ({ html: '<div class="gmr-prose' + (b.emphasis ? ' em' : (b.lead ? ' lead' : '')) + '">' + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
+    list: (b) => { const tag = b.ordered ? 'ol' : 'ul'; return { html: '<div class="gmr-blk">' + (b.heading ? '<h3 class="gmr-bh">' + esc(b.heading) + '</h3>' : '') + '<' + tag + ' class="gmr-lst' + (b.ordered ? ' ord' : '') + '">' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</' + tag + '></div>' }; },
+    callout: (b) => ({ html: '<div class="gmr-callout">' + (b.heading ? '<h3>' + esc(b.heading) + '</h3>' : '') + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
+    table: (b) => { const head = '<tr>' + (b.columns || []).map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr>'; const rows = (b.rows || []).map((r) => '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>').join(''); return { html: '<div class="gmr-blk">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-tbl-wrap"><table class="gmr-tbl"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div></div>' }; },
+    compare: (b) => { const cards = (b.cards || []).map((c) => { const s = (c.sanction || '').toLowerCase(); const sc = /red|send/.test(s) ? 'r' : /yellow|caution/.test(s) ? 'y' : 'n'; return '<div class="gmr-cc"><h4>' + esc(c.title) + '</h4>' + (c.sanction ? '<span class="gmr-sanc ' + sc + '">' + esc(c.sanction) + '</span>' : '') + '<p>' + esc(c.body) + '</p></div>'; }).join(''); return { html: '<div class="gmr-blk">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-cmp">' + cards + '</div></div>' }; },
+    carousel: (b) => { const n = (b.slides || []).length; return {
+      html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-car"><div class="gmr-stage"></div><div class="gmr-cctrl"><button class="btn btn-ghost btn-sm gmr-cprev" disabled>← Prev</button><div class="gmr-dots"></div><button class="btn btn-accent btn-sm gmr-cnext">Next →</button></div></div></div>',
+      wire: (root) => {
+        const car = root.querySelector('.gmr-car'), stage = car.querySelector('.gmr-stage'), dots = car.querySelector('.gmr-dots');
+        const seen = { 0: 1 }; let i = 0;
+        for (let k = 0; k < n; k++) { const d = document.createElement('span'); d.className = 'gmr-dot' + (k === 0 ? ' on' : ''); d.dataset.k = k; dots.appendChild(d); }
+        const draw = () => { const sl = b.slides[i]; stage.innerHTML = (sl.imageBrief ? imgBox(sl.imageBrief) : '') + '<h4>' + esc(sl.title) + '</h4>' + (sl.body ? '<p>' + esc(sl.body) + '</p>' : '');
+          car.querySelector('.gmr-cprev').disabled = (i === 0); const nx = car.querySelector('.gmr-cnext'); nx.textContent = (i === n - 1 ? 'Done ✓' : 'Next →');
+          Array.prototype.forEach.call(dots.children, (d, k) => { d.className = 'gmr-dot' + (k === i ? ' on' : (seen[k] ? ' seen' : '')); }); };
+        const bump = () => { if (Object.keys(seen).length >= n) markDone(b.id); };
+        car.querySelector('.gmr-cprev').onclick = () => { if (i > 0) { i--; draw(); } };
+        car.querySelector('.gmr-cnext').onclick = () => { if (i < n - 1) { i++; seen[i] = 1; draw(); } markDone && markDone(b.id); bump(); };
+        dots.onclick = (e) => { const k = e.target.dataset.k; if (k != null) { i = +k; seen[i] = 1; draw(); bump(); } };
+        draw(); if (noGate) markDone(b.id);
+      } }; },
+    accordion: (b) => { const items = (b.items || []).map((it, ix) => { let body = ''; if (it.intro) body += '<p class="intro">' + esc(it.intro) + '</p>'; if (it.heading && it.heading !== it.label) body += '<p class="ah">' + esc(it.heading) + '</p>'; if (it.body) body += '<p>' + esc(it.body) + '</p>'; if (it.bullets && it.bullets.length) body += '<ul>' + it.bullets.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<details data-ix="' + ix + '"><summary>' + esc(it.label) + '</summary><div class="gmr-ab">' + body + '</div></details>'; }).join(''); return {
+      html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-acc">' + items + '</div></div>',
+      wire: (root) => { const ds = root.querySelectorAll('details'); const opened = {}; ds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) { opened[d.dataset.ix] = 1; if (Object.keys(opened).length >= ds.length) markDone(b.id); } })); if (noGate) markDone(b.id); } }; },
+    scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + (b.imageBrief ? imgBox(b.imageBrief) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
+    reflection: (b) => ({
+      html: '<div class="gmr-blk gmr-refl"><h3 class="gmr-bh">Reflection</h3><p class="gmr-rp">' + esc(b.prompt) + '</p><textarea class="gmr-ta" placeholder="Write your answer…"></textarea><div class="gmr-ractions"><button class="btn btn-accent btn-sm gmr-save" type="button">Save answer</button></div><div class="gmr-fu" hidden><b>Reflect:</b> ' + esc(b.followUp || '') + '</div></div>',
+      wire: (root) => { const ta = root.querySelector('.gmr-ta'); if (state.answers[b.id]) ta.value = state.answers[b.id]; root.querySelector('.gmr-save').onclick = function () { state.answers[b.id] = ta.value; root.querySelector('.gmr-fu').hidden = false; markDone(b.id); this.textContent = 'Saved ✓'; }; if (noGate) markDone(b.id); } }),
+    checklist: (b) => ({
+      html: '<div class="gmr-blk"><h3 class="gmr-bh">Record every card with:</h3><ul class="gmr-ckl">' + (b.items || []).map((x, ix) => '<li data-ix="' + ix + '"><span class="gmr-box">✓</span><span>' + esc(x) + '</span></li>').join('') + '</ul></div>',
+      wire: (root) => { const lis = root.querySelectorAll('.gmr-ckl li'); const on = {}; lis.forEach((li) => li.onclick = () => { li.classList.toggle('on'); on[li.dataset.ix] = li.classList.contains('on'); let c = 0; for (const k in on) if (on[k]) c++; if (c >= lis.length) markDone(b.id); }); if (noGate) markDone(b.id); } }),
+    knowledgeCheck: (b) => question(b, 'Question', 'knowledge'),
+    videoDecision: (b) => question(b, 'Video decision', 'video'),
+    imageSelect: (b) => imageSelect(b),
+    flow: (b) => { const nodes = (b.nodes || []).map((nd, ix) => { let inner = '<span class="gmr-fk">' + esc(nd.kind) + '</span>' + esc(nd.text); if (nd.branches && nd.branches.length) inner += nd.branches.map((br) => '<div class="gmr-br"><b>' + esc(br.answer) + ' →</b> ' + esc(br.to) + '</div>').join(''); if (nd.exceptions && nd.exceptions.length) inner += '<ul>' + nd.exceptions.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<div class="gmr-flnode ' + esc(nd.kind) + '">' + inner + '</div>' + (ix < b.nodes.length - 1 ? '<div class="gmr-flar">▼</div>' : ''); }).join(''); return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + nodes + '</div></div>' }; },
+    branching: (b) => branching(b),
+    summary: (b) => ({ html: '<div class="gmr-summ"><h2>' + esc(b.heading || 'Recap') + '</h2>' + (b.intro ? '<p class="intro">' + esc(b.intro) + '</p>' : '') + '<ol>' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ol></div>' }),
+    assessment: (b) => assessment(b),
+    gate: (b) => ({ html: '<div class="gmr-blk flat gmr-gate"><button class="btn btn-accent btn-lg gmr-gatebtn" type="button">' + esc(b.label || 'Start') + ' →</button></div>', wire: (root) => { root.querySelector('.gmr-gatebtn').onclick = () => go(1); } }),
+  };
+
+  // knowledgeCheck + videoDecision: single correct, lesson hidden until submit.
+  function question(b, tagTxt, kind) {
+    const opts = b.options || [];
+    const vbrief = kind === 'video' && b.clipBrief ? '<div class="gmr-vbrief"><span class="pl">▶</span><div><b>Video unavailable — scene described</b>' + esc(b.clipBrief) + '</div></div>' : '';
+    const optHtml = opts.map((o) => '<div class="gmr-opt" data-id="' + esc(o.id) + '"><span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.text) + '</span></div>').join('');
+    const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag ' + kind + '">' + tagTxt + '</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div>' + vbrief + '<div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><button class="btn btn-accent btn-sm gmr-sub" type="button" disabled>Submit answer</button><div class="gmr-fbslot" hidden></div></div></div>';
+    return { html, wire: (root) => {
+      let sel = null; const sub = root.querySelector('.gmr-sub'), slot = root.querySelector('.gmr-fbslot'), optEls = root.querySelectorAll('.gmr-opt');
+      optEls.forEach((o) => o.onclick = () => { if (root.dataset.locked) return; sel = o.dataset.id; optEls.forEach((x) => x.classList.toggle('sel', x === o)); sub.disabled = false; });
+      sub.onclick = () => {
+        if (!sel || root.dataset.locked) return; root.dataset.locked = '1';
+        const correct = (sel === b.correctOptionId);
+        optEls.forEach((x) => { x.classList.add('locked'); x.classList.remove('sel'); if (x.dataset.id === b.correctOptionId) x.classList.add('correct'); else if (x.dataset.id === sel) x.classList.add('wrong'); x.querySelector('.gmr-mk').textContent = x.dataset.id === b.correctOptionId ? '✓' : (x.dataset.id === sel ? '✕' : ''); });
+        sub.style.display = 'none';
+        const verdict = correct ? (b.correctFeedback || 'Correct.') : (b.incorrectFeedback || 'Not quite.');
+        slot.className = 'gmr-fbslot gmr-fb ' + (correct ? 'ok' : 'no'); slot.hidden = false;
+        slot.innerHTML = '<span class="gmr-verdict">' + esc(verdict) + '</span><div class="gmr-lh">' + esc(b.lessonHeading || 'The lesson') + '</div>' + esc(b.lesson || b.correctFeedback || '');
+        markDone(b.id);
+      };
+      if (noGate) markDone(b.id);
+    } };
+  }
+  // imageSelect fallback: text options, pick → feedback, correct satisfies.
+  function imageSelect(b) {
+    const optHtml = (b.options || []).map((o) => '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '"><span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>').join('');
+    const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag image">Image select</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div><div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><div class="gmr-fbslot" hidden></div></div></div>';
+    return { html, wire: (root) => {
+      const slot = root.querySelector('.gmr-fbslot'), optEls = root.querySelectorAll('.gmr-opt');
+      optEls.forEach((o) => o.onclick = () => {
+        if (root.dataset.locked) return;
+        let fb = null; (b.options || []).forEach((x) => { if (x.id === o.dataset.id) fb = x; });
+        const correct = o.dataset.c === '1';
+        optEls.forEach((x) => { x.classList.remove('sel', 'correct', 'wrong'); x.querySelector('.gmr-mk').textContent = ''; });
+        o.classList.add(correct ? 'correct' : 'wrong'); o.querySelector('.gmr-mk').textContent = correct ? '✓' : '✕';
+        slot.className = 'gmr-fbslot gmr-fb ' + (correct ? 'ok' : 'no'); slot.hidden = false; slot.innerHTML = esc(fb ? fb.feedback : '');
+        if (correct) { root.dataset.locked = '1'; optEls.forEach((x) => x.classList.add('locked')); markDone(b.id); }
+      });
+      if (noGate) markDone(b.id);
+    } };
+  }
+  // branching capstone: sequential decisions, correct required to advance.
+  function branching(b) {
+    const html = '<div class="gmr-brn"><div class="gmr-setup"><p class="gmr-slab">● Capstone scenario</p>' + (b.setup || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div><div class="gmr-dstage"></div><div class="gmr-close" hidden></div></div>';
+    return { html, wire: (root) => {
+      const stage = root.querySelector('.gmr-dstage'), closeEl = root.querySelector('.gmr-close'); let di = 0; const N = b.decisions.length;
+      const draw = () => {
+        const d = b.decisions[di];
+        stage.innerHTML = '<p class="gmr-dcount">Decision ' + (di + 1) + ' of ' + N + '</p><p class="gmr-qp" style="margin:0 0 11px">' + esc(d.prompt) + '</p><div class="gmr-opts">' + d.options.map((o, ix) => '<div class="gmr-opt" data-ix="' + ix + '"><span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.text) + '</span></div>').join('') + '</div><div class="gmr-qfoot"><div class="gmr-fbslot" hidden></div><button class="btn btn-accent btn-sm gmr-cont" type="button" hidden>Continue →</button></div>';
+        const opts = stage.querySelectorAll('.gmr-opt'), slot = stage.querySelector('.gmr-fbslot'), cont = stage.querySelector('.gmr-cont');
+        opts.forEach((o) => o.onclick = () => {
+          const choice = d.options[+o.dataset.ix], correct = choice.correct;
+          opts.forEach((x) => { x.classList.remove('sel', 'correct', 'wrong'); x.querySelector('.gmr-mk').textContent = ''; });
+          o.classList.add(correct ? 'correct' : 'wrong'); o.querySelector('.gmr-mk').textContent = correct ? '✓' : '✕';
+          slot.className = 'gmr-fbslot gmr-fb ' + (correct ? 'ok' : 'no'); slot.hidden = false;
+          slot.innerHTML = '<span class="gmr-verdict">' + (correct ? 'Correct' : 'Try again') + '</span>' + esc(choice.feedback);
+          if (correct) { opts.forEach((x) => x.classList.add('locked')); cont.hidden = false; }
+        });
+        cont.onclick = () => { di++; if (di < N) draw(); else { closeEl.hidden = false; closeEl.innerHTML = '<p class="gmr-slab">✓ Scenario complete</p>' + (b.close || []).map((p) => '<p>' + esc(p) + '</p>').join(''); stage.innerHTML = ''; markDone(b.id); } };
+      };
+      draw(); if (noGate) markDone(b.id);
+    } };
+  }
+  // assessment: all items, submit → score + pass/fail.
+  function assessment(b) {
+    const items = b.items || [], pass = b.passMarkPercent || 80;
+    const html = '<div class="gmr-blk gmr-asmt"><h3 class="gmr-bh">Final assessment — ' + pass + '% to pass</h3>' + items.map((it, qi) => '<div class="gmr-aitem" data-qi="' + qi + '"><p class="gmr-aq">' + (qi + 1) + '. ' + esc(it.prompt) + '</p><div class="gmr-aopts">' + it.options.map((o, oi) => '<label class="gmr-ao"><input type="radio" name="gmraq' + qi + '" value="' + oi + '"><span>' + esc(o) + '</span></label>').join('') + '</div></div>').join('') + '<button class="btn btn-accent gmr-grade" type="button">Submit assessment</button><div class="gmr-gradeslot" hidden></div></div>';
+    return { html, wire: (root) => {
+      root.querySelector('.gmr-grade').onclick = function () {
+        let correct = 0, answered = 0;
+        items.forEach((it, qi) => {
+          const picked = root.querySelector('input[name="gmraq' + qi + '"]:checked');
+          const item = root.querySelector('[data-qi="' + qi + '"]');
+          item.querySelectorAll('.gmr-ao').forEach((lb) => { const iv = +lb.querySelector('input').value; lb.classList.remove('sel', 'correct', 'wrong'); if (iv === it.correct) lb.classList.add('correct'); });
+          if (picked) { answered++; const pv = +picked.value; if (pv === it.correct) correct++; else picked.closest('.gmr-ao').classList.add('wrong'); }
+        });
+        const pct = Math.round(correct / items.length * 100), passed = pct >= pass;
+        const slot = root.querySelector('.gmr-gradeslot'); slot.hidden = false;
+        slot.innerHTML = '<div class="gmr-score ' + (passed ? 'pass' : 'fail') + '"><div class="big">' + pct + '%</div><div class="vr">' + (passed ? 'Passed' : 'Not yet — ' + pass + '% needed') + '</div><div class="gmr-mini">' + correct + ' of ' + items.length + ' correct' + (answered < items.length ? ' · ' + (items.length - answered) + ' unanswered' : '') + '</div></div>';
+        this.textContent = passed ? 'Passed ✓' : 'Resubmit';
+        if (passed) { state.passed = true; markDone(b.id); }
+        try { slot.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
+      };
+      if (noGate) markDone(b.id);
+    } };
+  }
+
+  // --- shell ---
+  pane.innerHTML = `
+    ${lessonHeader(lesson, course)}
+    ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
+    <div class="gmr-module">
+      <div class="gmr-rail" id="gmrRail"></div>
+      <div class="gmr-page" id="gmrPage"></div>
+      <div class="gmr-nav">
+        <button class="btn btn-ghost" id="gmrPrev">← Back</button>
+        <div class="gmr-ring" id="gmrRing"><span id="gmrRingTxt"></span></div>
+        <span class="gmr-hint" id="gmrHint"></span>
+        <button class="btn btn-accent" id="gmrNext">Next →</button>
+      </div>
+    </div>`;
+  const railEl = pane.querySelector('#gmrRail'), pageEl = pane.querySelector('#gmrPage'),
+    prevEl = pane.querySelector('#gmrPrev'), nextEl = pane.querySelector('#gmrNext'),
+    ringEl = pane.querySelector('#gmrRing'), ringTxt = pane.querySelector('#gmrRingTxt'), hintEl = pane.querySelector('#gmrHint');
+
+  function coverMeta() {
+    const chips = [];
+    if (doc.estimatedMinutes) chips.push('<span class="gmr-chip accent">' + doc.estimatedMinutes + ' min</span>');
+    chips.push('<span class="gmr-chip">' + PAGES.length + ' pages</span>');
+    chips.push('<span class="gmr-chip">Pass mark ' + (doc.passMarkPercent || 80) + '%</span>');
+    return '<div class="gmr-cmeta">' + chips.join('') + '</div>';
+  }
+  function drawPage() {
+    const p = PAGES[state.page]; pageEl.innerHTML = '';
+    const hd = document.createElement('div'); hd.className = 'gmr-phead';
+    if (p.layout === 'cover') hd.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta();
+    else hd.innerHTML = '<p class="gmr-eyebrow">Page ' + state.page + ' of ' + (PAGES.length - 1) + '</p><h2 class="gmr-ptitle">' + esc(p.title) + '</h2>';
+    pageEl.appendChild(hd);
+    (p.blocks || []).forEach((b) => {
+      const fn = R[b.type]; if (!fn) return; const out = fn(b);
+      const region = document.createElement('div'); region.className = 'gmr-region'; region.innerHTML = out.html;
+      pageEl.appendChild(region);
+      if (out.wire) { try { out.wire(region); } catch (e) { console.error('module block', b.type, e); } }
+    });
+  }
+  function pageSatisfied(pi) { return (PAGES[pi].completionRequires || []).every((id) => state.done[id]); }
+  function refreshGate() {
+    const p = PAGES[state.page], req = p.completionRequires || [];
+    const doneN = req.filter((id) => state.done[id]).length, ok = doneN >= req.length;
+    if (req.length) { const pct = Math.round(doneN / req.length * 100); ringEl.style.setProperty('--p', pct); ringTxt.textContent = doneN + '/' + req.length; ringEl.classList.toggle('full', ok); ringEl.style.display = ''; }
+    else ringEl.style.display = 'none';
+    const isLast = state.page === PAGES.length - 1;
+    nextEl.disabled = !ok; nextEl.textContent = isLast ? 'Complete & continue →' : 'Next →';
+    prevEl.disabled = state.page === 0; prevEl.style.visibility = state.page === 0 ? 'hidden' : '';
+    if (!ok && req.length) { const left = req.length - doneN; hintEl.textContent = left + ' task' + (left > 1 ? 's' : '') + ' left on this page'; }
+    else if (isLast && ok) hintEl.textContent = 'Module requirements met';
+    else hintEl.textContent = '';
+  }
+  function renderRail() {
+    railEl.innerHTML = '';
+    PAGES.forEach((p, i) => {
+      const seg = document.createElement('span');
+      seg.className = 'gmr-seg' + (i < state.page && pageSatisfied(i) ? ' done' : '') + (i === state.page ? ' cur' : '');
+      seg.title = i === 0 ? 'Start' : (p.title || ('Page ' + i));
+      seg.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
+      railEl.appendChild(seg);
+    });
+  }
+  function render() { drawPage(); refreshGate(); renderRail(); try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ } }
+  function go(dir) {
+    if (dir > 0) {
+      if (!pageSatisfied(state.page)) return;
+      if (state.page < PAGES.length - 1) { state.page++; state.max = Math.max(state.max, state.page); render(); }
+      else { nextEl.disabled = true; completeLesson(course, lesson).catch((e) => toast(e.message, true)); }
+    } else if (state.page > 0) { state.page--; render(); }
+  }
+  nextEl.addEventListener('click', () => go(1));
+  prevEl.addEventListener('click', () => go(-1));
+  render();
 }
 
 function renderTextLesson(pane, course, lesson, lp) {
@@ -3616,6 +3841,7 @@ async function viewCourseAdmin(flash) {
           <option value="video" ${t === 'video' ? 'selected' : ''}>Video</option>
           <option value="quiz" ${t === 'quiz' ? 'selected' : ''}>Exam / quiz</option>
           <option value="scorm" ${t === 'scorm' ? 'selected' : ''}>SCORM or HTML module (upload)</option>
+          <option value="module" ${t === 'module' ? 'selected' : ''}>Interactive module (block JSON)</option>
         </select>
       </label>
       <label>Title<input name="title" value="${l ? esc(l.title) : ''}" required /></label>
@@ -3683,6 +3909,20 @@ async function viewCourseAdmin(flash) {
         </label>`; })()}
         <p class="form-hint">Upload a <strong>SCORM</strong> or <strong>HTML</strong> <strong>.zip</strong> export (a US Soccer "Web" export works too — it's detected automatically). It’s stored and served here; the module plays right in the page. <strong>Anti-skip:</strong> a learner can’t complete the module until they’ve spent at least the <em>minimum time</em> above in it — set it to roughly the module’s real length so people can’t click straight to the end. Use <strong>0</strong> to turn the gate off. <strong>Time on each slide</strong> (our slideshow modules only): how long a learner must stay on each slide before <em>Next</em> turns on — slides with a video automatically wait at least a minute. Pick it from the dropdown; no code change needed. Add one lesson per module, in order.</p>`;
     }
+    if (type === 'module') {
+      const docJson = l && l.moduleDoc ? JSON.stringify(l.moduleDoc, null, 2) : '';
+      return `
+        ${richTextField('html', 'Intro text (optional — shows above the module)', l ? l.html : '', 70)}
+        <label>Module JSON <span class="meta">(getmatchready.module/v1)</span>
+          <textarea name="moduleDoc" id="moduleDoc" spellcheck="false" style="width:100%;min-height:320px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.45;white-space:pre;overflow:auto" placeholder="Paste the block module JSON here, or load the sample to start.">${docJson ? esc(docJson) : ''}</textarea>
+        </label>
+        <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost btn-sm" id="moduleSample">Load sample module</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="moduleValidate">Check JSON</button>
+          <span id="moduleStatus" class="meta"></span>
+        </div>
+        <p class="form-hint">An <strong>interactive block module</strong> — pages of narration, carousels, accordions, knowledge checks, a branching scenario and a scored assessment, authored as JSON and played by the built-in block player (the same renderer OMG saw in the demo). Each knowledge check keeps its answer locked until the learner submits, and a page’s <em>Next</em> stays off until its required blocks are done. Click <strong>Load sample module</strong> for a complete, editable example, or paste JSON the AI course builder produced.</p>`;
+    }
     if (type === 'text') {
       const sec = l && l.minSeconds != null ? Number(l.minSeconds) : 0;
       return `${richTextField('html', 'Lesson content', l ? l.html : '', 240)}
@@ -3709,6 +3949,30 @@ async function viewCourseAdmin(flash) {
       if (addQ) addQ.addEventListener('click', () => {
         const qs = document.getElementById('quizQs');
         qs.insertAdjacentHTML('beforeend', quizQ({ prompt: '', options: ['', ''], answer: 0 }, qs.children.length));
+      });
+      const modStatus = () => document.getElementById('moduleStatus');
+      const modSample = document.getElementById('moduleSample');
+      if (modSample) modSample.addEventListener('click', async () => {
+        const st = modStatus(); st.textContent = 'Loading…';
+        try {
+          const r = await fetch('/samples/card-mechanics.module.json', { headers: { Accept: 'application/json' } });
+          if (!r.ok) throw new Error('Sample not available');
+          const text = await r.text();
+          document.getElementById('moduleDoc').value = text;
+          st.textContent = 'Sample loaded — edit freely, then Save.'; st.style.color = 'var(--success-dark)';
+        } catch (e) { st.textContent = e.message; st.style.color = 'var(--danger)'; }
+      });
+      const modValidate = document.getElementById('moduleValidate');
+      if (modValidate) modValidate.addEventListener('click', () => {
+        const st = modStatus();
+        try {
+          const d = JSON.parse(document.getElementById('moduleDoc').value || 'null');
+          if (!d || typeof d !== 'object') throw new Error('Not a JSON object');
+          const pages = Array.isArray(d.pages) ? d.pages : (d.module && Array.isArray(d.module.pages) ? d.module.pages : null);
+          if (!pages || !pages.length) throw new Error('No "pages" array found');
+          const blocks = pages.reduce((n, p) => n + ((p && Array.isArray(p.blocks)) ? p.blocks.length : 0), 0);
+          st.textContent = `Valid JSON — ${pages.length} page(s), ${blocks} block(s).`; st.style.color = 'var(--success-dark)';
+        } catch (e) { st.textContent = 'Invalid: ' + e.message; st.style.color = 'var(--danger)'; }
       });
       const up = document.getElementById('scormUpload');
       if (up) up.addEventListener('click', async () => {
@@ -3872,6 +4136,11 @@ async function viewCourseAdmin(flash) {
       const type = l ? l.type : fd.get('type');
       const payload = { type, title: fd.get('title'), html: fd.get('html') || '' };
       if (type === 'text') { payload.minSeconds = fd.get('minSeconds'); }
+      if (type === 'module') {
+        const raw = fd.get('moduleDoc') || '';
+        try { payload.moduleDoc = JSON.parse(raw); }
+        catch (err) { msg('The module JSON is not valid — ' + err.message + '. Use “Check JSON” to find the problem.', true); return; }
+      }
       if (type === 'video') { payload.videoUrl = fd.get('videoUrl'); payload.videoUrlWebm = fd.get('videoUrlWebm') || undefined; payload.durationSeconds = fd.get('durationSeconds'); payload.minWatchSeconds = fd.get('minWatchSeconds'); }
       if (type === 'scorm') {
         payload.packageId = fd.get('packageId');

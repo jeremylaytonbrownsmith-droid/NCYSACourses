@@ -21,6 +21,7 @@ const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
+const { normalizeModuleDoc } = require('./lib/moduledoc');
 const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
 const { buildDocument, DOC_FORMATS } = require('./lib/docexport');
 const courseSeed = require('./data/courses');
@@ -2767,8 +2768,15 @@ function slugify(s) {
 
 // Normalize a lesson payload from the editor into a stored lesson.
 function buildLesson(body) {
-  const type = ['text', 'video', 'quiz', 'scorm', 'slides'].includes(body.type) ? body.type : 'text';
+  const type = ['text', 'video', 'quiz', 'scorm', 'slides', 'module'].includes(body.type) ? body.type : 'text';
   const base = { id: body.id || slugify(body.title) + '-' + crypto.randomBytes(3).toString('hex'), type, title: String(body.title || 'Untitled lesson') };
+  if (type === 'module') {
+    // An interactive block module (getmatchready.module/v1): authored JSON,
+    // normalized to a clean, size-capped document. The player escapes every text
+    // value, so the doc is stored as plain structured data (no HTML). The optional
+    // intro `html` still shows above the player, so it is sanitized as usual.
+    return { ...base, html: sanitizeLessonHtml(body.html), moduleDoc: normalizeModuleDoc(body.moduleDoc) };
+  }
   if (type === 'text') {
     // Optional reading pace: minimum seconds before "Complete" unlocks (0 = off).
     const minSeconds = Math.min(3600, Math.max(0, Math.round(Number(body.minSeconds) || 0)));
@@ -3187,6 +3195,8 @@ app.post('/api/admin/courses/:courseId/lessons', requireEditor, (req, res) => {
   if (!course) return res.status(404).json({ error: 'Course not found' });
   if (!courseInScope(req, res, course)) return;
   const lesson = buildLesson(req.body || {});
+  if (lesson.type === 'module' && (!lesson.moduleDoc || !lesson.moduleDoc.pages.length))
+    return res.status(400).json({ error: 'This interactive module has no usable pages. Check the module JSON — each page needs a title and at least one block.' });
   course.lessons.push(lesson);
   save();
   res.json({ lesson });
@@ -3210,7 +3220,10 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   if (body.type === 'scorm' && !Array.isArray(body.hiddenSlides) && Array.isArray(existing.hiddenSlides)) {
     body.hiddenSlides = existing.hiddenSlides;
   }
-  course.lessons[idx] = buildLesson(body);
+  const built = buildLesson(body);
+  if (built.type === 'module' && (!built.moduleDoc || !built.moduleDoc.pages.length))
+    return res.status(400).json({ error: 'This interactive module has no usable pages. Check the module JSON — each page needs a title and at least one block.' });
+  course.lessons[idx] = built;
   save();
   res.json({ lesson: course.lessons[idx] });
 });
