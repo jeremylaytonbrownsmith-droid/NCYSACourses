@@ -3300,6 +3300,18 @@ async function viewCourseAdmin(flash) {
     } catch (err) { msg(err.message, true); }
   }));
 
+  // Quick-start topics: click to prefill the form for a common referee subject.
+  // mode maps to the lesson-type selector; most Tent Talks are referee points of
+  // emphasis, the fuller ones are recert-style lessons.
+  const AI_PRESETS = [
+    { label: 'AR flag mechanics', topic: 'Correct assistant-referee flag mechanics for assisting the referee on a foul: when to flag, raising the flag, eye contact, indicating direction, and deferring to the referee.', mode: 'tenttalk' },
+    { label: 'Managing dissent', topic: 'Managing dissent from players and coaches: recognizing dissent by word and action, defusing it early, and when it becomes a caution.', mode: 'tenttalk' },
+    { label: 'Advantage', topic: 'Applying advantage: reading the moment, the advantage signal, the few-second window, and bringing play back if the advantage does not develop.', mode: 'tenttalk' },
+    { label: 'Pre-game crew conference', topic: 'Running an effective pre-game conference with the officiating crew: responsibilities, signals, flag mechanics, foul recognition, and communication.', mode: 'tenttalk' },
+    { label: 'Issuing a card', topic: 'Correct mechanics for issuing a yellow or red card: identifying the offence under Law 12, isolating the player, showing the card clearly, and recording it.', mode: 'full' },
+    { label: 'Offside basics', topic: 'Judging offside: the second-to-last defender, active involvement, interfering with play or an opponent, and the assistant referee flag mechanics for offside.', mode: 'full' },
+  ];
+
   // Load a CDN script once, on demand (for pdf.js / JSZip used by document upload).
   function loadScriptOnce(src) {
     return new Promise((resolve, reject) => {
@@ -3366,6 +3378,10 @@ async function viewCourseAdmin(flash) {
         <label>Topic / instructions
           <input name="topic" placeholder="e.g. Heading safety guidelines for U12 coaches" />
         </label>
+        <div class="ai-presets">
+          <span class="ai-presets-lab">Quick starts:</span>
+          ${AI_PRESETS.map((p, i) => `<button type="button" class="ai-preset" data-i="${i}">${esc(p.label)}</button>`).join('')}
+        </div>
         <label>Source material <span style="font-weight:400;color:var(--ink-soft)">(optional — paste text, or upload a file below)</span>
           <textarea name="sourceText" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
         </label>
@@ -3440,6 +3456,16 @@ async function viewCourseAdmin(flash) {
     };
     form.querySelectorAll('[name=lessonFormat]').forEach((r) => r.addEventListener('change', syncFormat));
     syncFormat();
+    // Quick-start chips: prefill the topic, pick the lesson type, and set a referee context.
+    form.querySelectorAll('.ai-preset').forEach((btn) => btn.addEventListener('click', () => {
+      const p = AI_PRESETS[Number(btn.dataset.i)]; if (!p) return;
+      const topic = form.querySelector('[name=topic]'); if (topic) topic.value = p.topic;
+      const radio = form.querySelector(`[name=lessonFormat][value="${p.mode}"]`); if (radio) { radio.checked = true; syncFormat(); }
+      const brand = form.querySelector('[name=brand]'); if (brand) { brand.value = 'ncsra'; }
+      const aud = form.querySelector('[name=audience]'); if (aud) { aud.value = 'referees'; }
+      form.querySelectorAll('.ai-preset').forEach((b) => b.classList.toggle('on', b === btn));
+      topic?.focus();
+    }));
     // Document upload: read a PDF/Word/text file in the browser and drop its text
     // into the Source material field, which is what gets sent to the AI.
     const docFile = document.getElementById('aiDocFile');
