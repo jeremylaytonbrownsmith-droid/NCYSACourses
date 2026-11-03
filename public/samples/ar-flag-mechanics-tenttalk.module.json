@@ -1,0 +1,251 @@
+{
+  "version": "getmatchready.module/v1",
+  "module": {
+    "id": "ar-flag-mechanics",
+    "title": "AR Flag Mechanics — Assisting on a Foul",
+    "course": "NCSRA Tent Talk",
+    "estimatedMinutes": 6,
+    "objectives": [
+      "When to raise your flag for a foul — and when to keep it down",
+      "The signal, in the order the referee needs to see it",
+      "How to defer the moment the referee takes over"
+    ]
+  },
+  "pages": [
+    {
+      "id": "p0",
+      "title": "AR Flag Mechanics — Assisting on a Foul",
+      "layout": "cover",
+      "completionRequires": [],
+      "blocks": [
+        {
+          "type": "narration",
+          "durationSeconds": 30,
+          "transcript": "This is a tent talk — a five-minute briefing on one thing that keeps coming up this weekend. No test, no certificate to chase. Just a quick reset on how we signal a foul from the line, so the whole crew looks the same out there."
+        },
+        {
+          "type": "prose",
+          "body": [
+            "Assistant referees win or lose credibility in the first few fouls. A clear, calm flag the referee can read keeps the crew in sync. A rushed or uncertain one undermines the referee and confuses everybody.",
+            "You're not a second referee. Your flag is information, not a verdict — the referee owns every decision."
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": true,
+          "heading": "In the next six minutes",
+          "items": [
+            "When to raise your flag for a foul — and when to keep it down",
+            "The signal, in the order the referee needs to see it",
+            "How to defer the moment the referee takes over"
+          ]
+        },
+        {
+          "type": "gate",
+          "label": "Start the talk"
+        }
+      ]
+    },
+    {
+      "id": "p1",
+      "title": "Your Job on a Foul",
+      "completionRequires": [],
+      "blocks": [
+        {
+          "type": "narration",
+          "durationSeconds": 34,
+          "transcript": "The referee is watching the whole field through a crowd. You're on the line with a flat, clean view down the touchline. That's the whole reason you're useful on a foul — you can see the things the referee can't. So flag those, and only those."
+        },
+        {
+          "type": "prose",
+          "body": [
+            "You flag a foul only when you are closer, have a clearer view, or the referee is screened — and only when you are certain.",
+            "If you and the referee are both looking straight at the same contact, it's the referee's call. Keep the flag down."
+          ]
+        },
+        {
+          "type": "callout",
+          "heading": "The one rule under all of this",
+          "body": [
+            "Flag what the referee could not see. Leave what the referee can. A guessed flag is worse than no flag."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "title": "The Signal, Step by Step",
+      "completionRequires": [
+        "sig"
+      ],
+      "blocks": [
+        {
+          "type": "narration",
+          "durationSeconds": 26,
+          "transcript": "Here's the whole mechanic, in the order the referee needs to read it. Five beats. Decide, flag up, eyes, direction, then mirror or defer."
+        },
+        {
+          "type": "carousel",
+          "id": "sig",
+          "title": "Five beats",
+          "slides": [
+            {
+              "title": "1. Decide first.",
+              "graphic": "field-position",
+              "body": "Before the flag moves: are you certain, and are you better placed than the referee? If either answer is no, keep it down."
+            },
+            {
+              "title": "2. Flag straight up.",
+              "graphic": "flag-up",
+              "body": "Raise the flag vertically and hold it still. A high, still flag reads as 'I have something' from across the field."
+            },
+            {
+              "title": "3. Make eye contact.",
+              "graphic": "eye-contact",
+              "body": "Find the referee's eyes and wait. The referee acknowledges and decides. You are offering input, not overruling."
+            },
+            {
+              "title": "4. Indicate direction.",
+              "graphic": "flag-direction",
+              "body": "Once acknowledged, point the flag at about 45 degrees in the direction the restart goes — toward the team you're awarding it to."
+            },
+            {
+              "title": "5. Mirror or defer.",
+              "graphic": "flag-down",
+              "body": "If the referee takes it, drop the flag and mirror the decision. If the referee plays on or waves you down, lower the flag at once. No second signal, no argument."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "heading": "Switch hands early",
+          "body": [
+            "Get the flag into the correct hand before you raise it, not after. Changing hands mid-signal is what makes a flag look uncertain."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "title": "When to Flag — When to Defer",
+      "completionRequires": [],
+      "blocks": [
+        {
+          "type": "accordion",
+          "id": "when",
+          "items": [
+            {
+              "label": "FLAG IT when…",
+              "bullets": [
+                "The foul is closer to you than to the referee.",
+                "The referee is screened or looking elsewhere and missed it.",
+                "It's clearly in your area of responsibility, and you're certain.",
+                "It's violent or off-the-ball misconduct the referee didn't see."
+              ]
+            },
+            {
+              "label": "DEFER when…",
+              "bullets": [
+                "The referee has a clear, close view of the same contact.",
+                "The contact is trifling — the kind the referee is managing.",
+                "You're not certain. A guessed flag is worse than no flag.",
+                "Advantage is in play — that's the referee's judgement to make."
+              ]
+            },
+            {
+              "label": "Penalty-area fouls",
+              "body": "Signal exactly as you would elsewhere — flag up, eye contact — then follow the crew's pre-match agreement for the penalty mechanic. Confirm that signal in the pre-game so there's no hesitation in the moment."
+            },
+            {
+              "label": "If the referee overrules you",
+              "body": "Lower the flag, mirror the referee's decision, and keep your body language neutral. The crew presents one decision to the field — never a visible disagreement."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p4",
+      "title": "In the Match",
+      "completionRequires": [],
+      "blocks": [
+        {
+          "type": "scenario",
+          "id": "sc",
+          "graphic": "flag-up",
+          "lines": [
+            "U14 girls, second half. Play is in front of you near the touchline, 30 yards from goal.",
+            "A defender clips the attacker from behind. The referee is trailing the play and partly screened by two other players.",
+            "You're five yards away with a clean view, and you're certain it's a foul.",
+            "Flag straight up. Eye contact. The referee finds you, stops play, and looks for direction. You point the flag toward the attacking team's goal. Free kick given. Flag down, and you're back on the offside line before the kick is taken."
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Quick reference",
+          "columns": [
+            "Moment",
+            "What you do"
+          ],
+          "rows": [
+            [
+              "You're certain + better placed",
+              "Flag straight up, hold it still"
+            ],
+            [
+              "Referee hasn't seen the flag",
+              "A small wave to catch the eye"
+            ],
+            [
+              "Referee makes eye contact",
+              "Indicate direction, about 45°"
+            ],
+            [
+              "Referee plays on / waves down",
+              "Flag down immediately, mirror"
+            ],
+            [
+              "You're not certain",
+              "Keep the flag down"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p5",
+      "title": "Before You Go",
+      "completionRequires": [
+        "ack"
+      ],
+      "blocks": [
+        {
+          "type": "summary",
+          "heading": "The whole talk in three lines",
+          "items": [
+            "Flag only what the referee couldn't see, and only when you're certain.",
+            "Flag up → eye contact → direction → mirror or defer.",
+            "The crew shows one decision. Defer cleanly, every time."
+          ]
+        },
+        {
+          "type": "callout",
+          "heading": "One note",
+          "body": [
+            "Exact penalty-area and flag-hand mechanics follow the current USSF / NCSRA directive for the season — confirm them in your pre-game. The principle above doesn't change."
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "ack",
+          "heading": "Before you go — I will:",
+          "items": [
+            "Keep the flag down on contact the referee can clearly see",
+            "Set the flag in the correct hand before I raise it",
+            "Confirm the penalty-area mechanic in the pre-game"
+          ]
+        }
+      ]
+    }
+  ]
+}

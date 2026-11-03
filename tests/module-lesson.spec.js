@@ -63,6 +63,31 @@ test('normalizeModuleDoc keeps known blocks, drops unknown, and filters requires
   expect(BLOCK_TYPES).toContain('videoDecision');
 });
 
+test('illustration keys and checklist heading survive; the tent-talk sample is a valid info session', () => {
+  const fs = require('fs');
+  const d = normalizeModuleDoc({ pages: [
+    { title: 'A', completionRequires: ['car', 'ck'], blocks: [
+      { type: 'carousel', id: 'car', slides: [{ title: 's', graphic: 'flag-up', imageBrief: 'x' }] },
+      { type: 'scenario', id: 'sc', graphic: 'free-kick', lines: ['y'] },
+      { type: 'imageSelect', id: 'is', prompt: 'p', options: [{ id: 'o', graphic: 'card-high', optionFallbackText: 't', correct: true }] },
+      { type: 'checklist', id: 'ck', heading: 'Before you go:', items: ['a', 'b'] },
+    ] },
+  ] });
+  const blocks = d.pages[0].blocks;
+  expect(blocks.find((b) => b.type === 'carousel').slides[0].graphic).toBe('flag-up');
+  expect(blocks.find((b) => b.type === 'scenario').graphic).toBe('free-kick');
+  expect(blocks.find((b) => b.type === 'imageSelect').options[0].graphic).toBe('card-high');
+  expect(blocks.find((b) => b.type === 'checklist').heading).toBe('Before you go:');
+
+  // the shipped tent-talk template is a real, assessment-free information session
+  const tent = normalizeModuleDoc(JSON.parse(fs.readFileSync('public/samples/ar-flag-mechanics-tenttalk.module.json', 'utf8')));
+  expect(tent.pages.length).toBeGreaterThan(3);
+  const hasAssessment = tent.pages.some((p) => p.blocks.some((b) => b.type === 'assessment'));
+  expect(hasAssessment).toBe(false);
+  // completion still means something: the final page gates on the acknowledgment checklist
+  expect(tent.pages[tent.pages.length - 1].completionRequires.length).toBeGreaterThan(0);
+});
+
 test('admin creates a module lesson, learner enrolls and completes it', async ({ playwright }) => {
   const api = await playwright.request.newContext({ baseURL: BASE });
   expect((await api.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();

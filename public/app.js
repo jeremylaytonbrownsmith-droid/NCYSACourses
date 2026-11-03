@@ -1173,7 +1173,8 @@ function renderModuleLesson(pane, course, lesson, lp) {
   const state = { page: 0, done: {}, answers: {}, passed: false, max: 0 };
   if (noGate) PAGES.forEach((p) => (p.completionRequires || []).forEach((id) => { state.done[id] = true; }));
 
-  const imgBox = (brief) => '<div class="gmr-vis"><b>Visual</b>' + esc(brief || '') + '</div>';
+  const gfx = (name) => (window.GMR_GRAPHICS && name && window.GMR_GRAPHICS[name]) || '';
+  const vis = (graphic, brief) => { const g = gfx(graphic); return g ? '<div class="gmr-fig">' + g + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>' : '<div class="gmr-vis"><b>Illustration</b>' + esc(brief || '') + '</div>'; };
   function markDone(id) { if (id) { state.done[id] = true; refreshGate(); renderRail(); } }
 
   // --- block renderers: each returns { html, wire(region)? } ---
@@ -1190,7 +1191,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
         const car = root.querySelector('.gmr-car'), stage = car.querySelector('.gmr-stage'), dots = car.querySelector('.gmr-dots');
         const seen = { 0: 1 }; let i = 0;
         for (let k = 0; k < n; k++) { const d = document.createElement('span'); d.className = 'gmr-dot' + (k === 0 ? ' on' : ''); d.dataset.k = k; dots.appendChild(d); }
-        const draw = () => { const sl = b.slides[i]; stage.innerHTML = (sl.imageBrief ? imgBox(sl.imageBrief) : '') + '<h4>' + esc(sl.title) + '</h4>' + (sl.body ? '<p>' + esc(sl.body) + '</p>' : '');
+        const draw = () => { const sl = b.slides[i]; stage.innerHTML = ((sl.graphic || sl.imageBrief) ? vis(sl.graphic, sl.imageBrief) : '') + '<h4>' + esc(sl.title) + '</h4>' + (sl.body ? '<p>' + esc(sl.body) + '</p>' : '');
           car.querySelector('.gmr-cprev').disabled = (i === 0); const nx = car.querySelector('.gmr-cnext'); nx.textContent = (i === n - 1 ? 'Done ✓' : 'Next →');
           Array.prototype.forEach.call(dots.children, (d, k) => { d.className = 'gmr-dot' + (k === i ? ' on' : (seen[k] ? ' seen' : '')); }); };
         const bump = () => { if (Object.keys(seen).length >= n) markDone(b.id); };
@@ -1202,12 +1203,12 @@ function renderModuleLesson(pane, course, lesson, lp) {
     accordion: (b) => { const items = (b.items || []).map((it, ix) => { let body = ''; if (it.intro) body += '<p class="intro">' + esc(it.intro) + '</p>'; if (it.heading && it.heading !== it.label) body += '<p class="ah">' + esc(it.heading) + '</p>'; if (it.body) body += '<p>' + esc(it.body) + '</p>'; if (it.bullets && it.bullets.length) body += '<ul>' + it.bullets.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<details data-ix="' + ix + '"><summary>' + esc(it.label) + '</summary><div class="gmr-ab">' + body + '</div></details>'; }).join(''); return {
       html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-acc">' + items + '</div></div>',
       wire: (root) => { const ds = root.querySelectorAll('details'); const opened = {}; ds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) { opened[d.dataset.ix] = 1; if (Object.keys(opened).length >= ds.length) markDone(b.id); } })); if (noGate) markDone(b.id); } }; },
-    scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + (b.imageBrief ? imgBox(b.imageBrief) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
+    scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + ((b.graphic || b.imageBrief) ? vis(b.graphic, b.imageBrief) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
     reflection: (b) => ({
       html: '<div class="gmr-blk gmr-refl"><h3 class="gmr-bh">Reflection</h3><p class="gmr-rp">' + esc(b.prompt) + '</p><textarea class="gmr-ta" placeholder="Write your answer…"></textarea><div class="gmr-ractions"><button class="btn btn-accent btn-sm gmr-save" type="button">Save answer</button></div><div class="gmr-fu" hidden><b>Reflect:</b> ' + esc(b.followUp || '') + '</div></div>',
       wire: (root) => { const ta = root.querySelector('.gmr-ta'); if (state.answers[b.id]) ta.value = state.answers[b.id]; root.querySelector('.gmr-save').onclick = function () { state.answers[b.id] = ta.value; root.querySelector('.gmr-fu').hidden = false; markDone(b.id); this.textContent = 'Saved ✓'; }; if (noGate) markDone(b.id); } }),
     checklist: (b) => ({
-      html: '<div class="gmr-blk"><h3 class="gmr-bh">Record every card with:</h3><ul class="gmr-ckl">' + (b.items || []).map((x, ix) => '<li data-ix="' + ix + '"><span class="gmr-box">✓</span><span>' + esc(x) + '</span></li>').join('') + '</ul></div>',
+      html: '<div class="gmr-blk"><h3 class="gmr-bh">' + esc(b.heading || 'Checklist') + '</h3><ul class="gmr-ckl">' + (b.items || []).map((x, ix) => '<li data-ix="' + ix + '"><span class="gmr-box">✓</span><span>' + esc(x) + '</span></li>').join('') + '</ul></div>',
       wire: (root) => { const lis = root.querySelectorAll('.gmr-ckl li'); const on = {}; lis.forEach((li) => li.onclick = () => { li.classList.toggle('on'); on[li.dataset.ix] = li.classList.contains('on'); let c = 0; for (const k in on) if (on[k]) c++; if (c >= lis.length) markDone(b.id); }); if (noGate) markDone(b.id); } }),
     knowledgeCheck: (b) => question(b, 'Question', 'knowledge'),
     videoDecision: (b) => question(b, 'Video decision', 'video'),
@@ -1243,7 +1244,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
   // imageSelect fallback: text options, pick → feedback, correct satisfies.
   function imageSelect(b) {
-    const optHtml = (b.options || []).map((o) => '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '"><span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>').join('');
+    const optHtml = (b.options || []).map((o) => { const th = gfx(o.graphic); return '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '">' + (th ? '<span class="gmr-othumb">' + th + '</span>' : '') + '<span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>'; }).join('');
     const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag image">Image select</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div><div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><div class="gmr-fbslot" hidden></div></div></div>';
     return { html, wire: (root) => {
       const slot = root.querySelector('.gmr-fbslot'), optEls = root.querySelectorAll('.gmr-opt');
@@ -1323,11 +1324,12 @@ function renderModuleLesson(pane, course, lesson, lp) {
     prevEl = pane.querySelector('#gmrPrev'), nextEl = pane.querySelector('#gmrNext'),
     ringEl = pane.querySelector('#gmrRing'), ringTxt = pane.querySelector('#gmrRingTxt'), hintEl = pane.querySelector('#gmrHint');
 
+  const hasAssessment = PAGES.some((p) => (p.blocks || []).some((b) => b.type === 'assessment'));
   function coverMeta() {
     const chips = [];
     if (doc.estimatedMinutes) chips.push('<span class="gmr-chip accent">' + doc.estimatedMinutes + ' min</span>');
     chips.push('<span class="gmr-chip">' + PAGES.length + ' pages</span>');
-    chips.push('<span class="gmr-chip">Pass mark ' + (doc.passMarkPercent || 80) + '%</span>');
+    chips.push(hasAssessment ? '<span class="gmr-chip">Pass mark ' + (doc.passMarkPercent || 80) + '%</span>' : '<span class="gmr-chip">Information session</span>');
     return '<div class="gmr-cmeta">' + chips.join('') + '</div>';
   }
   function drawPage() {
@@ -1359,11 +1361,15 @@ function renderModuleLesson(pane, course, lesson, lp) {
   function renderRail() {
     railEl.innerHTML = '';
     PAGES.forEach((p, i) => {
-      const seg = document.createElement('span');
-      seg.className = 'gmr-seg' + (i < state.page && pageSatisfied(i) ? ' done' : '') + (i === state.page ? ' cur' : '');
-      seg.title = i === 0 ? 'Start' : (p.title || ('Page ' + i));
-      seg.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
-      railEl.appendChild(seg);
+      const done = i < state.page && pageSatisfied(i), cur = i === state.page;
+      const step = document.createElement('button');
+      step.type = 'button';
+      step.className = 'gmr-step' + (done ? ' done' : '') + (cur ? ' cur' : '');
+      step.title = i === 0 ? 'Start' : (p.title || ('Page ' + i));
+      step.setAttribute('aria-label', step.title);
+      step.innerHTML = '<span>' + (done ? '✓' : (i + 1)) + '</span>';
+      step.onclick = () => { if (noGate || i <= state.max) { state.page = i; render(); } };
+      railEl.appendChild(step);
     });
   }
   function render() { drawPage(); refreshGate(); renderRail(); try { pane.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ } }
@@ -3916,12 +3922,13 @@ async function viewCourseAdmin(flash) {
         <label>Module JSON <span class="meta">(getmatchready.module/v1)</span>
           <textarea name="moduleDoc" id="moduleDoc" spellcheck="false" style="width:100%;min-height:320px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.45;white-space:pre;overflow:auto" placeholder="Paste the block module JSON here, or load the sample to start.">${docJson ? esc(docJson) : ''}</textarea>
         </label>
-        <div class="form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
-          <button type="button" class="btn btn-ghost btn-sm" id="moduleSample">Load sample module</button>
+        <div class="form-row" style="align-items:center;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost btn-sm module-sample" data-url="/samples/card-mechanics.module.json">Load full-course template</button>
+          <button type="button" class="btn btn-ghost btn-sm module-sample" data-url="/samples/ar-flag-mechanics-tenttalk.module.json">Load Tent Talk template</button>
           <button type="button" class="btn btn-ghost btn-sm" id="moduleValidate">Check JSON</button>
           <span id="moduleStatus" class="meta"></span>
         </div>
-        <p class="form-hint">An <strong>interactive block module</strong> — pages of narration, carousels, accordions, knowledge checks, a branching scenario and a scored assessment, authored as JSON and played by the built-in block player (the same renderer OMG saw in the demo). Each knowledge check keeps its answer locked until the learner submits, and a page’s <em>Next</em> stays off until its required blocks are done. Click <strong>Load sample module</strong> for a complete, editable example, or paste JSON the AI course builder produced.</p>`;
+        <p class="form-hint">An <strong>interactive block module</strong> — pages of narration, carousels, accordions, illustrations, knowledge checks and a scored assessment, authored as JSON and played by the built-in block player (the same renderer OMG saw in the demo). Each knowledge check keeps its answer locked until the learner submits, and a page’s <em>Next</em> stays off until its required blocks are done. Two starting points: the <strong>full-course template</strong> (with a final assessment) or the <strong>Tent Talk template</strong> — a short, no-test information session for a tournament point of emphasis. Leave out the assessment block and the module becomes an information session automatically.</p>`;
     }
     if (type === 'text') {
       const sec = l && l.minSeconds != null ? Number(l.minSeconds) : 0;
@@ -3951,17 +3958,15 @@ async function viewCourseAdmin(flash) {
         qs.insertAdjacentHTML('beforeend', quizQ({ prompt: '', options: ['', ''], answer: 0 }, qs.children.length));
       });
       const modStatus = () => document.getElementById('moduleStatus');
-      const modSample = document.getElementById('moduleSample');
-      if (modSample) modSample.addEventListener('click', async () => {
+      document.querySelectorAll('.module-sample').forEach((btn) => btn.addEventListener('click', async () => {
         const st = modStatus(); st.textContent = 'Loading…';
         try {
-          const r = await fetch('/samples/card-mechanics.module.json', { headers: { Accept: 'application/json' } });
-          if (!r.ok) throw new Error('Sample not available');
-          const text = await r.text();
-          document.getElementById('moduleDoc').value = text;
-          st.textContent = 'Sample loaded — edit freely, then Save.'; st.style.color = 'var(--success-dark)';
+          const r = await fetch(btn.dataset.url, { headers: { Accept: 'application/json' } });
+          if (!r.ok) throw new Error('Template not available');
+          document.getElementById('moduleDoc').value = await r.text();
+          st.textContent = 'Template loaded — edit freely, then Save.'; st.style.color = 'var(--success-dark)';
         } catch (e) { st.textContent = e.message; st.style.color = 'var(--danger)'; }
-      });
+      }));
       const modValidate = document.getElementById('moduleValidate');
       if (modValidate) modValidate.addEventListener('click', () => {
         const st = modStatus();

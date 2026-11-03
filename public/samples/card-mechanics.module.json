@@ -87,16 +87,19 @@
           "slides": [
             {
               "title": "A foul is not a card.",
+              "graphic": "free-kick",
               "imageBrief": "Referee awarding a free kick, no card in hand.",
               "body": "You will call fifteen to thirty fouls in a typical youth match. Most end with a free kick and nothing else. Reaching for a card on a foul that doesn't require one spends credibility you'll need later."
             },
             {
               "title": "The ball does not have to be in play.",
+              "graphic": "confrontation",
               "imageBrief": "Two players squaring up during a stoppage.",
               "body": "Dissent during a drinks break. A shove at a throw-in. An elbow off the ball while a corner is set. Each is misconduct, and each is cautionable or worse — even though play had stopped."
             },
             {
               "title": "It is not only the eleven on the field.",
+              "graphic": "bench",
               "imageBrief": "Substitutes on the bench.",
               "body": "Substitutes and substituted players are subject to the same offences. A substitute who dissents from the bench is cautioned exactly as a player on the field would be."
             }
@@ -394,6 +397,7 @@
         {
           "type": "scenario",
           "id": "sc4",
+          "graphic": "confrontation",
           "imageBrief": "Referee walking in on a group of players in front of the technical area.",
           "lines": [
             "Second half. U16 boys. The score is 1–1 and the home bench has been loud for twenty minutes.",
@@ -409,6 +413,7 @@
           "slides": [
             {
               "title": "1. Stop play and signal the restart first.",
+              "graphic": "free-kick",
               "body": "Blow, then signal the restart. The players need to know play is dead. Pointing the direction first also buys you three seconds to think."
             },
             {
@@ -421,6 +426,7 @@
             },
             {
               "title": "4. Identify and isolate the player.",
+              "graphic": "card-group",
               "body": "Confirm the number and the face. Move the player two or three steps clear of the group."
             },
             {
@@ -429,6 +435,7 @@
             },
             {
               "title": "6. Show the card high and still.",
+              "graphic": "card-high",
               "body": "Eye contact first. Then the card goes up above your head height, held still for a full second. Vertical and still. Never pointed, never waved."
             },
             {
@@ -444,6 +451,7 @@
           "options": [
             {
               "id": "a",
+              "graphic": "card-low",
               "imageBrief": "Card at waist height, referee already walking away.",
               "optionFallbackText": "Card at waist height, referee already walking away, player behind him",
               "correct": false,
@@ -451,6 +459,7 @@
             },
             {
               "id": "b",
+              "graphic": "card-high",
               "imageBrief": "Card held high and still, square to an isolated player, benches behind.",
               "optionFallbackText": "Card held high and still, square to an isolated player, benches visible behind",
               "correct": true,
@@ -458,6 +467,7 @@
             },
             {
               "id": "c",
+              "graphic": "card-face",
               "imageBrief": "Card pointed into the player's face.",
               "optionFallbackText": "Card pointed into the player's face at close range",
               "correct": false,
@@ -465,6 +475,7 @@
             },
             {
               "id": "d",
+              "graphic": "card-group",
               "imageBrief": "Card held up inside a group of six.",
               "optionFallbackText": "Card held up inside a group of six players",
               "correct": false,
@@ -691,6 +702,7 @@
         {
           "type": "checklist",
           "id": "ck6",
+          "heading": "Record every card with:",
           "items": [
             "Time on the clock",
             "Player's number and team",
