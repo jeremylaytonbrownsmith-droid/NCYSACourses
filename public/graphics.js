@@ -11,12 +11,21 @@
   function wrap(inner) { return '<svg ' + NS + '>' + turf + inner + '</svg>'; }
   // a simple referee figure at (x). Head + torso (dark kit). armsInner is extra SVG.
   function ref(x, armsInner) {
-    return '<g stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">'
-      + '<circle cx="' + x + '" cy="40" r="9" fill="var(--ink)"/>'
-      + '<path d="M' + x + ' 49 L' + x + ' 86" fill="none"/>'                      // spine
-      + '<path d="M' + (x - 13) + ' 110 L' + x + ' 86 L' + (x + 13) + ' 110" fill="none"/>' // legs
+    // Solid filled silhouette (IFAB Laws-of-the-Game style): chunky round-capped
+    // limbs + a filled torso and head read as a real figure, not a thin stick.
+    return '<g stroke="var(--ink)" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" fill="none">'
+      + '<circle cx="' + x + '" cy="29" r="12" fill="var(--ink)" stroke="none"/>'                 // head
+      + '<path d="M' + x + ' 44 L' + x + ' 74" stroke-width="20"/>'                                // torso (wide)
+      + '<path d="M' + x + ' 74 L' + (x - 12) + ' 105"/>'                                          // left leg
+      + '<path d="M' + x + ' 74 L' + (x + 12) + ' 105"/>'                                          // right leg
       + (armsInner || '')
       + '</g>';
+  }
+  // filled head + trunk at (cx) with its head centered at headY — for extra figures
+  function body(cx, headY, color) {
+    color = color || 'var(--ink)';
+    return '<circle cx="' + cx + '" cy="' + headY + '" r="11" fill="' + color + '" stroke="none"/>'
+      + '<path d="M' + cx + ' ' + (headY + 13) + ' L' + cx + ' ' + (headY + 42) + '" stroke="' + color + '" stroke-width="19" stroke-linecap="round" fill="none"/>';
   }
   // a flag (pole from px,py at angle deg, length L) — red/gold AR check
   function flag(px, py, deg, L) {
@@ -64,7 +73,7 @@
       + '<text x="120" y="128" text-anchor="middle" font-size="0" fill="transparent">low</text>'),
     // Card pushed into a player's face — too aggressive.
     'card-face': wrap(ref(74, '<path d="M74 56 L104 46" fill="none"/>') + card(104, 34, 22, 28, 'yellow', 0)
-      + '<circle cx="150" cy="44" r="10" fill="none" stroke="var(--ink)" stroke-width="3"/><path d="M150 54 L150 86 M137 108 L150 86 L163 108" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/>'),
+      + body(152, 40, 'var(--ink-soft)') + '<path d="M152 82 L142 106 M152 82 L162 106" stroke="var(--ink-soft)" stroke-width="8.5" fill="none" stroke-linecap="round"/>'),
     // Card shown inside a cluster of players — no isolation.
     'card-group': wrap('<g stroke="var(--ink)" stroke-width="2.6" fill="none">'
       + '<circle cx="70" cy="58" r="8"/><circle cx="104" cy="52" r="8"/><circle cx="92" cy="74" r="8"/><circle cx="130" cy="66" r="8"/><circle cx="150" cy="50" r="8"/></g>'
@@ -84,20 +93,22 @@
       + '<line x1="78" y1="56" x2="162" y2="56" stroke="var(--brand)" stroke-width="2.4" stroke-dasharray="5 5"/>'
       + '<g transform="translate(120,56)"><path d="M-14 0 q14 -12 28 0 q-14 12 -28 0z" fill="none" stroke="var(--brand)" stroke-width="2.6"/><circle cx="0" cy="0" r="4" fill="var(--brand)"/></g>'),
     // Two players squaring up — confrontation during a stoppage.
-    'confrontation': wrap('<g stroke="var(--ink)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round">'
-      + '<circle cx="86" cy="42" r="9" fill="var(--ink)"/><path d="M86 51 L86 84 M74 104 L86 84 L98 104 M86 62 L108 56"/>'
-      + '<circle cx="154" cy="42" r="9" fill="var(--ink)"/><path d="M154 51 L154 84 M142 104 L154 84 L166 104 M154 62 L132 56"/></g>'
-      + '<path d="M116 46 l8 -6 M124 46 l-8 -6" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>'),
+    'confrontation': wrap(body(88, 32) + body(152, 32)
+      + '<g stroke="var(--ink)" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M88 74 L78 104 M88 74 L98 104 M90 52 L114 60"/>'
+      + '<path d="M152 74 L142 104 M152 74 L162 104 M150 52 L126 60"/></g>'
+      + '<path d="M116 42 l9 -8 M125 42 l-9 -8" stroke="var(--accent)" stroke-width="3.6" stroke-linecap="round"/>'),
     // Substitutes on the bench.
     'bench': wrap('<rect x="56" y="78" width="128" height="10" rx="3" fill="var(--ink-soft)"/>'
       + '<line x1="66" y1="88" x2="66" y2="104" stroke="var(--ink-soft)" stroke-width="5"/><line x1="174" y1="88" x2="174" y2="104" stroke="var(--ink-soft)" stroke-width="5"/>'
       + '<g stroke="var(--ink)" stroke-width="3" fill="var(--ink)"><circle cx="86" cy="58" r="8"/><circle cx="120" cy="58" r="8"/><circle cx="154" cy="58" r="8"/></g>'
       + '<g stroke="var(--ink)" stroke-width="3" fill="none"><path d="M86 66 L86 78 M120 66 L120 78 M154 66 L154 78"/></g>'),
     // A side-on challenge for the ball.
-    'challenge-side': wrap('<g stroke="var(--ink)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round">'
-      + '<circle cx="80" cy="40" r="9" fill="var(--ink)"/><path d="M80 49 L80 80 L62 100 M80 80 L100 92 M80 60 L62 54"/>'
-      + '<circle cx="156" cy="40" r="9" fill="var(--ink)"/><path d="M156 49 L150 80 L168 100 M150 80 L128 96 M156 60 L174 54"/></g>'
-      + '<circle cx="118" cy="104" r="8" fill="none" stroke="var(--ink)" stroke-width="2.4"/><path d="M112 104 h12 M118 98 v12" stroke="var(--ink)" stroke-width="1.6"/>'),
+    'challenge-side': wrap(body(76, 34) + body(160, 34)
+      + '<g stroke="var(--ink)" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M76 78 L64 102 M76 78 L104 92 M78 54 L60 60"/>'
+      + '<path d="M160 78 L172 102 M160 78 L132 92 M158 54 L176 60"/></g>'
+      + '<circle cx="118" cy="98" r="9" fill="#fff" stroke="var(--ink)" stroke-width="2.6"/><path d="M111 98 h14 M118 91 v14" stroke="var(--ink)" stroke-width="1.5"/>'),
     // Field position: AR on the touchline, referee on the diagonal.
     'field-position': wrap('<rect x="40" y="18" width="160" height="104" rx="4" fill="none" stroke="rgba(46,175,109,.55)" stroke-width="2"/>'
       + '<line x1="120" y1="18" x2="120" y2="122" stroke="rgba(46,175,109,.55)" stroke-width="2"/><circle cx="120" cy="70" r="16" fill="none" stroke="rgba(46,175,109,.55)" stroke-width="2"/>'
