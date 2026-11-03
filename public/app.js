@@ -3158,38 +3158,23 @@ async function viewCourseAdmin(flash) {
   const full = await Promise.all(courses.map((c) => api(`/api/admin/courses/${c.id}`).then((r) => r.course).catch(() => null)));
   const list = full.filter(Boolean);
 
-  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module' };
-  app.innerHTML = `
-    <div class="admin-wrap">
-      <div class="admin-head">
-        <div>
-          <a class="back-link" href="${isAdmin ? '#/admin' : '#/'}">← ${isAdmin ? 'Dashboard' : 'Home'}</a>
-          <h1>${isAdmin ? 'Manage courses' : 'Course Designer'}</h1>
-          ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
-        </div>
-        <div class="admin-head-actions">
-          <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
-          <button class="btn btn-ghost" id="storageBtn">Module storage</button>
-          <button class="btn btn-ai" id="aiBuildBtn">✨ Build with AI</button>
-          <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
-          <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
-        </div>
-      </div>
-      <div id="editorMsg" class="editor-msg"></div>
-      <div id="newCoursePanel"></div>
-      ${list.length > 4 ? `<div class="course-toolbar">
-        <input id="courseSearch" type="search" placeholder="Search courses…" aria-label="Search courses" />
-        <div class="course-filters" id="courseFilters">
-          <button type="button" class="cf on" data-f="all">All</button>
-          <button type="button" class="cf" data-f="draft">Drafts</button>
-          <button type="button" class="cf" data-f="live">Live</button>
-          ${[...new Set(list.map((c) => c.orgId || 'ncysa'))].map((o) => `<button type="button" class="cf" data-f="org:${esc(o)}">${esc(o.toUpperCase())}</button>`).join('')}
-          <button type="button" class="cf" data-f="ai">✨ AI-made</button>
-        </div>
-        <span class="course-count" id="courseCount"></span>
-      </div>` : ''}
-      <div class="course-admin-list">
-        ${list.map((c) => `
+  const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', module: 'Interactive', slides: 'Slides' };
+
+  // Organize by portal (org), drafts first within each, so the Course Designer
+  // isn't one long list mixing every portal and status together.
+  const ORG_NAMES = { ncysa: 'NCYSA', ncsra: 'NCSRA', omg: 'OMG' };
+  const ORG_SUB = { ncysa: 'Coaches', ncsra: 'Referees', omg: 'Officials Management Group' };
+  const ORG_ORDER = ['ncysa', 'ncsra', 'omg'];
+  const byOrg = {};
+  list.forEach((c) => { const o = c.orgId || 'ncysa'; (byOrg[o] || (byOrg[o] = [])).push(c); });
+  const orgKeys = Object.keys(byOrg).sort((a, b) => {
+    const ia = ORG_ORDER.indexOf(a), ib = ORG_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+  orgKeys.forEach((o) => byOrg[o].sort((a, b) => (a.published === false ? 0 : 1) - (b.published === false ? 0 : 1)));
+  const grouped = orgKeys.length > 1;
+
+  const cardHtml = (c) => `
           <div class="admin-card course-admin" data-course="${c.id}" data-title="${esc(((c.title || '') + ' ' + (c.tagline || '') + ' ' + (c.coBrandName || '')).toLowerCase())}" data-org="${esc(c.orgId || 'ncysa')}" data-status="${c.published === false ? 'draft' : 'live'}" data-ai="${c.generatedByAi ? '1' : '0'}">
             <div class="course-admin-head">
               <div>
@@ -3234,12 +3219,74 @@ async function viewCourseAdmin(flash) {
                 </li>`).join('') || '<li class="empty">No lessons yet — click “Add lesson”.</li>'}
             </ol>
             <div class="panel-slot" data-course="${c.id}"></div>
-          </div>`).join('')}
+          </div>`;
+
+  app.innerHTML = `
+    <div class="admin-wrap">
+      <div class="admin-head">
+        <div>
+          <a class="back-link" href="${isAdmin ? '#/admin' : '#/'}">← ${isAdmin ? 'Dashboard' : 'Home'}</a>
+          <h1>${isAdmin ? 'Manage courses' : 'Course Designer'}</h1>
+          ${isAdmin ? '' : '<p class="lead" style="color:var(--ink-soft);margin:0">Build and edit courses for coaches, referees, staff, or everyone.</p>'}
+        </div>
+        <div class="admin-head-actions">
+          <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
+          <button class="btn btn-ghost" id="storageBtn">Module storage</button>
+          <button class="btn btn-ai" id="aiBuildBtn">✨ Build with AI</button>
+          <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
+          <button class="btn btn-accent" id="newCourseBtn">＋ New course</button>
+        </div>
       </div>
+      <div id="editorMsg" class="editor-msg"></div>
+      <div id="newCoursePanel"></div>
+      ${list.length > 4 ? `<div class="course-toolbar">
+        <input id="courseSearch" type="search" placeholder="Search courses…" aria-label="Search courses" />
+        <div class="course-filters" id="courseFilters">
+          <button type="button" class="cf on" data-f="all">All</button>
+          <button type="button" class="cf" data-f="draft">Drafts</button>
+          <button type="button" class="cf" data-f="live">Live</button>
+          ${[...new Set(list.map((c) => c.orgId || 'ncysa'))].map((o) => `<button type="button" class="cf" data-f="org:${esc(o)}">${esc(o.toUpperCase())}</button>`).join('')}
+          <button type="button" class="cf" data-f="ai">✨ AI-made</button>
+        </div>
+        <span class="course-count" id="courseCount"></span>
+      </div>` : ''}
+      ${grouped
+        ? orgKeys.map((o) => {
+          const arr = byOrg[o], drafts = arr.filter((c) => c.published === false).length;
+          return `<section class="course-group" data-org="${esc(o)}">
+            <button type="button" class="course-group-head" data-org="${esc(o)}" aria-expanded="true">
+              <span class="cg-caret">▾</span>
+              <span class="cg-name">${esc(ORG_NAMES[o] || o.toUpperCase())}</span>
+              ${ORG_SUB[o] ? `<span class="cg-sub">${esc(ORG_SUB[o])}</span>` : ''}
+              <span class="cg-count" data-total="${arr.length}">${arr.length} course${arr.length === 1 ? '' : 's'}${drafts ? ` · ${drafts} draft${drafts === 1 ? '' : 's'}` : ''}</span>
+            </button>
+            <div class="course-admin-list cg-body">${arr.map(cardHtml).join('')}</div>
+          </section>`;
+        }).join('')
+        : `<div class="course-admin-list">${list.map(cardHtml).join('')}</div>`}
     </div>`;
 
   const msg = (t, err) => { const e = document.getElementById('editorMsg'); e.textContent = t; e.className = 'editor-msg' + (err ? ' err' : ' ok'); };
   if (typeof flash === 'string' && flash) msg(flash); // survive re-render after a save
+
+  // Portal groups: collapse/expand (remembered), and hide a group when a search or
+  // filter leaves it empty.
+  const syncGroups = () => {
+    document.querySelectorAll('.course-group').forEach((sec) => {
+      const cs = sec.querySelectorAll('.course-admin');
+      let vis = 0; cs.forEach((c) => { if (!c.hidden) vis++; });
+      sec.hidden = vis === 0;
+    });
+  };
+  document.querySelectorAll('.course-group-head').forEach((h) => {
+    const key = 'gmrcg:' + h.dataset.org, sec = h.closest('.course-group');
+    try { if (localStorage.getItem(key) === '1') { sec.classList.add('collapsed'); h.setAttribute('aria-expanded', 'false'); } } catch (e) { /* ignore */ }
+    h.addEventListener('click', () => {
+      const c = sec.classList.toggle('collapsed');
+      h.setAttribute('aria-expanded', c ? 'false' : 'true');
+      try { localStorage.setItem(key, c ? '1' : '0'); } catch (e) { /* ignore */ }
+    });
+  });
 
   // Course list search + filter (rendered only when there are several courses).
   const courseSearch = document.getElementById('courseSearch');
@@ -3260,6 +3307,7 @@ async function viewCourseAdmin(flash) {
         card.hidden = !ok; if (ok) shown++;
       });
       if (courseCount) courseCount.textContent = (shown === cards.length ? `${cards.length}` : `${shown} of ${cards.length}`) + ` course${cards.length === 1 ? '' : 's'}`;
+      syncGroups();
     };
     courseSearch && courseSearch.addEventListener('input', applyFilter);
     document.querySelectorAll('#courseFilters .cf').forEach((b) => b.addEventListener('click', () => {

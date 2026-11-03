@@ -1534,3 +1534,15 @@ body.pseudo-fs-lock { overflow: hidden; }
 .cf:hover { border-color: var(--ink-soft); color: var(--ink); }
 .cf.on { background: var(--brand); color: #fff; border-color: var(--brand); }
 .course-count { margin-left: auto; font-size: .8rem; color: var(--ink-soft); font-weight: 600; }
+
+/* portal groups in the Course Designer */
+.course-group { margin: 0 0 20px; }
+.course-group-head { width: 100%; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; cursor: pointer; text-align: left; font: inherit; }
+.course-group-head:hover { border-color: var(--ink-soft); }
+.cg-caret { color: var(--ink-soft); font-size: .8rem; transition: transform .2s; }
+.course-group.collapsed .cg-caret { transform: rotate(-90deg); }
+.course-group.collapsed .cg-body { display: none; }
+.cg-name { font-weight: 800; font-size: 1.02rem; color: var(--ink); }
+.cg-sub { color: var(--ink-soft); font-size: .84rem; }
+.cg-count { margin-left: auto; color: var(--ink-soft); font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.course-group .cg-body { margin-top: 12px; }
