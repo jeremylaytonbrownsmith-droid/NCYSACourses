@@ -51,11 +51,18 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
     serializing to the same module doc. The textarea remains available as "advanced / paste JSON".
   - Done when: a module can be built end-to-end from the UI without touching JSON; smoke test added.
 
-- [ ] **Real images in module blocks.**
-  Carousel, scenario, and imageSelect show a "Visual" placeholder describing the intended image.
-  - Scope: let those blocks carry an uploaded image URL (reuse the existing image upload endpoint); the player shows
-    the image and falls back to the brief when absent. `lib/moduledoc.js` whitelists an `image` field; `public/app.js` renders it.
-  - Done when: a slide with an image shows it; one without still shows the brief; test added.
+- [ ] **Photo / uploaded images in module blocks.**
+  Blocks now draw a built-in SVG illustration via `graphic: "<key>"`, falling back to a captioned frame. The remaining
+  gap is real photos.
+  - Scope: let carousel/scenario/imageSelect also carry an uploaded image URL (reuse the existing image upload endpoint);
+    precedence = uploaded image, then `graphic`, then the captioned brief. `lib/moduledoc.js` whitelists an `image` field;
+    `public/app.js` + the demo player render it.
+  - Done when: a slide with an uploaded image shows it; one with only a `graphic` still draws the SVG; test added.
+
+- [ ] **Grow the illustration library and add an in-editor picker.**
+  - Scope: add more `public/graphics.js` keys (offside, penalty, throw-in, corner, advantage signal, substitution) and a
+    small picker in the module editor so an author can see and choose a graphic by key instead of typing it.
+  - Done when: new keys render in both themes and the picker inserts the chosen key; preview checked.
 
 - [ ] **Real video in `videoDecision` blocks.**
   Today it always renders the described-scene fallback.
@@ -86,3 +93,9 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
   sample at `public/samples/card-mechanics.module.json`, tests in `tests/module-lesson.spec.js`.
 - [x] **OMG demo branding + font.** Solid white GetMatchReady wordmark (no off-brand yellow) and clean Public Sans
   in the standalone demo player.
+- [x] **Drawn illustrations.** Shared `public/graphics.js` SVG library (card height, flag angles, field position, free
+  kick, confrontation, bench, whistle) replaces the blank "Visual" placeholder; blocks reference one with `graphic`.
+- [x] **Step-circle progress.** The module rail is now numbered step circles (done/current/upcoming) with a connector.
+- [x] **Tent Talk / information-session format.** A module with no assessment reads as an info session (no pass mark,
+  completion on read-through + acknowledgment). Shipped the AR-flag-mechanics Tent Talk template and a second
+  "Load template" button in the Course Designer.
