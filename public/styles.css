@@ -1459,3 +1459,8 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 @keyframes celeb-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes celeb-pop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .celebrate-overlay, .celebrate-card { animation: none; } }
+
+/* AI Studio — upload a document to build from */
+.ai-upload { border: 1.5px dashed var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; background: var(--bg); }
+.ai-uplabel { font-weight: 700; font-size: .88rem; cursor: pointer; }
+.ai-upload input[type=file] { font: inherit; font-size: .86rem; }

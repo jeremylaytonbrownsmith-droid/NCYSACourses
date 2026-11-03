@@ -3300,6 +3300,50 @@ async function viewCourseAdmin(flash) {
     } catch (err) { msg(err.message, true); }
   }));
 
+  // Load a CDN script once, on demand (for pdf.js / JSZip used by document upload).
+  function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+      if (Array.prototype.some.call(document.scripts, (s) => s.src === src)) return resolve();
+      const s = document.createElement('script');
+      s.src = src; s.onload = () => resolve(); s.onerror = () => reject(new Error('Could not load a required helper. Check your connection and try again.'));
+      document.head.appendChild(s);
+    });
+  }
+  // Pull plain text out of an uploaded PDF / Word .docx / text file, entirely in
+  // the browser (the server has no document parser). Scanned/image-only PDFs have
+  // no extractable text and are reported as such.
+  async function extractFileText(file) {
+    const name = (file.name || '').toLowerCase();
+    if (/\.(txt|md|csv|html?|json|rtf)$/.test(name) || /^text\//.test(file.type)) {
+      return await file.text();
+    }
+    if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+      const lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+      if (!lib) throw new Error('The PDF reader did not load. Try again.');
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const out = []; const pages = Math.min(pdf.numPages, 120);
+      for (let i = 1; i <= pages; i++) {
+        const tc = await (await pdf.getPage(i)).getTextContent();
+        out.push(tc.items.map((it) => it.str).join(' '));
+      }
+      return out.join('\n\n');
+    }
+    if (name.endsWith('.docx')) {
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+      if (!window.JSZip) throw new Error('The document reader did not load. Try again.');
+      const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+      const entry = zip.file('word/document.xml');
+      if (!entry) throw new Error('That doesn’t look like a valid Word document.');
+      const xml = await entry.async('string');
+      return xml.replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    }
+    if (name.endsWith('.doc')) throw new Error('Old .doc files aren’t supported — save it as a PDF or .docx and upload that.');
+    return await file.text();
+  }
+
   function aiBuildPanel() {
     return `<div class="ai-studio">
       <div class="ai-hero">
@@ -3322,9 +3366,14 @@ async function viewCourseAdmin(flash) {
         <label>Topic / instructions
           <input name="topic" placeholder="e.g. Heading safety guidelines for U12 coaches" />
         </label>
-        <label>Source material <span style="font-weight:400;color:var(--ink-soft)">(optional — paste text to build from)</span>
+        <label>Source material <span style="font-weight:400;color:var(--ink-soft)">(optional — paste text, or upload a file below)</span>
           <textarea name="sourceText" placeholder="Paste the document, guidelines, or notes the course should be based on. Leave blank to build from the topic alone."></textarea>
         </label>
+        <div class="ai-upload">
+          <label class="ai-uplabel" for="aiDocFile">📄 Upload a document to build from <span style="font-weight:400;color:var(--ink-soft)">(PDF, Word .docx, or text — the AI reads it)</span></label>
+          <input type="file" id="aiDocFile" accept=".pdf,.docx,.txt,.md,.csv,.html,.htm,application/pdf,text/plain" />
+          <span id="aiDocStatus" class="ai-note"></span>
+        </div>
         <label>Video links <span style="font-weight:400;color:var(--ink-soft)">(optional — YouTube or Vimeo, one per line)</span>
           <textarea name="videoUrls" style="min-height:70px" placeholder="https://www.youtube.com/watch?v=...&#10;https://vimeo.com/..."></textarea>
         </label>
@@ -3391,6 +3440,28 @@ async function viewCourseAdmin(flash) {
     };
     form.querySelectorAll('[name=lessonFormat]').forEach((r) => r.addEventListener('change', syncFormat));
     syncFormat();
+    // Document upload: read a PDF/Word/text file in the browser and drop its text
+    // into the Source material field, which is what gets sent to the AI.
+    const docFile = document.getElementById('aiDocFile');
+    docFile?.addEventListener('change', async () => {
+      const f = docFile.files && docFile.files[0];
+      const st = document.getElementById('aiDocStatus');
+      if (!f) return;
+      if (f.size > 25 * 1024 * 1024) { st.textContent = 'That file is over 25 MB — try a smaller one or paste the key sections.'; st.style.color = 'var(--danger)'; docFile.value = ''; return; }
+      st.textContent = `Reading ${f.name}…`; st.style.color = '';
+      try {
+        let text = (await extractFileText(f) || '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (!text) throw new Error('No readable text found — if this PDF is a scan/photo, paste the text instead.');
+        if (text.length > 60000) text = text.slice(0, 60000);
+        const ta = form.querySelector('[name=sourceText]');
+        ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + text;
+        const words = text.split(/\s+/).filter(Boolean).length;
+        st.textContent = `Added ${words.toLocaleString()} words from ${f.name} to the source material above. Edit it if you like, then Generate.`;
+        st.style.color = 'var(--success-dark)';
+      } catch (e) {
+        st.textContent = e.message || 'Could not read that file.'; st.style.color = 'var(--danger)';
+      } finally { docFile.value = ''; }
+    });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(form);
