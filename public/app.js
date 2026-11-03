@@ -2409,9 +2409,9 @@ async function viewAdmin() {
   platformLogos = computePlatformLogos(d.courses);
   renderNav();
   app.innerHTML = `
-    <div class="admin-wrap">
+    <div class="admin-wrap dash">
       <div class="admin-head">
-        <h1>Dashboard</h1>
+        <div><h1>Dashboard</h1><p class="dash-sub">Live training operations across your organizations.</p></div>
         <div class="admin-head-actions">
           <a class="btn btn-ghost" href="#/staff-training">Staff Training</a>
           <a class="btn btn-primary" href="#/admin/courses">Manage courses</a>
