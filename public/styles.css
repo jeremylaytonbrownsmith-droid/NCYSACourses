@@ -1103,42 +1103,46 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .stat-tile.ok { border-top: 3px solid #109e73; }
 .stat-tile.prog { border-top: 3px solid #6366f1; }
 
-/* ---- Dashboard theme ("less white, more informative") --------------------
-   The main admin dashboard (#/admin) becomes a dark, branded ops-canvas: the
-   data cards stay bright so they pop, the stat tiles turn glassy, and the whole
-   thing reads like a live operations board instead of a white page. Scoped to
-   .admin-wrap.dash, so every other admin view is untouched. */
+/* ---- Dashboard theme: light, colorful, interactive ------------------------
+   A soft tinted canvas (not a white page, not a dark slab). The color comes
+   from the data — interactive KPI cards with this-week deltas and 14-day
+   sparklines, and rows/cards that respond to hover. Scoped to .admin-wrap.dash
+   so every other admin view is untouched. */
 .admin-wrap.dash {
-  background:
-    radial-gradient(1100px 380px at 18% -12%, rgba(124,99,255,.45) 0%, transparent 60%),
-    radial-gradient(900px 360px at 100% 0%, rgba(56,43,160,.5) 0%, transparent 55%),
-    linear-gradient(160deg, #0a0340 0%, #140a54 52%, #1b1060 100%);
-  border-radius: 24px;
-  padding: 30px 28px 36px;
-  margin-top: 28px;
-  box-shadow: 0 24px 70px rgba(10,3,64,.3);
-  color: #e9ebff;
+  background: linear-gradient(180deg, #f3f5fe 0%, #edf0fb 100%);
+  border: 1px solid #e4e8f6; border-radius: 22px;
+  padding: 26px 26px 32px; margin-top: 24px;
+  box-shadow: 0 10px 40px rgba(30,41,90,.07);
 }
-.admin-wrap.dash .admin-head h1 { color: #fff; }
-.dash-sub { margin: 4px 0 0; color: #b7bdf0; font-size: .92rem; font-weight: 500; }
-.admin-wrap.dash .admin-head .btn-ghost { color: #d6d9ff; border-color: rgba(255,255,255,.35); background: transparent; }
-.admin-wrap.dash .admin-head .btn-ghost:hover { background: rgba(255,255,255,.14); color: #fff; }
-.admin-wrap.dash .admin-head .btn-primary { background: #fff; color: var(--brand-dark); }
-.admin-wrap.dash .admin-head .btn-primary:hover { background: #e7e9ff; }
-/* Glassy stat tiles on the dark canvas — minimal white, more signal. */
-.admin-wrap.dash .stat-tile {
-  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
-  box-shadow: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  padding: 18px 20px; border-radius: 16px;
+.admin-wrap.dash .admin-head h1 { color: var(--ink); }
+.dash-sub { margin: 4px 0 0; color: var(--ink-soft); font-size: .92rem; font-weight: 500; }
+.admin-wrap.dash .admin-card { box-shadow: 0 8px 28px rgba(30,41,90,.08); }
+
+/* Interactive KPI cards */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 4px 0 20px; }
+@media (max-width: 880px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 460px) { .kpis { grid-template-columns: 1fr; } }
+.kpi {
+  text-align: left; background: #fff; border: 1px solid #e6e9f4; border-left: 4px solid var(--kc, #4f46e5);
+  border-radius: 14px; padding: 15px 16px 11px; box-shadow: 0 2px 6px rgba(30,41,90,.05);
+  cursor: pointer; font: inherit; display: block; position: relative; overflow: hidden;
+  transition: transform .13s ease, box-shadow .13s ease, border-color .13s ease;
 }
-.admin-wrap.dash .stat-tile .st-num { color: #fff; font-size: 2.2rem; }
-.admin-wrap.dash .stat-tile .st-lbl { color: #b7bdf0; }
-.admin-wrap.dash .stat-tile.ok { border-top: 3px solid #34d399; }
-.admin-wrap.dash .stat-tile.prog { border-top: 3px solid #818cf8; }
-/* Bright, lifted data cards so the numbers read cleanly against the dark board. */
-.admin-wrap.dash .admin-card { color: var(--ink); box-shadow: 0 16px 48px rgba(0,0,0,.34); border: 1px solid rgba(255,255,255,.06); }
-.admin-wrap.dash .admin-card h2 { color: var(--ink); }
-.admin-wrap.dash .live-banner { color: #6ee7a8; }
+.kpi:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(30,41,90,.15); }
+.kpi:focus-visible { outline: 3px solid var(--kc, #4f46e5); outline-offset: 2px; }
+.kpi.active { box-shadow: 0 0 0 2px var(--kc, #4f46e5), 0 12px 30px rgba(30,41,90,.15); }
+.kpi-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.kpi-l { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+.kpi-n { font-size: 2.05rem; font-weight: 800; line-height: 1.05; color: var(--ink); font-variant-numeric: tabular-nums; margin: 7px 0 2px; }
+.kpi-d { font-size: .68rem; font-weight: 700; padding: 3px 8px; border-radius: 99px; white-space: nowrap; flex: 0 0 auto; }
+.kpi-d.up { background: #e7f6ee; color: #0f7b4f; }
+.kpi-d.flat { background: #eef0f6; color: #8a90a2; }
+.spark { display: block; width: 100%; height: 34px; margin-top: 4px; }
+.kpi-bar { height: 9px; background: #edeff6; border-radius: 99px; overflow: hidden; margin-top: 15px; }
+.kpi-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, #4f46e5); border-radius: 99px; }
+/* Row hover on the records table */
+.admin-wrap.dash .admin-table tr:hover td { background: #f5f7ff; }
+.admin-wrap.dash .admin-table td { transition: background .1s; }
 
 .pbar { display: inline-block; vertical-align: middle; width: 70px; height: 7px; background: var(--line); border-radius: 99px; overflow: hidden; margin-right: 8px; }
 .pbar > span { display: block; height: 100%; background: linear-gradient(90deg,#6366f1,#7c3aed); border-radius: 99px; }

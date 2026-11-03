@@ -2268,6 +2268,37 @@ function rateBar(pct) {
   const color = pct >= 75 ? '#109e73' : pct >= 40 ? '#e9a626' : '#9aa0b4';
   return `<span class="rate-wrap"><span class="rate-track"><span style="width:${pct}%;background:${color}"></span></span><span class="rate-pct">${pct}%</span></span>`;
 }
+// Tiny inline area sparkline (no library) for a KPI card's 14-day trend.
+function sparkline(series, color) {
+  const w = 150, h = 36, n = series.length, max = Math.max(1, ...series);
+  const x = (i) => (n > 1 ? (i / (n - 1)) * w : 0);
+  const y = (v) => h - 3 - (v / max) * (h - 8);
+  const line = series.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const area = `${line} L ${w} ${h} L 0 ${h} Z`;
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">`
+    + `<path d="${area}" fill="${color}" opacity=".13"/>`
+    + `<path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+// KPI figures + 14-day daily series computed from the enrollment records, so the
+// top tiles show movement (this-week deltas, trend) instead of a static number.
+function dashMetrics(enr, learnerCount) {
+  const now = Date.now(), DAY = 86400000, WEEK = 7 * DAY;
+  const completed = enr.filter((e) => e.completedAt).length;
+  const inprog = enr.filter((e) => !e.completedAt).length;
+  const newWk = enr.filter((e) => e.startedAt && now - new Date(e.startedAt) <= WEEK).length;
+  const doneWk = enr.filter((e) => e.completedAt && now - new Date(e.completedAt) <= WEEK).length;
+  const rate = enr.length ? Math.round((completed / enr.length) * 100) : 0;
+  const days = 14, started = new Array(days).fill(0), finished = new Array(days).fill(0);
+  const idx = (iso) => days - 1 - Math.floor((now - new Date(iso).getTime()) / DAY);
+  enr.forEach((e) => {
+    if (e.startedAt) { const i = idx(e.startedAt); if (i >= 0 && i < days) started[i]++; }
+    if (e.completedAt) { const i = idx(e.completedAt); if (i >= 0 && i < days) finished[i]++; }
+  });
+  return { learnerCount, completed, inprog, newWk, doneWk, rate, sStarted: started, sDone: finished };
+}
+function kpiDelta(n, noun) {
+  return n > 0 ? `<span class="kpi-d up">▲ ${n} this week</span>` : `<span class="kpi-d flat">${noun}</span>`;
+}
 function analyticsCard(an) {
   return `<div class="admin-card">
     <h2>At a glance</h2>
@@ -2417,11 +2448,23 @@ async function viewAdmin() {
           <a class="btn btn-primary" href="#/admin/courses">Manage courses</a>
         </div>
       </div>
-      <div class="stat-tiles">
-        <div class="stat-tile"><div class="st-num">${d.learnerCount}</div><div class="st-lbl">Registered learner${d.learnerCount === 1 ? '' : 's'}</div></div>
-        <div class="stat-tile ok"><div class="st-num">${(d.enrollments || []).filter((e) => e.completedAt).length}</div><div class="st-lbl">Completed</div></div>
-        <div class="stat-tile prog"><div class="st-num">${(d.enrollments || []).filter((e) => !e.completedAt).length}</div><div class="st-lbl">In progress</div></div>
-      </div>
+      ${(() => {
+        const m = dashMetrics(d.enrollments || [], d.learnerCount);
+        return `<div class="kpis">
+          <button class="kpi" data-f="" style="--kc:#4f46e5">
+            <div class="kpi-h"><span class="kpi-l">Registered learners</span>${kpiDelta(m.newWk, 'this week')}</div>
+            <div class="kpi-n">${m.learnerCount}</div>${sparkline(m.sStarted, '#4f46e5')}</button>
+          <button class="kpi" data-f="done" style="--kc:#16a34a">
+            <div class="kpi-h"><span class="kpi-l">Completed</span>${kpiDelta(m.doneWk, 'this week')}</div>
+            <div class="kpi-n">${m.completed}</div>${sparkline(m.sDone, '#16a34a')}</button>
+          <button class="kpi" data-f="prog" style="--kc:#e0902b">
+            <div class="kpi-h"><span class="kpi-l">In progress</span>${kpiDelta(m.newWk, 'started')}</div>
+            <div class="kpi-n">${m.inprog}</div>${sparkline(m.sStarted, '#e0902b')}</button>
+          <button class="kpi" data-f="" style="--kc:#7c3aed">
+            <div class="kpi-h"><span class="kpi-l">Completion rate</span></div>
+            <div class="kpi-n">${m.rate}%</div><div class="kpi-bar"><span style="width:${m.rate}%"></span></div></button>
+        </div>`;
+      })()}
       <div class="admin-grid">
         ${analyticsCard(analytics)}
         <div class="admin-card">
@@ -2599,6 +2642,15 @@ async function viewAdmin() {
       els.from.addEventListener(ev, renderTable); els.to.addEventListener(ev, renderTable);
     });
     renderTable();
+    // Clicking a KPI card drills into the records: it sets the status filter and
+    // scrolls to the matching rows, so the numbers are a way in, not just a count.
+    document.querySelectorAll('.kpi[data-f]').forEach((card) => card.addEventListener('click', () => {
+      const f = card.dataset.f || '';
+      if (els.status) { els.status.value = f; }
+      document.querySelectorAll('.kpi').forEach((k) => k.classList.toggle('active', k === card && f !== ''));
+      renderTable();
+      els.table?.closest('.admin-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
     // Keep the live-presence dots fresh: poll the cheap presence endpoint every
     // ~45s and repaint (current filters/scroll preserved — no heavy overview
     // refetch). Self-clears once you leave the dashboard.
