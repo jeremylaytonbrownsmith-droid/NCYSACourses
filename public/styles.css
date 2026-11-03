@@ -292,6 +292,52 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .lesson-content .callout-important { background: #fff7ed; border-color: #fed7aa; }
 .lesson-content .callout-important::before { content: "⚠️"; }
 .lesson-content .callout-important strong { color: #b45309; }
+/* ---- Block kit: make AI-generated lessons look like built modules --------- */
+/* Opening hook */
+.lesson-content .lead { font-size: 1.2rem; line-height: 1.55; color: var(--ink); font-weight: 500; margin: 0 0 18px; }
+/* Captioned photo placeholder the author fills in with a real image */
+.lesson-content figure.ph { margin: 22px 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(15,23,42,.08); }
+.lesson-content figure.ph::before {
+  content: "📷  Add a photo here"; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 16/9; background: repeating-linear-gradient(135deg,#eef1f8,#eef1f8 14px,#e6eaf4 14px,#e6eaf4 28px);
+  color: var(--ink-soft); font-weight: 700; font-size: .95rem; letter-spacing: .02em;
+}
+.lesson-content figure.ph figcaption { padding: 10px 14px; background: var(--brand); color: #fff; font-size: .9rem; font-weight: 600; }
+/* Tap-to-expand accordion (native <details>, no scripts) */
+.lesson-content details { border: 1px solid var(--line); border-radius: 12px; margin: 10px 0; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(23,34,79,.05); }
+.lesson-content details[open] { box-shadow: 0 8px 24px rgba(15,23,42,.10); }
+.lesson-content summary {
+  list-style: none; cursor: pointer; padding: 14px 18px; font-weight: 700; color: var(--brand);
+  display: flex; align-items: center; gap: 12px; font-size: 1.02rem;
+}
+.lesson-content summary::-webkit-details-marker { display: none; }
+.lesson-content summary::before {
+  content: "+"; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: var(--brand); color: #fff;
+  display: grid; place-items: center; font-size: 1.2rem; line-height: 1; font-weight: 700;
+}
+.lesson-content details[open] summary::before { content: "–"; }
+.lesson-content details > :not(summary) { margin-left: 18px; margin-right: 18px; }
+.lesson-content details > :last-child { margin-bottom: 16px; }
+/* Scenario / story card */
+.lesson-content .scenario {
+  border-radius: 14px; padding: 18px 20px; margin: 22px 0; color: #eef1fb;
+  background: linear-gradient(150deg, var(--brand-dark, #0a0340), var(--brand));
+  box-shadow: 0 12px 30px rgba(10,3,64,.22);
+}
+.lesson-content .scenario::before { content: "SCENARIO"; display: block; font-size: .72rem; font-weight: 800; letter-spacing: .14em; color: #ffd84d; margin-bottom: 4px; }
+.lesson-content .scenario h4 { margin: 0 0 6px; color: #fff; font-size: 1.22rem; }
+.lesson-content .scenario p { color: #d7daf0; margin: 0 0 8px; }
+.lesson-content .scenario > :last-child { margin-bottom: 0; }
+/* Key-points panel with checkmark bullets */
+.lesson-content .keypoints { background: #f1f5ff; border: 1px solid #dbe4fb; border-radius: 14px; padding: 16px 18px 16px 20px; margin: 22px 0; }
+.lesson-content .keypoints ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.lesson-content .keypoints li { position: relative; padding-left: 30px; color: var(--ink-body); }
+.lesson-content .keypoints li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: .78rem; font-weight: 700; }
+/* Emphatic pull-quote */
+.lesson-content blockquote.pullquote {
+  border: 0; background: none; padding: 6px 0 6px 20px; border-left: 4px solid var(--accent, #e4322b);
+  font-style: normal; font-size: 1.35rem; line-height: 1.35; font-weight: 700; color: var(--ink); margin: 24px 0;
+}
 /* Editor: highlight the drop target while dragging an image in */
 .rte-area.rte-dragover { outline: 2px dashed var(--accent, #6366f1); outline-offset: -4px; background: rgba(99, 102, 241, .05); }
 /* Live lesson preview overlay */

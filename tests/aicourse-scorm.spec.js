@@ -37,6 +37,29 @@ test('normalizeDraft turns raw AI output into valid text lessons + a graded quiz
   expect(quiz.questions[0].answer).toBe(1);
 });
 
+test('sanitizeHtml keeps the Captivate-style block kit and strips active/unsafe content', () => {
+  const rich = [
+    '<p class="lead">You are the referee.</p>',
+    '<figure class="ph"><figcaption>A referee showing a yellow card</figcaption></figure>',
+    '<details><summary>See</summary><p>Observe the play.</p></details>',
+    '<div class="scenario"><h4>Third match</h4><p>Late in the half.</p></div>',
+    '<div class="keypoints"><ul><li>Display it clearly</li></ul></div>',
+    '<blockquote class="pullquote">Protect the game.</blockquote>',
+  ].join('');
+  const out = sanitizeHtml(rich);
+  // The whole block kit survives, including its component classes.
+  ['class="lead"', '<figure class="ph">', '<figcaption>', '<details>', '<summary>',
+   'class="scenario"', 'class="keypoints"', 'class="pullquote"'].forEach((frag) => expect(out).toContain(frag));
+
+  // Active content, media and links are removed; arbitrary classes do not survive.
+  const danger = sanitizeHtml('<p class="evil" onclick="x()">hi</p><script>bad()</script><img src="x"><a href="http://x">link</a><input>');
+  expect(danger).toContain('<p>hi</p>');        // tag kept, bad class + handler gone
+  expect(danger).not.toContain('evil');
+  expect(danger).not.toContain('onclick');
+  expect(danger).not.toMatch(/<script|<img|<a |<input/i);
+  expect(danger).toContain('link');             // link TEXT stays, anchor is gone
+});
+
 test('normalizeDraft applies a per-lesson time gate and builds video lessons from pasted links', () => {
   const draft = normalizeDraft({
     title: 'With Video',
