@@ -976,11 +976,90 @@ function lessonHeader(lesson, course) {
   return `<div class="lesson-kind-row"><div class="lesson-kind">${typeLabel[lesson.type]}</div>${staffBadge}${logo}</div><h1>${esc(lesson.title)}</h1>`;
 }
 
+// A short, celebratory confetti burst (canvas, no dependency). Skips itself when
+// the viewer prefers reduced motion. Used at completion milestones.
+function fireConfetti(opts) {
+  opts = opts || {};
+  try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { /* ignore */ }
+  const colors = opts.colors || ['#10045a', '#b82f2f', '#edc32c', '#2eaf6d', '#6366f1', '#f3c01c'];
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:99999';
+  document.body.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  let W, H;
+  const size = () => { W = cv.width = Math.floor(innerWidth * dpr); H = cv.height = Math.floor(innerHeight * dpr); };
+  size();
+  const N = opts.count || 160, parts = [];
+  for (let i = 0; i < N; i++) parts.push({
+    x: Math.random() * W, y: -20 * dpr - Math.random() * H * 0.4,
+    r: (4 + Math.random() * 5) * dpr, c: colors[(Math.random() * colors.length) | 0],
+    vx: (Math.random() - 0.5) * 2.4 * dpr, vy: (2 + Math.random() * 3) * dpr,
+    rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, rect: Math.random() < 0.55,
+  });
+  const start = Date.now(), dur = opts.duration || 2600;
+  function frame() {
+    const t = Date.now() - start; ctx.clearRect(0, 0, W, H); let alive = false;
+    const fade = t > dur - 700 ? Math.max(0, (dur - t) / 700) : 1;
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03 * dpr; p.rot += p.vr;
+      if (p.y < H + 30 * dpr) alive = true;
+      ctx.globalAlpha = fade; ctx.fillStyle = p.c;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      if (p.rect) ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 1.6);
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r / 2, 0, 7); ctx.fill(); }
+      ctx.restore();
+    }
+    if (t < dur && alive) requestAnimationFrame(frame); else cv.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
+// A congratulations modal with a primary (continue) and optional secondary action.
+// The ✕ and backdrop just dismiss (the learner stays on the finished, reviewable page).
+function celebrateModal(o) {
+  o = o || {};
+  const ov = document.createElement('div');
+  ov.className = 'celebrate-overlay';
+  ov.innerHTML = `<div class="celebrate-card" role="dialog" aria-modal="true" aria-label="${esc(o.title || 'Completed')}">
+      <button class="celebrate-x" aria-label="Close">×</button>
+      <div class="celebrate-emoji">${o.emoji || '🎉'}</div>
+      <h2>${esc(o.title || 'Nicely done!')}</h2>
+      <p>${esc(o.message || '')}</p>
+      <div class="celebrate-actions">
+        ${o.secondary ? `<button class="btn btn-ghost celebrate-sec">${esc(o.secondary.label)}</button>` : ''}
+        <button class="btn btn-accent celebrate-pri">${esc(o.primary.label)}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  const nav = (a) => { close(); if (a && a.onClick) a.onClick(); else if (a && a.go) location.hash = a.go; };
+  ov.querySelector('.celebrate-pri').addEventListener('click', () => nav(o.primary));
+  ov.querySelector('.celebrate-sec')?.addEventListener('click', () => nav(o.secondary));
+  ov.querySelector('.celebrate-x').addEventListener('click', close);
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('.celebrate-pri').focus();
+}
+
 async function completeLesson(course, lesson) {
   const r = await api(`/api/courses/${course.id}/lessons/${lesson.id}/complete`, { method: 'POST' });
   if (r.courseCompleted) return showCourseComplete(course, r.certId);
   const idx = course.lessons.findIndex((l) => l.id === lesson.id);
   const next = course.lessons[idx + 1];
+  // An interactive module is a chapter-sized unit — mark it with a celebration
+  // (confetti + a congrats modal) rather than a quiet toast, the way a good PD
+  // course rewards finishing a chapter. Smaller lessons keep the light toast.
+  if (lesson.type === 'module') {
+    fireConfetti();
+    celebrateModal({
+      emoji: '🚀',
+      title: 'Nicely done!',
+      message: `You’ve completed “${lesson.title}”. ${next ? 'Keep up the momentum!' : 'You’re on the final stretch.'}`,
+      primary: next ? { label: 'Next lesson →', go: `#/course/${course.id}/lesson/${next.id}` } : { label: 'Back to course', go: `#/course/${course.id}` },
+      secondary: next ? { label: 'Back to course', go: `#/course/${course.id}` } : null,
+    });
+    return;
+  }
   toast('✓ Lesson complete!');
   location.hash = next ? `#/course/${course.id}/lesson/${next.id}` : `#/course/${course.id}`;
 }
@@ -2186,6 +2265,7 @@ async function showCourseComplete(course, certId, score, returnUrl) {
       </p>
       ${redirect ? `<p class="empty" id="redirectNote" style="margin-top:12px">Taking you back in <span id="rdCount">10</span> seconds… <a href="${coursePortalHash(course)}" id="rdStay">stay here</a></p>` : ''}
     </div>`;
+  fireConfetti({ count: 240, duration: 3400 }); // the finish line deserves a celebration
   if (redirect) {
     let n = 10, cancelled = false;
     const cancel = () => { cancelled = true; window.removeEventListener('hashchange', cancel); };
