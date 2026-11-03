@@ -3230,6 +3230,12 @@ async function viewCourseAdmin(flash) {
       </div>
       <form class="ai-body" id="aiBuildForm">
         <div id="aiUnavailable" class="ai-unavail" hidden></div>
+        <div class="ai-fieldlabel">What should it build?</div>
+        <div class="ai-format" role="radiogroup" aria-label="Lesson type">
+          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="tenttalk"><span class="fmt-card"><b>Tent Talk</b><em>Short info session — a few pages, no test. For a quick point of emphasis.</em></span></label>
+          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="full" checked><span class="fmt-card"><b>Full interactive lesson</b><em>Captivate-style — pages, gated knowledge checks and a scored assessment.</em></span></label>
+          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="classic"><span class="fmt-card"><b>Reading + quiz</b><em>Classic reading lessons and a graded quiz.</em></span></label>
+        </div>
         <label>Course title <span style="font-weight:400;color:var(--ink-soft)">(optional)</span>
           <input name="title" placeholder="Leave blank to let AI name it" />
         </label>
@@ -3257,11 +3263,18 @@ async function viewCourseAdmin(flash) {
             </select>
           </label>
         </div>
-        <div class="ai-row">
-          <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
-          <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
-          <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
-          <label>Min. reading time / lesson (sec)<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Holds the Complete button this long on every reading lesson it generates, so learners can't skip through (0 = off). e.g. 15, 30, 45." /></label>
+        <div id="aiModuleFields">
+          <div class="ai-row">
+            <label>Approx. pages<input name="approxPages" type="number" min="3" max="12" value="6" title="Rough number of pages for the interactive module." /></label>
+          </div>
+        </div>
+        <div id="aiClassicFields" hidden>
+          <div class="ai-row">
+            <label>Reading lessons<input name="numLessons" type="number" min="1" max="20" value="4" /></label>
+            <label>Quiz questions<input name="numQuestions" type="number" min="1" max="25" value="5" /></label>
+            <label>Pass %<input name="passPercent" type="number" min="0" max="100" value="80" /></label>
+            <label>Min. reading time / lesson (sec)<input name="lessonMinSeconds" type="number" min="0" max="3600" value="0" title="Holds the Complete button this long on every reading lesson it generates, so learners can't skip through (0 = off). e.g. 15, 30, 45." /></label>
+          </div>
         </div>
         <div class="ai-cta">
           <button class="btn btn-ai" type="submit" id="aiBuildSubmit">✨ Generate draft</button>
@@ -3288,6 +3301,16 @@ async function viewCourseAdmin(flash) {
       if (!aud) return;
       aud.value = (ev.target.value === 'ncysa') ? 'coaches' : 'referees';
     });
+    // Lesson-type toggle: module modes (Tent Talk / Full) hide the reading+quiz fields.
+    const syncFormat = () => {
+      const v = form.querySelector('[name=lessonFormat]:checked')?.value || 'full';
+      const isModule = v !== 'classic';
+      const mf = document.getElementById('aiModuleFields'), cf = document.getElementById('aiClassicFields');
+      if (mf) mf.hidden = !isModule;
+      if (cf) cf.hidden = isModule;
+    };
+    form.querySelectorAll('[name=lessonFormat]').forEach((r) => r.addEventListener('change', syncFormat));
+    syncFormat();
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(form);
@@ -3298,22 +3321,30 @@ async function viewCourseAdmin(flash) {
       const status = document.getElementById('aiBuildStatus');
       btn.disabled = true; const orig = btn.textContent;
       btn.innerHTML = '<span class="ai-spin"></span>Generating…';
-      if (status) status.textContent = 'Writing lessons and quiz — this can take up to a minute…';
+      const format = form.querySelector('[name=lessonFormat]:checked')?.value || 'full';
+      if (status) status.textContent = format === 'classic' ? 'Writing lessons and quiz — this can take up to a minute…'
+        : format === 'tenttalk' ? 'Writing your Tent Talk — about a minute…'
+          : 'Building your interactive lesson — this can take a minute or two…';
+      const body = {
+        title: f.get('title') || '',
+        topic, sourceText,
+        audience: f.get('audience') || 'everyone',
+        brand: f.get('brand') || 'ncysa',
+        videoUrls: (f.get('videoUrls') || '').toString().split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
+      };
+      if (format === 'classic') {
+        body.format = 'classic';
+        body.numLessons = Number(f.get('numLessons')) || 4;
+        body.numQuestions = Number(f.get('numQuestions')) || 5;
+        body.passPercent = Number(f.get('passPercent')) || 80;
+        body.lessonMinSeconds = Number(f.get('lessonMinSeconds')) || 0;
+      } else {
+        body.format = 'module';
+        body.mode = (format === 'tenttalk') ? 'tenttalk' : 'full';
+        body.approxPages = Number(f.get('approxPages')) || 6;
+      }
       try {
-        const r = await api('/api/admin/courses/ai-build', {
-          method: 'POST',
-          body: {
-            title: f.get('title') || '',
-            topic, sourceText,
-            audience: f.get('audience') || 'everyone',
-            brand: f.get('brand') || 'ncysa',
-            numLessons: Number(f.get('numLessons')) || 4,
-            numQuestions: Number(f.get('numQuestions')) || 5,
-            passPercent: Number(f.get('passPercent')) || 80,
-            lessonMinSeconds: Number(f.get('lessonMinSeconds')) || 0,
-            videoUrls: (f.get('videoUrls') || '').toString().split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          },
-        });
+        const r = await api('/api/admin/courses/ai-build', { method: 'POST', body });
         viewCourseAdmin(`AI drafted “${r.course.title}” (${r.course.lessons.length} lessons). Review and edit it below, then Publish when ready.`);
       } catch (err) {
         if (status) status.textContent = '';

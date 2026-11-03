@@ -38,12 +38,10 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
     move focus to the page heading on navigation, and honor `prefers-reduced-motion`.
   - Done when: options are reachable and selectable by keyboard, and a test checks the roles/focus.
 
-- [ ] **AI course builder emits `getmatchready.module/v1` interactive modules.**
-  - Why: the goal is "AI builder output at Captivate standard" — it should produce block modules the new
-    player renders, not just reading/quiz lessons.
-  - Scope: `lib/aicourse.js` (extend `COURSE_TOOL`/`generateCourseDraft`/`normalizeDraft` to optionally produce a
-    module doc), validated through `lib/moduledoc.js` `normalizeModuleDoc`. Keep the existing text/quiz output working.
-  - Done when: a generated course can include a `module` lesson that passes `normalizeModuleDoc` and renders; test added.
+- [ ] **AI builder: richer module generation follow-ups.**
+  The AI Studio now generates interactive block modules (Tent Talk / Full) — see Done. Follow-ups:
+  reference uploaded source images into blocks, let the model pick photo `graphic` keys more aggressively for
+  refereeing topics, and add a "regenerate this page" action on a drafted module.
 
 - [ ] **Visual block editor for interactive modules (no raw JSON).**
   - Why: staff should author blocks in a form, not hand-edit JSON; JSON stays as the import/export format.
@@ -88,6 +86,10 @@ runs the tests, and opens a pull request. One item per run, one change per PR.
 ---
 
 ## Done
+- [x] **AI Studio builds interactive modules with a Tent Talk / Full / Reading+quiz selector.** `lib/aicourse.js`
+  `generateModuleDraft` (+ `buildModulePrompt`) emits a `getmatchready.module/v1` doc per mode, validated by
+  `normalizeModuleDoc`; `/api/admin/courses/ai-build` creates a single `module` lesson for module formats; the AI
+  Studio form has a lesson-type selector. Tests in `tests/ai-module.spec.js`.
 - [x] **Wire the block player into the platform as the `module` lesson type.** `lib/moduledoc.js` normalizer,
   `server.js` `buildLesson` + validation, `public/app.js` `renderModuleLesson`, `public/styles.css` `.gmr-*`,
   sample at `public/samples/card-mechanics.module.json`, tests in `tests/module-lesson.spec.js`.

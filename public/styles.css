@@ -1433,3 +1433,16 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-ring span { width: 28px; height: 28px; border-radius: 50%; background: var(--card); display: grid; place-items: center; }
 .gmr-ring.full { color: var(--success-dark); }
 @media (max-width: 560px) { .gmr-ptitle { font-size: 1.42rem; } .gmr-hint { order: 3; flex-basis: 100%; } }
+
+/* AI Studio — lesson-type selector (Tent Talk / Full interactive / Reading+quiz) */
+.ai-fieldlabel { font-weight: 700; font-size: .9rem; margin: 2px 0; }
+.ai-format { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+.fmt-opt { cursor: pointer; margin: 0; }
+.fmt-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.fmt-card { display: block; height: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 11px 13px; background: var(--card); transition: .12s; }
+.fmt-card b { display: block; font-size: .95rem; color: var(--ink); }
+.fmt-card em { display: block; font-style: normal; font-size: .78rem; color: var(--ink-soft); margin-top: 3px; line-height: 1.35; }
+.fmt-opt:hover .fmt-card { border-color: var(--ink-soft); }
+.fmt-opt input:checked + .fmt-card { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent); background: color-mix(in srgb, var(--brand) 5%, var(--card)); }
+.fmt-opt input:focus-visible + .fmt-card { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (max-width: 560px) { .ai-format { grid-template-columns: 1fr; } }

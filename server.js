@@ -19,7 +19,7 @@ const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/st
 const { onCourseCompleted, sendTestEmail, sendEmail } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
-const { aiEnabled, generateCourseDraft } = require('./lib/aicourse');
+const { aiEnabled, generateCourseDraft, generateModuleDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
 const { normalizeModuleDoc } = require('./lib/moduledoc');
 const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
@@ -2955,24 +2955,33 @@ app.get('/api/admin/integration/info', requireEditor, (req, res) => {
 app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   if (!aiEnabled()) return res.status(400).json({ error: 'AI course generation is not configured. Set ANTHROPIC_API_KEY in the environment, then redeploy.' });
   const b = req.body || {};
-  let draft;
+  // format "module" → one interactive block module (Tent Talk or full lesson, per
+  // b.mode); otherwise the classic reading-lessons + quiz course.
+  const format = (b.format === 'module') ? 'module' : 'classic';
+  let draft = null, moduleDoc = null;
   try {
-    draft = await generateCourseDraft({
-      topic: b.topic,
-      sourceText: b.sourceText,
-      audience: b.audience,
-      numLessons: b.numLessons,
-      numQuestions: b.numQuestions,
-      passPercent: b.passPercent,
-      lessonMinSeconds: b.lessonMinSeconds,
-      videoUrls: Array.isArray(b.videoUrls) ? b.videoUrls
-        : (typeof b.videoUrls === 'string' ? b.videoUrls.split(/[\n,]/) : []),
-    });
+    if (format === 'module') {
+      const raw = await generateModuleDraft({ topic: b.topic, sourceText: b.sourceText, audience: b.audience, mode: b.mode, approxPages: b.approxPages });
+      moduleDoc = normalizeModuleDoc(raw);
+      if (!moduleDoc.pages.length) throw new Error('The AI returned an empty module. Try again with a clearer topic or more source material.');
+    } else {
+      draft = await generateCourseDraft({
+        topic: b.topic,
+        sourceText: b.sourceText,
+        audience: b.audience,
+        numLessons: b.numLessons,
+        numQuestions: b.numQuestions,
+        passPercent: b.passPercent,
+        lessonMinSeconds: b.lessonMinSeconds,
+        videoUrls: Array.isArray(b.videoUrls) ? b.videoUrls
+          : (typeof b.videoUrls === 'string' ? b.videoUrls.split(/[\n,]/) : []),
+      });
+    }
   } catch (e) {
-    return res.status(502).json({ error: e.message || 'AI course generation failed.' });
+    return res.status(502).json({ error: e.message || 'AI generation failed.' });
   }
   const db = load();
-  const title = String(b.title || draft.title || 'AI course').slice(0, 160);
+  const title = String(b.title || (moduleDoc ? moduleDoc.title : draft.title) || 'AI course').slice(0, 160);
   // Branding: a one-click preset chooses the identity. Fall back to the raw orgId
   // (back-compat) or the default org when no brand/org is given.
   const preset = BRAND_PRESETS[String(b.brand || '').toLowerCase()];
@@ -2982,12 +2991,12 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   const course = {
     id: slugify(title) + '-' + crypto.randomBytes(3).toString('hex'),
     title,
-    tagline: String(draft.tagline || ''),
-    description: String(draft.description || ''),
+    tagline: String((draft && draft.tagline) || ''),
+    description: String((draft && draft.description) || ''),
     badge: String(b.badge || 'Course'),
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
     orgId,
-    estMinutes: Math.max(1, Number(b.estMinutes) || 20),
+    estMinutes: Math.max(1, Number(b.estMinutes) || (moduleDoc && moduleDoc.estimatedMinutes) || 20),
     heroEmoji: String(b.heroEmoji || '⚽'),
     completionRedirectUrl: '',
     // Co-brand fields from the chosen preset (logo, name, certificate identity).
@@ -2996,7 +3005,9 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
     generatedByAi: true,
     createdBy: { id: req.user.id, name: req.user.name || '', email: req.user.email || '', role: req.user.role },
     createdAt: new Date().toISOString(),
-    lessons: (draft.lessons || []).map((l) => buildLesson(l)),
+    lessons: moduleDoc
+      ? [buildLesson({ type: 'module', title: moduleDoc.title || title, moduleDoc })]
+      : (draft.lessons || []).map((l) => buildLesson(l)),
   };
   db.courses.push(course);
   save();
