@@ -1799,14 +1799,16 @@ function getProgress(db, userId, courseId) {
   return db.lessonProgress.filter((p) => p.userId === userId && p.courseId === courseId);
 }
 
-function lessonState(course, progress, lessonId) {
+// staff = true unlocks every lesson (admins/designers/partners navigate freely to
+// review or test any module, no need to click through the gated sequence).
+function lessonState(course, progress, lessonId, staff) {
   const idx = course.lessons.findIndex((l) => l.id === lessonId);
   const done = (lid) => progress.some((p) => p.lessonId === lid && p.completed);
-  const unlocked = course.lessons.slice(0, idx).every((l) => done(l.id));
+  const unlocked = staff === true || course.lessons.slice(0, idx).every((l) => done(l.id));
   return { idx, unlocked, completed: done(lessonId) };
 }
 
-function progressSummary(course, progress) {
+function progressSummary(course, progress, staff) {
   const done = course.lessons.filter((l) =>
     progress.some((p) => p.lessonId === l.id && p.completed)
   ).length;
@@ -1815,7 +1817,7 @@ function progressSummary(course, progress) {
     totalLessons: course.lessons.length,
     percent: course.lessons.length ? Math.round((done / course.lessons.length) * 100) : 0,
     lessons: course.lessons.map((l) => {
-      const st = lessonState(course, progress, l.id);
+      const st = lessonState(course, progress, l.id, staff);
       const rec = progress.find((p) => p.lessonId === l.id);
       return {
         id: l.id,
@@ -1984,7 +1986,7 @@ app.get('/api/courses', (req, res) => {
       .filter((c) => !org || orgOf(c) === org)
       .map((c) => {
       const enr = user && db.enrollments.find((e) => e.userId === user.id && e.courseId === c.id);
-      const prog = user ? progressSummary(c, getProgress(db, user.id, c.id)) : null;
+      const prog = user ? progressSummary(c, getProgress(db, user.id, c.id), isStaff) : null;
       return {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
         badge: c.badge, estMinutes: Math.max(1, Math.round(Number(c.estMinutes) || estimateCourseMinutes(c))), heroEmoji: c.heroEmoji,
@@ -2036,7 +2038,7 @@ app.get('/api/courses/:courseId', requireAuth, (req, res) => {
   if (!enr) return res.status(403).json({ error: 'Enroll in this course first' });
   res.json({
     course: publicCourse(course),
-    progress: progressSummary(course, getProgress(db, req.user.id, course.id)),
+    progress: progressSummary(course, getProgress(db, req.user.id, course.id), STAFF_ROLES.includes(req.user.role)),
     enrollment: enr,
   });
 });
@@ -2135,7 +2137,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/watch', requireAuth, (req, re
   if (!found) return;
   const { course, lesson, db } = found;
   if (lesson.type !== 'video') return res.status(400).json({ error: 'Not a video lesson' });
-  const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id);
+  const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id, STAFF_ROLES.includes(req.user.role));
   if (!st.unlocked) return res.status(403).json({ error: 'This lesson is locked. Complete the previous lessons first.' });
 
   // Learn the real video length from the player (take the max ever reported, so a
@@ -2175,7 +2177,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/quiz', requireAuth, ah(async 
   if (!found) return;
   const { course, lesson, db } = found;
   if (lesson.type !== 'quiz') return res.status(400).json({ error: 'Not a quiz lesson' });
-  const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id);
+  const st = lessonState(course, getProgress(db, req.user.id, course.id), lesson.id, STAFF_ROLES.includes(req.user.role));
   if (!st.unlocked) return res.status(403).json({ error: 'This lesson is locked. Complete the previous lessons first.' });
 
   const answers = req.body?.answers || {};
@@ -2201,7 +2203,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/complete', requireAuth, ah(as
   if (!found) return;
   const { course, lesson, db } = found;
   const progress = getProgress(db, req.user.id, course.id);
-  const st = lessonState(course, progress, lesson.id);
+  const st = lessonState(course, progress, lesson.id, STAFF_ROLES.includes(req.user.role));
 
   if (!st.unlocked)
     return res.status(403).json({ error: 'This lesson is locked. Complete the previous lessons first.' });
@@ -2243,7 +2245,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
   const { course, lesson, db } = found;
   if (lesson.type !== 'scorm') return res.status(400).json({ error: 'Not a SCORM module' });
   const progress = getProgress(db, req.user.id, course.id);
-  const st = lessonState(course, progress, lesson.id);
+  const st = lessonState(course, progress, lesson.id, STAFF_ROLES.includes(req.user.role));
   if (!st.unlocked)
     return res.status(403).json({ error: 'This module is locked. Complete the previous modules first.' });
 
