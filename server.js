@@ -2295,10 +2295,17 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
   const reachedEnd = rec.scorm.status === 'completed' || rec.scorm.status === 'passed';
   const mapped = mapScormStatus(rec.scorm.status);
   const scoreObj = scoreObject(rec.scorm.score);
+  // Time-based completion fallback: for a module flagged by an admin as having
+  // broken completion (e.g. a US Soccer sub-module whose audio slide never fires
+  // its "completed" event), finishing the required dwell time completes it even
+  // though the package never reports done. Still gated on real active time — the
+  // learner must actually spend the minutes in the module.
+  const timeFallback = lesson.completeOnTime === true && timeMet;
   let newlyCompleted = false;
-  if (reachedEnd && timeMet && !rec.completed) {
+  if (timeMet && (reachedEnd || timeFallback) && !rec.completed) {
     rec.completed = true;
     rec.completedAt = new Date().toISOString();
+    if (!reachedEnd) rec.timeCompleted = true; // audit: credited on dwell time, content never reported
     newlyCompleted = true;
   }
 
@@ -2898,7 +2905,8 @@ function buildLesson(body) {
     if (Array.isArray(body.hiddenSlides)) {
       hiddenSlides = [...new Set(body.hiddenSlides.map((n) => Math.round(Number(n))).filter((n) => Number.isInteger(n) && n >= 1))].sort((a, b) => a - b).slice(0, 2000);
     }
-    return { ...base, html: sanitizeLessonHtml(body.html), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides, ...(htmlPackage ? { htmlPackage: true } : {}) };
+    const completeOnTime = body.completeOnTime === true || body.completeOnTime === 'true';
+    return { ...base, html: sanitizeLessonHtml(body.html), packageId, launchFile, minSeconds, slideGateSeconds, hiddenSlides, ...(completeOnTime ? { completeOnTime: true } : {}), ...(htmlPackage ? { htmlPackage: true } : {}) };
   }
   // quiz
   const questions = (Array.isArray(body.questions) ? body.questions : []).map((q, i) => ({
@@ -3281,12 +3289,32 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   if (body.type === 'scorm' && !Array.isArray(body.hiddenSlides) && Array.isArray(existing.hiddenSlides)) {
     body.hiddenSlides = existing.hiddenSlides;
   }
+  // Carry over the time-based completion flag on a partial edit.
+  if (body.type === 'scorm' && body.completeOnTime == null && existing.completeOnTime) {
+    body.completeOnTime = true;
+  }
   const built = buildLesson(body);
   if (built.type === 'module' && (!built.moduleDoc || !built.moduleDoc.pages.length))
     return res.status(400).json({ error: 'This interactive module has no usable pages. Check the module JSON — each page needs a title and at least one block.' });
   course.lessons[idx] = built;
   save();
   res.json({ lesson: course.lessons[idx] });
+});
+
+// Toggle time-based completion for ONE module (for content whose own completion
+// signal is broken). In place — never rebuilds the lesson, so packageId etc. are
+// untouched. Honored by the /scorm completion logic above.
+app.post('/api/admin/courses/:courseId/lessons/:lessonId/complete-on-time', requireEditor, (req, res) => {
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
+  const lesson = (course.lessons || []).find((l) => l.id === req.params.lessonId);
+  if (!lesson || lesson.type !== 'scorm') return res.status(404).json({ error: 'No such module in this course.' });
+  const on = req.body && (req.body.on === true || req.body.on === 'true');
+  if (on) lesson.completeOnTime = true; else delete lesson.completeOnTime;
+  save();
+  res.json({ ok: true, completeOnTime: !!lesson.completeOnTime });
 });
 
 app.delete('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, res) => {

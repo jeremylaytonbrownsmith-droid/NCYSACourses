@@ -1534,6 +1534,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .cf:hover { border-color: var(--ink-soft); color: var(--ink); }
 .cf.on { background: var(--brand); color: #fff; border-color: var(--brand); }
 .course-count { margin-left: auto; font-size: .8rem; color: var(--ink-soft); font-weight: 600; }
+.linkbtn.mod-timecomplete.on { color: var(--success-dark, #1d7a4d); font-weight: 700; }
 
 /* portal groups in the Course Designer */
 .course-group { margin: 0 0 20px; }
