@@ -1275,27 +1275,44 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
    app's system font stack, so a module adopts each org's colors and reads clean
    and consistent with the rest of the app — no bespoke display face. Buttons reuse
    the platform .btn classes; these rules handle layout and the block chrome. */
-.gmr-module { --gmr-soft: #f6f5f2; --gmr-line-2: #efede7; max-width: 840px; margin: 0 auto;
-  display: grid; grid-template-columns: 54px minmax(0, 1fr); grid-template-areas: "rail page" "rail nav"; column-gap: 26px; align-items: start; }
+.gmr-module { --gmr-soft: #f6f5f2; --gmr-line-2: #efede7; max-width: 960px; margin: 0 auto;
+  display: grid; grid-template-columns: 216px minmax(0, 1fr); grid-template-areas: "rail page" "rail nav"; column-gap: 28px; align-items: start; }
 .gmr-region { display: contents; }
 
-/* progress rail — vertical, sticky; a connecting line fills as you advance (Captivate-style) */
-.gmr-rail { grid-area: rail; position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; align-items: center; gap: 30px; padding: 4px 0; }
-.gmr-step { position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font-size: .78rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; padding: 0; flex: none; transition: .18s; font-variant-numeric: tabular-nums; }
-/* the segment of track ABOVE each step; fills when the step has been reached */
-.gmr-step::before { content: ""; position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); width: 2px; height: 30px; background: var(--line); transition: background .25s; }
-.gmr-step:first-child::before { display: none; }
-.gmr-step.reached::before { background: var(--accent); }
-.gmr-step.done::before { background: var(--success); }
-.gmr-step:hover { border-color: var(--ink-soft); color: var(--ink); }
-.gmr-step.cur { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
-.gmr-step.done { border-color: var(--success); background: var(--success); color: #fff; }
+/* progress rail — a sticky left panel: course-progress bar + a labelled section list
+   whose connecting line fills as you advance (Captivate-style). The bar advances on
+   every completed interaction, not just page changes. */
+.gmr-rail { grid-area: rail; position: sticky; top: 16px; align-self: start; border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 14px 14px 8px; }
+.gmr-railhead { margin: 0 2px 12px; }
+.gmr-railttl { display: block; font-size: .66rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 7px; }
+.gmr-pbar { height: 7px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.gmr-pbar > span { display: block; height: 100%; width: 0; background: var(--success); border-radius: 99px; transition: width .35s ease; }
+.gmr-pct { display: block; margin-top: 5px; font-size: .74rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-/* phone: rail collapses to a compact strip above the content */
-@media (max-width: 640px) {
+.gmr-steps { list-style: none; margin: 0; padding: 0; }
+.gmr-srow { position: relative; display: flex; align-items: flex-start; gap: 11px; padding: 0 0 16px; cursor: pointer; }
+.gmr-srow:last-child { padding-bottom: 2px; }
+.gmr-srow[aria-disabled="true"] { cursor: default; }
+/* vertical connector centred on the 30px circle; coloured once the section is complete */
+.gmr-srow::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: 0; width: 2px; background: var(--line); transition: background .25s; }
+.gmr-srow:last-child::before { display: none; }
+.gmr-srow.done::before { background: var(--success); }
+.gmr-step { position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font-size: .78rem; font-weight: 800; display: grid; place-items: center; padding: 0; flex: none; transition: .18s; font-variant-numeric: tabular-nums; }
+.gmr-slabel { font-size: .82rem; line-height: 1.3; color: var(--ink-soft); padding-top: 5px; font-weight: 600; }
+.gmr-srow:hover .gmr-step { border-color: var(--ink-soft); color: var(--ink); }
+.gmr-srow:hover .gmr-slabel { color: var(--ink); }
+.gmr-srow.cur .gmr-step { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.gmr-srow.cur .gmr-slabel { color: var(--ink); font-weight: 800; }
+.gmr-srow.done .gmr-step { border-color: var(--success); background: var(--success); color: #fff; }
+
+/* phone: rail becomes a compact strip above the content — progress bar + circles */
+@media (max-width: 760px) {
   .gmr-module { grid-template-columns: 1fr; grid-template-areas: "rail" "page" "nav"; }
-  .gmr-rail { position: static; flex-direction: row; justify-content: center; flex-wrap: wrap; gap: 9px; margin-bottom: 14px; }
-  .gmr-step::before { display: none; }
+  .gmr-rail { position: static; margin-bottom: 14px; }
+  .gmr-steps { display: flex; flex-wrap: wrap; gap: 9px; }
+  .gmr-srow { padding: 0; }
+  .gmr-srow::before { display: none; }
+  .gmr-slabel { display: none; }
 }
 
 .gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 18px; }
