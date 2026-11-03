@@ -1310,6 +1310,11 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-srow.cur .gmr-step { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
 .gmr-srow.cur .gmr-slabel { color: var(--ink); font-weight: 800; }
 .gmr-srow.done .gmr-step { border-color: var(--success); background: var(--success); color: #fff; }
+/* current step on an interactive page: a ring that fills as tasks are completed */
+.gmr-srow.cur.ring .gmr-step { border-color: transparent; color: var(--accent);
+  background: radial-gradient(closest-side, var(--card) 66%, transparent 67%), conic-gradient(var(--accent) calc(var(--cp, 0) * 1%), var(--line) 0); }
+.gmr-srow.cur.ring .gmr-stepn { color: var(--accent); font-weight: 800; }
+.gmr-stepn { position: relative; z-index: 1; }
 
 /* phone: rail becomes a compact strip above the content — progress bar + circles */
 @media (max-width: 760px) {
