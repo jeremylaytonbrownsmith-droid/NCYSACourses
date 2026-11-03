@@ -939,6 +939,7 @@ async function viewCourse(courseId, lessonId) {
           </button>`;
         }).join('')}
         </div>
+        <button class="btn btn-ghost btn-sm report-problem" id="reportProblemBtn" type="button">⚠ Report a problem</button>
       </aside>
       <section class="lesson-pane" id="lessonPane"></section>
     </div>`;
@@ -953,6 +954,8 @@ async function viewCourse(courseId, lessonId) {
     })
   );
 
+  document.getElementById('reportProblemBtn')?.addEventListener('click', () => openReportProblem(course, lesson));
+
   const pane = document.getElementById('lessonPane');
   // Modules get a wider, taller stage; reading lessons stay a comfortable
   // reading width.
@@ -963,6 +966,40 @@ async function viewCourse(courseId, lessonId) {
   else if (lesson.type === 'slides') renderSlidesLesson(pane, course, lesson, lp);
   else if (lesson.type === 'module') renderModuleLesson(pane, course, lesson, lp);
   else renderTextLesson(pane, course, lesson, lp);
+}
+
+// Learner "Report a problem" modal — pre-filled with who they are and which
+// course/module they're on, so the admin gets an actionable report.
+function openReportProblem(course, lesson) {
+  const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
+  const who = (me && me.user) ? `${esc(me.user.name || '')}${me.user.email ? ' · ' + esc(me.user.email) : ''}` : '';
+  host.innerHTML = `<div class="modal-overlay" id="rpOverlay"><div class="modal-card" role="dialog" aria-modal="true" aria-label="Report a problem">
+    <button class="modal-close" id="rpClose" aria-label="Close">×</button>
+    <h2 class="rp-title">⚠ Report a problem</h2>
+    <p class="rp-ctx">${esc(course.title)}${lesson ? ' · <strong>' + esc(lesson.title) + '</strong>' : ''}</p>
+    ${who ? `<p class="rp-who">From ${who}</p>` : ''}
+    <label class="rp-label" for="rpMsg">What's going wrong?</label>
+    <textarea id="rpMsg" rows="5" placeholder="e.g. I listened to the audio and answered the question, but this module won't mark complete so I can't move on."></textarea>
+    <div class="rp-actions">
+      <button class="btn btn-ghost" id="rpCancel" type="button">Cancel</button>
+      <button class="btn btn-accent" id="rpSend" type="button">Send report</button>
+    </div>
+  </div></div>`;
+  const close = () => { host.innerHTML = ''; };
+  document.getElementById('rpOverlay').addEventListener('click', (e) => { if (e.target.id === 'rpOverlay') close(); });
+  document.getElementById('rpClose').addEventListener('click', close);
+  document.getElementById('rpCancel').addEventListener('click', close);
+  const msg = document.getElementById('rpMsg'); msg.focus();
+  document.getElementById('rpSend').addEventListener('click', async () => {
+    const message = msg.value.trim();
+    if (message.length < 3) { msg.focus(); toast('Please describe the problem first.', true); return; }
+    const btn = document.getElementById('rpSend'); btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      await api('/api/problem-report', { method: 'POST', body: { courseId: course.id, lessonId: lesson ? lesson.id : '', message, userAgent: navigator.userAgent } });
+      close();
+      toast('Thanks — your report was sent. We’ll take a look. ✅');
+    } catch (e) { btn.disabled = false; btn.textContent = 'Send report'; toast(e.message || 'Could not send — please try again.', true); }
+  });
 }
 
 function lessonHeader(lesson, course) {
@@ -2910,6 +2947,21 @@ async function viewAdmin() {
           <div id="completionsTable"></div>
         </div>
         <div class="admin-card">
+          <h2>Problem reports${(d.problemReports && d.problemReports.filter((r) => !r.resolved).length) ? ` <span class="pr-badge">${d.problemReports.filter((r) => !r.resolved).length} open</span>` : ''}</h2>
+          <p class="empty" style="margin-bottom:12px">Issues learners reported from inside a course. Find the learner by name in the records above, then troubleshoot — or mark resolved when done.</p>
+          ${(d.problemReports && d.problemReports.length) ? d.problemReports.map((r) => `
+            <div class="pr-item${r.resolved ? ' resolved' : ''}">
+              <div class="pr-top"><span class="pr-who"><strong>${esc(r.learner || 'Learner')}</strong>${r.email ? ` · ${esc(r.email)}` : ''}</span><span class="pr-when">${new Date(r.createdAt).toLocaleString()}</span></div>
+              <div class="pr-ctx">${esc(r.course || '—')}${r.lesson ? ` · <strong>${esc(r.lesson)}</strong>` : ''}</div>
+              <div class="pr-msg">${esc(r.message)}</div>
+              ${r.userAgent ? `<div class="pr-ua">${esc(r.userAgent)}</div>` : ''}
+              <div class="pr-actions">
+                <button class="btn btn-ghost btn-sm pr-resolve" data-id="${esc(r.id)}" data-resolved="${r.resolved ? '1' : '0'}">${r.resolved ? 'Reopen' : '✓ Mark resolved'}</button>
+                <button class="btn btn-ghost btn-sm danger pr-delete" data-id="${esc(r.id)}">Delete</button>
+              </div>
+            </div>`).join('') : '<p class="empty">No problem reports. 🎉</p>'}
+        </div>
+        <div class="admin-card">
           <h2>Email outbox</h2>
           <p class="empty" style="margin-bottom:12px">Every notification email the platform has generated.
             A status ending in <code>-delivered</code> means it was sent for real; <code>outbox-only</code>
@@ -3121,6 +3173,17 @@ async function viewAdmin() {
   }
 
   // ---- test email: verify delivery is configured ----
+  document.querySelectorAll('.pr-resolve').forEach((b) => b.addEventListener('click', async () => {
+    const resolved = b.dataset.resolved !== '1';
+    try { await api(`/api/admin/problem-reports/${b.dataset.id}/resolve`, { method: 'POST', body: { resolved } }); viewAdmin(); }
+    catch (e) { toast(e.message, true); }
+  }));
+  document.querySelectorAll('.pr-delete').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Delete this problem report?')) return;
+    try { await api(`/api/admin/problem-reports/${b.dataset.id}`, { method: 'DELETE' }); viewAdmin(); }
+    catch (e) { toast(e.message, true); }
+  }));
+
   const teBtn = document.getElementById('testEmailBtn');
   if (teBtn) {
     const teTo = document.getElementById('testEmailTo');

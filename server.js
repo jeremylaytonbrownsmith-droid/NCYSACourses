@@ -2505,6 +2505,72 @@ app.get('/verify/:certId', (req, res) => {
 
 // ---------- NCYSA admin ----------
 
+// A learner reports a problem from inside a course (e.g. a module that won't
+// complete). Saved for the dashboard and, if SUPPORT_EMAIL is set, emailed to the
+// learning admin — with the context (who, which course/module, browser) so they
+// don't have to chase it down.
+app.post('/api/problem-report', requireAuth, ah(async (req, res) => {
+  const message = String(req.body?.message || '').trim().slice(0, 2000);
+  if (message.length < 3) return res.status(400).json({ error: 'Please describe the problem.' });
+  const db = load();
+  const course = allCourses().find((c) => c.id === String(req.body?.courseId || ''));
+  const lesson = course && (course.lessons || []).find((l) => l.id === String(req.body?.lessonId || ''));
+  // Light anti-spam: cap how many open reports one learner can file.
+  const openForUser = db.problemReports.filter((r) => r.userId === req.user.id && !r.resolved).length;
+  if (openForUser >= 10) return res.status(429).json({ error: 'You already have several open reports — we are on it. Please hold off on more for now.' });
+  const report = {
+    id: 'pr_' + crypto.randomBytes(6).toString('hex'),
+    userId: req.user.id,
+    learner: req.user.name || [req.user.firstName, req.user.lastName].filter(Boolean).join(' '),
+    email: req.user.email || '',
+    courseId: course ? course.id : String(req.body?.courseId || ''),
+    course: course ? course.title : '',
+    lessonId: lesson ? lesson.id : String(req.body?.lessonId || ''),
+    lesson: lesson ? lesson.title : '',
+    org: course ? (course.orgId || DEFAULT_ORG) : DEFAULT_ORG,
+    message,
+    userAgent: String(req.body?.userAgent || req.headers['user-agent'] || '').slice(0, 400),
+    createdAt: new Date().toISOString(),
+    resolved: false,
+  };
+  db.problemReports.push(report);
+  if (db.problemReports.length > 2000) db.problemReports = db.problemReports.slice(-2000);
+  save();
+  // Best-effort email; never fail the learner's request if mail isn't configured.
+  const supportTo = process.env.SUPPORT_EMAIL || '';
+  if (supportTo) {
+    const subject = `Problem report: ${report.course || 'course'}${report.lesson ? ' — ' + report.lesson : ''}`;
+    const body = `${report.learner || 'A learner'} (${report.email}) reported a problem.\n\n`
+      + `Course: ${report.course}\nModule: ${report.lesson || '(not specified)'}\n\n`
+      + `Message:\n${report.message}\n\n`
+      + `Browser: ${report.userAgent}\nWhen: ${report.createdAt}\n`;
+    try { await sendEmail({ to: supportTo, subject, body }); } catch (e) { /* logged in outbox */ }
+  }
+  res.json({ ok: true });
+}));
+
+// Resolve or delete a problem report from the dashboard.
+app.post('/api/admin/problem-reports/:id/resolve', requireDashboard, (req, res) => {
+  const db = load();
+  const r = (db.problemReports || []).find((x) => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: 'No such report.' });
+  const scope = reqOrgScope(req);
+  if (scope && (r.org || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No such report.' });
+  r.resolved = !(req.body && req.body.resolved === false);
+  save();
+  res.json({ ok: true, resolved: r.resolved });
+});
+app.delete('/api/admin/problem-reports/:id', requireDashboard, (req, res) => {
+  const db = load();
+  const r = (db.problemReports || []).find((x) => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: 'No such report.' });
+  const scope = reqOrgScope(req);
+  if (scope && (r.org || DEFAULT_ORG) !== scope) return res.status(404).json({ error: 'No such report.' });
+  db.problemReports = db.problemReports.filter((x) => x.id !== req.params.id);
+  save();
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/overview', requireDashboard, (req, res) => {
   const db = load();
   // Partner scope: restrict every record to courses in the partner's org.
@@ -2560,6 +2626,12 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
       .filter((n) => n.audience === 'ncysa')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     outbox: scope ? [] : db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    // Learner-filed problem reports, newest first, unresolved first. Org-scoped for partners.
+    problemReports: (db.problemReports || [])
+      .filter((r) => inScope(r.courseId))
+      .slice()
+      .sort((a, b) => (a.resolved === b.resolved ? b.createdAt.localeCompare(a.createdAt) : (a.resolved ? 1 : -1)))
+      .slice(0, 200),
     partnerWebhooks: (db.webhookLog || []).filter((w) => !scope || (w.org && String(w.org).toLowerCase() === scope)).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     partnerUploads: (db.uploadLog || []).filter((u) => !scope || (u.org && String(u.org).toLowerCase() === scope)).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50),
     learnerCount: scope ? new Set(scopedEnrollments.map((e) => e.userId)).size : db.users.filter((u) => u.role === 'learner').length,

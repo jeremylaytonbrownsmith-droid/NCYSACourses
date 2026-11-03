@@ -1547,3 +1547,29 @@ body.pseudo-fs-lock { overflow: hidden; }
 .cg-sub { color: var(--ink-soft); font-size: .84rem; }
 .cg-count { margin-left: auto; color: var(--ink-soft); font-size: .8rem; font-weight: 600; white-space: nowrap; }
 .course-group .cg-body { margin-top: 12px; }
+
+/* Report-a-problem button + modal, and the dashboard problem-reports panel */
+.report-problem { margin-top: 14px; width: 100%; color: var(--ink-soft); }
+.report-problem:hover { color: var(--accent); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,18,28,.5); display: grid; place-items: center; z-index: 9000; padding: 20px; }
+.modal-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 460px; padding: 24px; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+.modal-close { position: absolute; top: 12px; right: 14px; border: 0; background: none; font-size: 1.5rem; line-height: 1; color: var(--ink-soft); cursor: pointer; }
+.modal-close:hover { color: var(--ink); }
+.rp-title { margin: 0 0 4px; font-size: 1.2rem; }
+.rp-ctx { margin: 0 0 2px; color: var(--ink); }
+.rp-who { margin: 0 0 14px; color: var(--ink-soft); font-size: .88rem; }
+.rp-label { display: block; font-weight: 700; font-size: .9rem; margin: 0 0 6px; color: var(--ink); }
+#rpMsg { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--bg, #fbfaf7); color: var(--ink); font: inherit; padding: 11px 12px; resize: vertical; }
+#rpMsg:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rp-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+.pr-badge { font-size: .7rem; font-weight: 800; color: #fff; background: var(--accent); border-radius: 99px; padding: 2px 9px; vertical-align: middle; }
+.pr-item { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 13px 15px; margin-bottom: 11px; }
+.pr-item.resolved { border-left-color: var(--success); opacity: .66; }
+.pr-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pr-who { color: var(--ink); }
+.pr-when { color: var(--ink-soft); font-size: .8rem; white-space: nowrap; }
+.pr-ctx { color: var(--ink-soft); font-size: .88rem; margin: 2px 0 8px; }
+.pr-msg { color: var(--ink-body, var(--ink)); white-space: pre-wrap; line-height: 1.5; }
+.pr-ua { color: var(--ink-soft); font-size: .74rem; margin-top: 7px; word-break: break-all; }
+.pr-actions { display: flex; gap: 8px; margin-top: 11px; }
