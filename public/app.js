@@ -3213,6 +3213,7 @@ async function viewCourseAdmin(flash) {
                   <span class="admin-lesson-actions">
                     <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="up" title="Move up" ${li === 0 ? 'disabled' : ''}>↑</button>
                     <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="down" title="Move down" ${li === c.lessons.length - 1 ? 'disabled' : ''}>↓</button>
+                    ${l.type === 'scorm' ? `<button class="linkbtn mod-timecomplete${l.completeOnTime ? ' on' : ''}" data-course="${c.id}" data-lesson="${l.id}" data-on="${l.completeOnTime ? '1' : '0'}" data-title="${esc(l.title)}" title="Complete this module on time spent, for content whose own completion is broken">${l.completeOnTime ? '⏱ Time-complete: ON' : '⏱ Time-complete'}</button>` : ''}
                     <button class="linkbtn edit-lesson" data-course="${c.id}" data-lesson="${l.id}">Edit</button>
                     <button class="linkbtn danger del-lesson" data-course="${c.id}" data-lesson="${l.id}">Delete</button>
                   </span>
@@ -3456,6 +3457,14 @@ async function viewCourseAdmin(flash) {
   document.querySelectorAll('.move-lesson').forEach((b) => b.addEventListener('click', async () => {
     await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}/move`, { method: 'POST', body: { dir: b.dataset.dir } });
     viewCourseAdmin('Lesson order updated.');
+  }));
+  document.querySelectorAll('.mod-timecomplete').forEach((b) => b.addEventListener('click', async () => {
+    const turningOn = b.dataset.on !== '1';
+    if (turningOn && !confirm(`Turn on time-based completion for "${b.dataset.title}"?\n\nUse this only when the module's own content won't report complete (a broken audio/video slide). Learners will finish it by spending the module's required minutes, even if the content never signals done — so set that module's minimum minutes to roughly its real length first (the "Module minutes" button).`)) return;
+    try {
+      await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}/complete-on-time`, { method: 'POST', body: { on: turningOn } });
+      viewCourseAdmin(turningOn ? 'Time-based completion ON for this module — learners finish it on time spent.' : 'Time-based completion off for this module.');
+    } catch (e) { alert('Could not update: ' + e.message); }
   }));
   document.querySelectorAll('.pub-toggle').forEach((b) => b.addEventListener('click', async () => {
     const makePublic = b.dataset.pub !== '1';
