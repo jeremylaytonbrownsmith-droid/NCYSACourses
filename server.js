@@ -2796,6 +2796,45 @@ app.delete('/api/admin/enrollments', requireDashboard, (req, res) => {
   res.json({ ok: true, removedEnrollments: gone.length, removedAccount });
 });
 
+// Bulk cleanup: remove demo-launch records and orphaned (deleted-account) rows in
+// one click. Demo records are system-minted by the "Demo launch link" tool — their
+// refId starts "DEMO-" and their email is demo+...@getmatchready.app — so real
+// partner-launched referees (real refIds / real emails) are never matched. An
+// orphan is an enrollment whose learner no longer exists. Partner-scoped.
+app.post('/api/admin/cleanup-records', requireDashboard, (req, res) => {
+  const db = load();
+  const scope = reqOrgScope(req);
+  const courseOrg = {}; for (const c of allCourses()) courseOrg[c.id] = (c.orgId || DEFAULT_ORG);
+  const inScope = (courseId) => !scope || courseOrg[courseId] === scope;
+  const users = new Map(db.users.map((u) => [u.id, u]));
+  const DEMO_EMAIL = /^demo\+[^@]*@getmatchready\.app$/i;
+  const isDemoUser = (u) => !!(u && (String(u.externalRef || '').toUpperCase().startsWith('DEMO-') || DEMO_EMAIL.test(u.email || '')));
+  const isDemoEnr = (e) => String(e.externalRef || '').toUpperCase().startsWith('DEMO-');
+  const target = db.enrollments.filter((e) => {
+    if (!inScope(e.courseId)) return false;
+    const u = users.get(e.userId);
+    return !u || isDemoEnr(e) || isDemoUser(u); // orphan, or demo
+  });
+  const key = new Set(target.map((e) => e.userId + '|' + e.courseId));
+  const certIds = target.map((e) => e.certId).filter(Boolean);
+  db.enrollments = db.enrollments.filter((e) => !key.has(e.userId + '|' + e.courseId));
+  db.lessonProgress = db.lessonProgress.filter((p) => !key.has(p.userId + '|' + p.courseId));
+  if (certIds.length) db.notifications = db.notifications.filter((n) => !certIds.some((cid) => String(n.body || '').includes(cid)));
+  // Prune the throwaway demo accounts these rows belonged to, once they have no
+  // enrollments left. Only demo learners — never staff, never a real learner.
+  const stillEnrolled = new Set(db.enrollments.map((e) => e.userId));
+  const removedUserIds = new Set(target.map((e) => e.userId));
+  let removedAccounts = 0;
+  db.users = db.users.filter((u) => {
+    if (removedUserIds.has(u.id) && u.role === 'learner' && isDemoUser(u) && !stillEnrolled.has(u.id)) {
+      invalidateUserSessions(db, u.id); removedAccounts++; return false;
+    }
+    return true;
+  });
+  save();
+  res.json({ ok: true, removed: target.length, removedAccounts });
+});
+
 // Per-module progress for one learner in one course. Powers the admin
 // "reset a single module" tool, so a learner stuck on one module (e.g. an
 // uploaded SCORM package we can't edit) can redo just that module instead of

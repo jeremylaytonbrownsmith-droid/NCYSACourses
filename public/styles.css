@@ -1586,3 +1586,5 @@ body.pseudo-fs-lock { overflow: hidden; }
 /* badge for staff-preview / non-learner rows in the completion records */
 .rec-badge { display: inline-block; margin-left: 8px; font-size: .64rem; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; vertical-align: middle; }
 .rec-badge.staff { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.card-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
