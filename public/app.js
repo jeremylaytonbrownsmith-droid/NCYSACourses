@@ -966,6 +966,34 @@ async function viewCourse(courseId, lessonId) {
   else if (lesson.type === 'slides') renderSlidesLesson(pane, course, lesson, lp);
   else if (lesson.type === 'module') renderModuleLesson(pane, course, lesson, lp);
   else renderTextLesson(pane, course, lesson, lp);
+
+  applyContentProtection(pane);
+}
+
+// Content protection for learners (not staff): a faint personalized watermark
+// (name + email + date) tiled across the lesson so any leaked screenshot traces
+// back to the account, plus copy/right-click/selection blocking to deter casual
+// copying. This is a deterrent, not DRM — nothing on the web can truly stop an OS
+// screenshot; the watermark is what makes a leak accountable.
+function applyContentProtection(pane) {
+  if (!pane || !me || !me.user || isStaffViewer()) return;
+  const u = me.user;
+  const xml = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const label = `${xml(u.name || 'Learner')}   ·   ${xml(u.email || '')}   ·   ${new Date().toLocaleDateString()}`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='360' height='210'><text x='18' y='160' transform='rotate(-27 18 160)' fill='rgba(22,22,45,0.07)' font-family='Arial, sans-serif' font-size='15' font-weight='700'>${label}</text></svg>`;
+  const uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  let wm = pane.querySelector(':scope > .content-wm');
+  if (!wm) { wm = document.createElement('div'); wm.className = 'content-wm'; wm.setAttribute('aria-hidden', 'true'); pane.appendChild(wm); }
+  wm.style.backgroundImage = `url("${uri}")`;
+  pane.classList.add('no-copy');
+  if (!pane.dataset.cpBound) {
+    pane.dataset.cpBound = '1';
+    ['contextmenu', 'copy', 'cut', 'dragstart', 'selectstart'].forEach((ev) => pane.addEventListener(ev, (e) => {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || (t.closest && t.closest('input, textarea')))) return; // keep forms usable
+      e.preventDefault();
+    }));
+  }
 }
 
 // Learner "Report a problem" modal — pre-filled with who they are and which

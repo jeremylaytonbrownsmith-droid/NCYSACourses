@@ -237,7 +237,13 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .lesson-item .l-title { font-size: 0.9rem; line-height: 1.35; }
 .lesson-item .l-type { display: block; font-size: 0.72rem; color: #9b95c4; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 
-.lesson-pane { padding: 40px clamp(20px, 5vw, 64px); max-width: 860px; }
+.lesson-pane { padding: 40px clamp(20px, 5vw, 64px); max-width: 860px; position: relative; }
+
+/* content protection: personalized watermark overlay + copy deterrents (learners) */
+.content-wm { position: absolute; inset: 0; z-index: 4; pointer-events: none; background-repeat: repeat; background-position: 0 0; }
+.no-copy, .no-copy :not(input):not(textarea) { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+.no-copy input, .no-copy textarea { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
+.no-copy img, .no-copy svg { -webkit-user-drag: none; user-select: none; }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
 .lesson-kind-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .staff-preview-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #fde68a; color: #7c5a00; font-weight: 700; font-size: .72rem; letter-spacing: .02em; white-space: nowrap; }
