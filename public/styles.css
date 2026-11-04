@@ -1590,3 +1590,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .card-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .btn-ic { vertical-align: -2px; margin-right: 6px; flex: none; }
+
+/* when only one portal is shown (Coaches hidden), center the single card */
+.portal-split.single { display: flex; justify-content: center; }
+.portal-split.single .portal-card { max-width: 460px; width: 100%; }
