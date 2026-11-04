@@ -5116,7 +5116,44 @@ async function applyBrandForHash(hash) {
 // True when the current context is a co-branded (e.g. NCSRA referee) portal.
 function inPortal() { return !!activeBrand; }
 
+// ----- "We'll be right back" (server updating / cold-start) ---------------
+// Render's free service is briefly unreachable during a deploy or when it
+// wakes from idle. In that window an API call 502s (or the fetch fails). Rather
+// than show a scary "Bad Gateway", we show a calm branded screen and reconnect
+// the visitor automatically once the server answers again.
+let _maintTimer = null, _maintTick = null;
+function clearMaint() {
+  if (_maintTimer) { clearTimeout(_maintTimer); _maintTimer = null; }
+  if (_maintTick) { clearInterval(_maintTick); _maintTick = null; }
+}
+function serverDown(e) {
+  const s = e && e.status;
+  if (s === 502 || s === 503 || s === 504) return true; // upstream not ready
+  if (s) return false;                                  // a real HTTP error (404/400/…)
+  const m = String((e && e.message) || '').toLowerCase();
+  return /failed to fetch|networkerror|load failed|network ?error|fetch/.test(m); // fetch itself failed
+}
+function showMaintenance() {
+  clearMaint();
+  const logo = (activeBrand && activeBrand.logo) || orgLogo(activeOrg) || NCSRA_LOGO;
+  let left = 5;
+  app.innerHTML = `<div class="section"><div class="maint-card" role="status" aria-live="polite">
+    <img src="${esc(logo)}" alt="" class="maint-logo" onerror="this.style.display='none'" />
+    <div class="maint-spin" aria-hidden="true"></div>
+    <h2>We&rsquo;ll be right back</h2>
+    <p class="sub">The site is updating &mdash; this usually takes just a few seconds. We&rsquo;ll reconnect you automatically, so please keep this page open.</p>
+    <button class="btn btn-accent" id="maintRetry" type="button">Check now</button>
+    <p class="maint-small">Reconnecting in <span id="maintCount">${left}</span>s&hellip;</p>
+  </div></div>`;
+  const countEl = document.getElementById('maintCount');
+  const retry = async () => { clearMaint(); try { await refreshMe(); } catch (_) { /* still warming */ } route(); };
+  document.getElementById('maintRetry')?.addEventListener('click', retry);
+  _maintTick = setInterval(() => { left -= 1; if (countEl) countEl.textContent = String(Math.max(0, left)); if (left <= 0) { clearInterval(_maintTick); _maintTick = null; } }, 1000);
+  _maintTimer = setTimeout(retry, 5000);
+}
+
 async function route() {
+  clearMaint(); // navigating away cancels any pending reconnect
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
   // On a partner's custom domain, the bare URL opens that org's portal (never
@@ -5141,6 +5178,7 @@ async function route() {
       const spinnerTimer = startLoading();
       try { await r.fn(m); } catch (e) {
         if (e.status === 401) { stopLoading(spinnerTimer); location.hash = '#/login'; return; }
+        if (serverDown(e)) { stopLoading(spinnerTimer); showMaintenance(); return; }
         app.innerHTML = `<div class="section"><div class="card"><h2>Something went wrong</h2><p class="sub">${esc(e.message)}</p></div></div>`;
       }
       stopLoading(spinnerTimer);
@@ -5164,6 +5202,8 @@ window.addEventListener('hashchange', route);
     const anchor = document.createElement('span'); anchor.id = 'main'; app.parentNode.insertBefore(anchor, app);
   }
   applyPwaHead();
-  await refreshMe();
+  // Don't let a cold-start 502 on /api/me blank the page — route() will show the
+  // branded "we'll be right back" screen (and retry) if the server is still waking.
+  try { await refreshMe(); } catch (e) { if (!serverDown(e)) throw e; }
   await route();
 })();

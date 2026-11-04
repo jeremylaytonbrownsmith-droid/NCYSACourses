@@ -244,6 +244,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .no-copy, .no-copy :not(input):not(textarea) { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
 .no-copy input, .no-copy textarea { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
 .no-copy img, .no-copy svg { -webkit-user-drag: none; user-select: none; }
+/* "We'll be right back" screen (deploy / cold-start reconnect) */
+.maint-card { max-width: 440px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 44px 32px 32px; text-align: center; box-shadow: 0 8px 28px rgba(16,8,8,0.06); }
+.maint-card .maint-logo { height: 76px; width: auto; object-fit: contain; margin-bottom: 20px; }
+.maint-card h2 { margin: 6px 0 10px; color: var(--ink); }
+.maint-card .sub { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.55; margin-bottom: 22px; }
+.maint-card .btn { min-width: 150px; }
+.maint-card .maint-small { color: var(--ink-soft); font-size: 0.82rem; margin: 16px 0 0; }
+.maint-spin { width: 34px; height: 34px; margin: 0 auto 18px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: maint-spin 0.9s linear infinite; }
+@keyframes maint-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .maint-spin { animation: none; } }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
 .lesson-kind-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .staff-preview-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #fde68a; color: #7c5a00; font-weight: 700; font-size: .72rem; letter-spacing: .02em; white-space: nowrap; }
