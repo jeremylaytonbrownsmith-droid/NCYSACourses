@@ -465,7 +465,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 /* Keep a long list (notifications, records) as a compact panel that scrolls
    inside its card instead of pushing everything else off the screen. */
 .card-scroll { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
-#completionsTable { max-height: 520px; overflow-y: auto; }
+#completionsTable { max-height: 640px; overflow-y: auto; }
 .count-pill { display: inline-block; background: #1f3a5f; color: #fff; font-weight: 700; font-size: 0.72rem; line-height: 1; border-radius: 999px; padding: 3px 9px; vertical-align: middle; margin-left: 4px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count-pill { background: #2fd39c; color: #06231a; } }
 :root[data-theme="dark"] .count-pill { background: #2fd39c; color: #06231a; }
@@ -514,6 +514,20 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
 .mail pre { white-space: pre-wrap; font: inherit; color: var(--ink-body); }
+/* Collapsed-by-default outbox emails: one line each, expand on click. Keeps the
+   outbox compact instead of printing every full email body. */
+details.mail { padding: 0; }
+details.mail > summary.mail-sum { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 11px 14px 11px 34px; position: relative; }
+details.mail > summary.mail-sum::-webkit-details-marker { display: none; }
+details.mail > summary.mail-sum::before { content: ""; position: absolute; left: 14px; top: 50%; width: 7px; height: 7px; border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft); transform: translateY(-60%) rotate(-45deg); transition: transform 0.15s ease; }
+details[open].mail > summary.mail-sum::before { transform: translateY(-30%) rotate(45deg); }
+details.mail > summary.mail-sum:hover { background: var(--bg); }
+.mail .mail-subj { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.mail .mail-meta { color: var(--ink-soft); font-size: 0.78rem; white-space: nowrap; flex: 0 0 auto; }
+details.mail > .mail-head, details.mail > pre { padding-left: 14px; padding-right: 14px; }
+details.mail > .mail-head { margin-top: 6px; }
+details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
+@media (max-width: 560px) { .mail .mail-meta { display: none; } }
 .empty { color: var(--ink-soft); font-size: 0.9rem; }
 
 /* ---------- toast ---------- */

@@ -3006,12 +3006,14 @@ async function viewAdmin() {
             <button class="btn btn-primary btn-sm" id="testEmailBtn">Send test email</button>
             <span id="testEmailResult" class="test-email-result" role="status" aria-live="polite"></span>
           </div>
+          <div class="card-scroll">
           ${d.outbox.length ? d.outbox.map((m) => `
-            <div class="mail">
+            <details class="mail">
+              <summary class="mail-sum"><span class="mail-subj">${esc(m.subject)}</span><span class="mail-meta">${esc(m.to)} · ${esc(m.status)}</span></summary>
               <div class="mail-head"><strong>To:</strong> ${esc(m.to)} · <strong>Sent:</strong> ${new Date(m.createdAt).toLocaleString()} · <strong>Status:</strong> ${esc(m.status)}</div>
-              <div><strong>${esc(m.subject)}</strong></div>
               <pre>${esc(m.body)}</pre>
-            </div>`).join('') : '<p class="empty">Outbox is empty.</p>'}
+            </details>`).join('') : '<p class="empty">Outbox is empty.</p>'}
+          </div>
         </div>
         <div class="admin-card">
           <h2>Partner webhooks</h2>
