@@ -2950,7 +2950,10 @@ async function viewAdmin() {
         <div class="admin-card">
           <div class="card-head">
             <h2>Progress &amp; completions (records)</h2>
-            <button class="btn btn-primary btn-sm" id="exportCsvBtn">Export CSV (Excel)</button>
+            <div class="card-head-actions">
+              <button class="btn btn-ghost btn-sm" id="cleanupRecordsBtn" title="Remove demo-launch and deleted-account (orphaned) rows">🧹 Clean up demo &amp; orphaned</button>
+              <button class="btn btn-primary btn-sm" id="exportCsvBtn">Export CSV (Excel)</button>
+            </div>
           </div>
           <div class="filter-bar">
             <input id="fltSearch" placeholder="Search name or email…" />
@@ -3176,6 +3179,15 @@ async function viewAdmin() {
       }
       renderTable();
     }, 45000);
+    document.getElementById('cleanupRecordsBtn')?.addEventListener('click', async () => {
+      if (!confirm('Remove all demo-launch records and deleted-account (orphaned) rows?\n\nThis permanently deletes those test rows and their progress. Real learner records are not touched. This cannot be undone.')) return;
+      const btn = document.getElementById('cleanupRecordsBtn'); btn.disabled = true; btn.textContent = 'Cleaning…';
+      try {
+        const r = await api('/api/admin/cleanup-records', { method: 'POST', body: {} });
+        toast(r.removed ? `Removed ${r.removed} demo/orphaned record${r.removed === 1 ? '' : 's'}. ✅` : 'No demo or orphaned records to remove.');
+        viewAdmin();
+      } catch (e) { btn.disabled = false; btn.textContent = '🧹 Clean up demo & orphaned'; toast(e.message || 'Could not clean up.', true); }
+    });
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
       const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
