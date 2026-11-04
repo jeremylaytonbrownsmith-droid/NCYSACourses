@@ -1588,3 +1588,5 @@ body.pseudo-fs-lock { overflow: hidden; }
 .rec-badge.staff { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 
 .card-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.btn-ic { vertical-align: -2px; margin-right: 6px; flex: none; }

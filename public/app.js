@@ -2951,7 +2951,7 @@ async function viewAdmin() {
           <div class="card-head">
             <h2>Progress &amp; completions (records)</h2>
             <div class="card-head-actions">
-              <button class="btn btn-ghost btn-sm" id="cleanupRecordsBtn" title="Remove demo-launch and deleted-account (orphaned) rows">🧹 Clean up demo &amp; orphaned</button>
+              <button class="btn btn-ghost btn-sm" id="cleanupRecordsBtn" title="Remove demo-launch and deleted-account (orphaned) rows"><svg class="btn-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg><span>Clean up demo &amp; orphaned</span></button>
               <button class="btn btn-primary btn-sm" id="exportCsvBtn">Export CSV (Excel)</button>
             </div>
           </div>
@@ -3181,12 +3181,12 @@ async function viewAdmin() {
     }, 45000);
     document.getElementById('cleanupRecordsBtn')?.addEventListener('click', async () => {
       if (!confirm('Remove all demo-launch records and deleted-account (orphaned) rows?\n\nThis permanently deletes those test rows and their progress. Real learner records are not touched. This cannot be undone.')) return;
-      const btn = document.getElementById('cleanupRecordsBtn'); btn.disabled = true; btn.textContent = 'Cleaning…';
+      const btn = document.getElementById('cleanupRecordsBtn'); const orig = btn.innerHTML; btn.disabled = true; btn.textContent = 'Cleaning…';
       try {
         const r = await api('/api/admin/cleanup-records', { method: 'POST', body: {} });
-        toast(r.removed ? `Removed ${r.removed} demo/orphaned record${r.removed === 1 ? '' : 's'}. ✅` : 'No demo or orphaned records to remove.');
+        toast(r.removed ? `Removed ${r.removed} demo/orphaned record${r.removed === 1 ? '' : 's'}.` : 'No demo or orphaned records to remove.');
         viewAdmin();
-      } catch (e) { btn.disabled = false; btn.textContent = '🧹 Clean up demo & orphaned'; toast(e.message || 'Could not clean up.', true); }
+      } catch (e) { btn.disabled = false; btn.innerHTML = orig; toast(e.message || 'Could not clean up.', true); }
     });
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       const list = filtered();
