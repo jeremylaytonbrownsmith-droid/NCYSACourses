@@ -2578,13 +2578,20 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
   const courseOrg = {}; for (const c of allCourses()) courseOrg[c.id] = (c.orgId || DEFAULT_ORG);
   const inScope = (courseId) => !scope || courseOrg[courseId] === scope;
   const scopedEnrollments = db.enrollments.filter((e) => inScope(e.courseId));
+  // A row with no named learner is either a staff member previewing a course
+  // (they auto-enroll to open it) or an orphaned enrollment (its learner was
+  // deleted). Label both so they're identifiable instead of blank, and flag
+  // staff previews so the dashboard can badge them.
+  const STAFF = new Set(STAFF_ROLES);
+  const isStaffU = (u) => !!(u && STAFF.has(u.role));
+  const nameOf = (u) => u ? (u.name || u.email || (STAFF.has(u.role) ? 'Staff preview' : '(unnamed)')) : '(deleted account)';
   res.json({
     completions: scopedEnrollments
       .filter((e) => e.completedAt)
       .map((e) => {
         const u = db.users.find((u) => u.id === e.userId);
         return {
-          learner: u?.name,
+          learner: nameOf(u), staffPreview: isStaffU(u),
           firstName: u?.firstName || '',
           lastName: u?.lastName || '',
           email: u?.email,
@@ -2608,7 +2615,7 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
       const comp = compliance.complianceOf(e);
       return {
         userId: e.userId,
-        learner: u?.name, firstName: u?.firstName || '', lastName: u?.lastName || '',
+        learner: nameOf(u), staffPreview: isStaffU(u), firstName: u?.firstName || '', lastName: u?.lastName || '',
         email: u?.email, course: course?.title, courseId: e.courseId,
         modulesComplete: doneCount, totalModules: total,
         completedAt: e.completedAt || null, certId: e.certId || null,
