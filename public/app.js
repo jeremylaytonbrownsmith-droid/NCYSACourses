@@ -983,8 +983,8 @@ function applyContentProtection(pane) {
   if (!pane || !me || !me.user || isStaffViewer()) return;
   const u = me.user;
   const xml = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const label = `${xml(u.name || 'Learner')}   ·   ${xml(u.email || '')}   ·   ${new Date().toLocaleDateString()}`;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='360' height='210'><text x='18' y='160' transform='rotate(-27 18 160)' fill='rgba(22,22,45,0.07)' font-family='Arial, sans-serif' font-size='15' font-weight='700'>${label}</text></svg>`;
+  const label = `${xml(u.name || 'Learner')}  ·  ${xml(u.email || '')}`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='560' height='400'><text x='40' y='320' transform='rotate(-24 40 320)' fill='rgba(30,34,60,0.045)' font-family='Arial, sans-serif' font-size='13' font-weight='500' letter-spacing='0.4'>${label}</text></svg>`;
   const uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   let wm = pane.querySelector(':scope > .content-wm');
   if (!wm) { wm = document.createElement('div'); wm.className = 'content-wm'; wm.setAttribute('aria-hidden', 'true'); pane.appendChild(wm); }
