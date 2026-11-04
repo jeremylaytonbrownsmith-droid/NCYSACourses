@@ -3269,8 +3269,8 @@ async function viewCourseAdmin(flash) {
 
   // Organize by portal (org), drafts first within each, so the Course Designer
   // isn't one long list mixing every portal and status together.
-  const ORG_NAMES = { ncysa: 'NCYSA', ncsra: 'NCSRA', omg: 'OMG' };
-  const ORG_SUB = { ncysa: 'Coaches', ncsra: 'Referees', omg: 'Officials Management Group' };
+  const ORG_NAMES = { ncysa: 'NCYSA / NCSRA', ncsra: 'NCSRA', omg: 'OMG' };
+  const ORG_SUB = { ncysa: 'Coaches & Referees', ncsra: 'Referees', omg: 'Officials Management Group' };
   const ORG_ORDER = ['ncysa', 'ncsra', 'omg'];
   const byOrg = {};
   list.forEach((c) => { const o = c.orgId || 'ncysa'; (byOrg[o] || (byOrg[o] = [])).push(c); });
