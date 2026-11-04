@@ -3118,7 +3118,7 @@ async function viewAdmin() {
       <div class="table-scroll"><table class="admin-table">
         <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Due</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
-          <td data-label="Learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner)}</button>` : esc(c.learner)}</td><td data-label="Email">${esc(c.email)}</td><td data-label="Course">${esc(c.course)}</td>
+          <td data-label="Learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner || '—')}</button>` : esc(c.learner || '—')}${c.staffPreview ? '<span class="rec-badge staff">Staff preview</span>' : ''}</td><td data-label="Email">${esc(c.email || '—')}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
           <td data-label="Status">${statusCell(c)}</td>
           <td data-label="Due">${dueCell(c)}</td>
