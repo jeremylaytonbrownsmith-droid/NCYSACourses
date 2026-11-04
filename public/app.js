@@ -47,6 +47,10 @@ const ICON_SOUND = svgIcon('<path d="M4 9v6h3l5 4V5L7 9z"/><path d="M16 9a3 3 0 
 const app = document.getElementById('app');
 const topnav = document.getElementById('topnav');
 let me = null;        // { user, unread }
+// Coaches portal is hidden for now (NCYSA isn't running it — may be repurposed
+// for mentors/coach-of-referees/Assignors later). Flip to true to show the
+// Coaches nav tab and landing-page card again; nothing behind it was removed.
+const SHOW_COACHES_PORTAL = false;
 // Staff (admin/editor/partner) get a no-gate "preview" of any module: every
 // per-slide wait, module dwell timer, reading timer and video watch-gate is
 // dropped so they can click straight through to test a course end to end.
@@ -260,7 +264,7 @@ function renderNav() {
   // ☰ button into a dropdown, so the bar never overflows or clips the logo.
   const menu = `
     ${orgCtx ? '' : `
-    <a class="navlink nav-coaches" href="#/coaches">Coaches</a>
+    ${SHOW_COACHES_PORTAL ? '<a class="navlink nav-coaches" href="#/coaches">Coaches</a>' : ''}
     <a class="navlink nav-referees" href="#/referees">Referees</a>
     <a class="navlink nav-help" href="#/help">Help</a>`}
     ${user ? `
@@ -470,13 +474,13 @@ async function viewHome() {
          your progress and certificates tracked automatically. Choose your path to get started.</p>
     </section>
     <section class="section">
-      <div class="portal-split">
-        <a class="portal-card portal-coaches" href="#/coaches">
+      <div class="portal-split${SHOW_COACHES_PORTAL ? '' : ' single'}">
+        ${SHOW_COACHES_PORTAL ? `<a class="portal-card portal-coaches" href="#/coaches">
           <div class="portal-badge portal-badge-coach">${logoImg('portal-logo')}</div>
           <h2>Coaches Portal</h2>
           <p>Grassroots licenses and coaching development from NCYSA.</p>
           <span class="btn btn-accent btn-lg">Enter Coaches Portal →</span>
-        </a>
+        </a>` : ''}
         <a class="portal-card portal-referees" href="#/referees">
           <div class="portal-badge portal-badge-ref"><img src="${esc(refLogo)}" alt="NCSRA" /></div>
           <h2>Referees Portal</h2>
