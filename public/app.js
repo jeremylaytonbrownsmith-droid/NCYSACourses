@@ -1906,6 +1906,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   function finalize(r) {
     if (done) return;
     done = true; stopBeat();
+    try { window.removeEventListener('beforeunload', beforeUnloadGuard); } catch (e) { /* ignore */ }
     if (r && r.courseCompleted) { showCourseComplete(course, r.certId, null, r.returnUrl); return; }
     const a = document.getElementById('scormActions');
     if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
@@ -2099,6 +2100,15 @@ function renderScormLesson(pane, course, lesson, lp) {
   paintGate({ activeSeconds: active, required });
   startBeat();
 
+  // Accidental-exit guard: an in-progress HTML (Evolve) module keeps its place
+  // only in memory, so a reload / tab-close / browser-back wipes it with no way to
+  // restore (the package stores nothing). Warn before leaving. Dropped the moment
+  // the module completes (finalize) or the learner intentionally leaves (cleanup).
+  function beforeUnloadGuard(e) {
+    if (isHtml && !done) { e.preventDefault(); e.returnValue = ''; return ''; }
+  }
+  window.addEventListener('beforeunload', beforeUnloadGuard);
+
   // HTML package: the learner marks it complete once the time gate is met. This
   // sets the status the server needs (completed) and syncs — the server confirms
   // the gate and completes the module just like a SCORM self-report would.
@@ -2122,6 +2132,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     document.removeEventListener('visibilitychange', onVisibility);
     try { delete window.API; } catch (e) { window.API = undefined; }
     try { delete window.API_1484_11; } catch (e) { window.API_1484_11 = undefined; }
+    try { window.removeEventListener('beforeunload', beforeUnloadGuard); } catch (e) { /* ignore */ }
     window.removeEventListener('hashchange', cleanup);
   });
 }
