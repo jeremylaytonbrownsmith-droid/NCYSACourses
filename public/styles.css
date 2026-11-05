@@ -1618,3 +1618,6 @@ body.pseudo-fs-lock { overflow: hidden; }
 /* when only one portal is shown (Coaches hidden), center the single card */
 .portal-split.single { display: flex; justify-content: center; }
 .portal-split.single .portal-card { max-width: 460px; width: 100%; }
+
+/* "Finish in one sitting" caution on non-persisting (Evolve) modules */
+.evo-warn { margin: 0 0 12px; padding: 11px 14px; border-radius: 10px; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; font-size: 0.9rem; line-height: 1.5; }
