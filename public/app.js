@@ -1103,6 +1103,63 @@ async function openImageLibrary(onPick) {
   });
 }
 
+// Per-org settings: branding, certificate defaults, portal welcome and support
+// contact that NEW courses in that org inherit. Set an org up once (e.g. OMG)
+// instead of re-entering branding on every course. A global admin picks the org;
+// a partner admin is locked to their own.
+const ORG_SETTING_FIELDS = [
+  ['coBrandName', 'Brand name', 'text', 'OMG Referee Education'],
+  ['coLogoUrl', 'Brand logo URL', 'text', '/media/omg-logo.png'],
+  ['supportEmail', 'Support contact email (shown to learners)', 'email', 'support@omgtsys.com'],
+  ['certOrg', 'Certificate organization', 'text', 'Officials Management Group'],
+  ['certTitle', 'Certificate title', 'text', 'Certificate of Recertification Training'],
+  ['certPrefix', 'Certificate ID prefix', 'text', 'OMG'],
+  ['certAccent', 'Certificate color (border & title)', 'color', '#2f5a9e'],
+  ['certAccent2', 'Certificate seal color', 'color', '#ce2b37'],
+  ['completionRedirectUrl', 'Default “when finished, send learners to” URL', 'text', 'https://…'],
+];
+async function openOrgSettings() {
+  const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
+  host.innerHTML = `<div class="modal-overlay" id="osOverlay"><div class="modal-card il-card" role="dialog" aria-modal="true" aria-label="Org settings">
+    <button class="modal-close" id="osClose" aria-label="Close">×</button>
+    <h2 class="rp-title">⚙ Org settings</h2>
+    <p class="rp-ctx">Defaults for an organization. <strong>New courses in that org inherit these</strong>, so you set the branding and certificate once instead of on every course. Existing courses keep whatever they already have.</p>
+    <div class="il-org-row"><label>Organization &nbsp;<select id="osOrg">${ORG_OPTIONS.map(([v, t]) => `<option value="${v}"${v === 'omg' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>
+    <form id="osForm" class="os-form">
+      ${ORG_SETTING_FIELDS.map(([k, label, type, ph]) => `<label>${esc(label)}<input name="${k}" type="${type === 'color' ? 'text' : (type === 'email' ? 'email' : 'text')}" placeholder="${esc(ph)}" /></label>`).join('')}
+      <label>Portal welcome / “Start here” text (optional)<textarea name="portalWelcome" rows="3" placeholder="A short greeting shown at the top of this org's portal."></textarea></label>
+      <label>Default audience for new courses
+        <select name="audience">${[['', '— no default —'], ['everyone', 'Everyone'], ['coaches', 'Coaches only'], ['referees', 'Referees only'], ['staff', 'Staff training']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+      </label>
+    </form>
+    <div id="osMsg" class="il-msg" role="status" aria-live="polite"></div>
+    <div class="form-actions"><button class="btn btn-accent" id="osSave" type="button">Save org settings</button></div>
+  </div></div>`;
+  const close = () => { host.innerHTML = ''; };
+  document.getElementById('osOverlay').addEventListener('click', (e) => { if (e.target.id === 'osOverlay') close(); });
+  document.getElementById('osClose').addEventListener('click', close);
+  const orgSel = document.getElementById('osOrg'), form = document.getElementById('osForm'), msg = document.getElementById('osMsg');
+  const curOrg = () => (orgSel && orgSel.value) || 'omg';
+  async function load() {
+    msg.textContent = '';
+    try {
+      const { settings } = await api('/api/admin/org-settings?org=' + encodeURIComponent(curOrg()));
+      form.querySelectorAll('[name]').forEach((f) => { f.value = (settings && settings[f.name]) || ''; });
+      const aud = document.querySelector('#osForm [name=audience]'); if (aud) aud.value = (settings && settings.audience) || '';
+    } catch (e) { msg.textContent = 'Could not load settings.'; }
+  }
+  orgSel.addEventListener('change', load);
+  await load();
+  document.getElementById('osSave').addEventListener('click', async () => {
+    const body = { orgId: curOrg() };
+    form.querySelectorAll('[name]').forEach((f) => { body[f.name] = f.value.trim(); });
+    const btn = document.getElementById('osSave'); btn.disabled = true; btn.textContent = 'Saving…';
+    try { await api('/api/admin/org-settings', { method: 'POST', body }); msg.textContent = '✓ Saved. New ' + curOrg().toUpperCase() + ' courses will use these.'; }
+    catch (e) { msg.textContent = e.message || 'Could not save.'; }
+    btn.disabled = false; btn.textContent = 'Save org settings';
+  });
+}
+
 function lessonHeader(lesson, course) {
   const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module', slides: 'Slides', module: 'Interactive module' };
   const logo = course && course.coLogoUrl
@@ -3539,6 +3596,7 @@ async function viewCourseAdmin(flash) {
         <div class="admin-head-actions">
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
           <button class="btn btn-ghost" id="imageLibraryBtn">🖼 Image library</button>
+          <button class="btn btn-ghost" id="orgSettingsBtn">⚙ Org settings</button>
           <button class="btn btn-ghost" id="storageBtn">Module storage</button>
           <button class="btn btn-ai" id="aiBuildBtn">✨ Build with AI</button>
           <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
@@ -3639,6 +3697,7 @@ async function viewCourseAdmin(flash) {
     loadStorage();
   });
   document.getElementById('imageLibraryBtn').addEventListener('click', openImageLibrary);
+  document.getElementById('orgSettingsBtn')?.addEventListener('click', openOrgSettings);
   document.getElementById('aiBuildBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = aiBuildPanel();
     bindAiBuild();
@@ -4204,14 +4263,23 @@ async function viewCourseAdmin(flash) {
     initRichText(form); // activate the visual editor for the "Start Here" field
     // Picking a partner org fills its branding into the fields below (overwrites,
     // so the identity matches the org). The default org leaves branding alone.
-    form.querySelector('[name=orgId]')?.addEventListener('change', (ev) => {
-      const brand = ORG_BRANDS[ev.target.value];
+    form.querySelector('[name=orgId]')?.addEventListener('change', async (ev) => {
+      const org = ev.target.value;
+      // Prefer the org's saved settings (set in ⚙ Org settings); fall back to the
+      // built-in brand defaults. Only fills fields that have a value, so the hex
+      // colors and optional bits don't blank out existing choices.
+      let brand = ORG_BRANDS[org] || null;
+      try {
+        const { settings } = await api('/api/admin/org-settings?org=' + encodeURIComponent(org));
+        if (settings && Object.values(settings).some((v) => v)) brand = { ...(brand || {}), ...settings };
+      } catch (e) { /* use built-in fallback */ }
       if (!brand) return;
       for (const [k, v] of Object.entries(brand)) {
+        if (v == null || v === '' || k === 'updatedAt' || k === 'portalWelcome' || k === 'supportEmail') continue;
         const field = form.querySelector(`[name=${k}]`);
         if (field) field.value = v;
       }
-      msg(`Filled in ${brand.coBrandName} branding — adjust if needed, then Save.`);
+      msg(`Filled in ${brand.coBrandName || org.toUpperCase()} branding — adjust if needed, then Save.`);
     });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
