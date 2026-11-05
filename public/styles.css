@@ -1615,7 +1615,11 @@ body.pseudo-fs-lock { overflow: hidden; }
 .modal-close:hover { color: var(--ink); }
 .rp-title { margin: 0 0 4px; font-size: 1.2rem; }
 /* Image library modal */
-.il-card { max-width: 760px; }
+.il-card { max-width: 760px; max-height: 88vh; overflow: auto; }
+.os-form { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.os-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; }
+.os-form input, .os-form textarea, .os-form select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, #fff); color: inherit; font-weight: 400; }
+.os-form textarea { resize: vertical; }
 .il-upload { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 6px; }
 .il-upload input[type="text"] { flex: 1 1 160px; min-width: 120px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
 .il-upload input[type="file"] { flex: 1 1 200px; font: inherit; }

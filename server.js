@@ -3550,6 +3550,54 @@ app.get('/api/image-library', (req, res) => {
   res.json({ org, map });
 });
 
+// ---- Per-org settings ----------------------------------------------------
+// Editable defaults for each org (branding, certificate, portal welcome, support
+// contact). New courses inherit these, so an org like OMG is set up once instead
+// of on every course. Partner admins are locked to their own org; a global admin
+// chooses the org via ?org= / body.orgId.
+const VALID_ORGS = new Set(['ncysa', 'ncsra', 'omg']);
+function orgSettingsScope(req) {
+  const scope = reqOrgScope(req); // partner → their org, else null
+  if (scope) return scope;
+  const asked = slugify(String((req.query && req.query.org) || (req.body && req.body.orgId) || '').slice(0, 40));
+  return VALID_ORGS.has(asked) ? asked : DEFAULT_ORG;
+}
+const hexColor = (v) => { const s = String(v || '').trim(); return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s) ? s : ''; };
+const emailOrEmpty = (v) => { const s = String(v || '').trim().slice(0, 160); return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : ''; };
+const httpUrlOrEmpty = (v) => { const s = String(v || '').trim().slice(0, 600); return /^https?:\/\//i.test(s) ? s : ''; };
+function cleanOrgSettings(b) {
+  b = b || {};
+  const str = (v, n) => String(v == null ? '' : v).slice(0, n).trim();
+  const aud = ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : '';
+  return {
+    coBrandName: str(b.coBrandName, 120),
+    coLogoUrl: safeImageUrl(b.coLogoUrl),
+    certOrg: str(b.certOrg, 120),
+    certTitle: str(b.certTitle, 120),
+    certPrefix: str(b.certPrefix, 12).toUpperCase().replace(/[^A-Z0-9-]/g, ''),
+    certAccent: hexColor(b.certAccent),
+    certAccent2: hexColor(b.certAccent2),
+    supportEmail: emailOrEmpty(b.supportEmail),
+    portalWelcome: str(b.portalWelcome, 2000),
+    completionRedirectUrl: httpUrlOrEmpty(b.completionRedirectUrl),
+    audience: aud,
+  };
+}
+app.get('/api/admin/org-settings', requireEditor, (req, res) => {
+  const org = orgSettingsScope(req);
+  const db = load();
+  res.json({ org, settings: (db.orgSettings && db.orgSettings[org]) || {} });
+});
+app.post('/api/admin/org-settings', requireEditor, (req, res) => {
+  const org = orgSettingsScope(req);
+  const db = load();
+  if (!db.orgSettings || typeof db.orgSettings !== 'object') db.orgSettings = {};
+  const settings = cleanOrgSettings(req.body);
+  db.orgSettings[org] = { ...settings, updatedAt: Date.now() };
+  save();
+  res.json({ ok: true, org, settings: db.orgSettings[org] });
+});
+
 // Minimal HTML-entity decode for a manifest <title>.
 function decodeEntities(s) {
   return String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
