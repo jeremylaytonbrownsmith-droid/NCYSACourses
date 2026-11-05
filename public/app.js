@@ -1907,6 +1907,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     if (done) return;
     done = true; stopBeat();
     try { window.removeEventListener('beforeunload', beforeUnloadGuard); } catch (e) { /* ignore */ }
+    try { window.removeEventListener('popstate', onPopGuard); } catch (e) { /* ignore */ }
     if (r && r.courseCompleted) { showCourseComplete(course, r.certId, null, r.returnUrl); return; }
     const a = document.getElementById('scormActions');
     if (a) { a.innerHTML = `<span class="pill-done">✓ Module complete</span><button class="btn btn-primary" id="nextBtn">Next module →</button>`; bindNext(); }
@@ -2109,6 +2110,26 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   window.addEventListener('beforeunload', beforeUnloadGuard);
 
+  // Browser Back guard: hash navigation (incl. the Back button) does NOT fire
+  // beforeunload, so trap history instead. Push a sentinel entry on entry; when
+  // Back pops it the hash is unchanged, so the SPA router doesn't re-render and the
+  // module stays intact — we then confirm. Decline → re-arm the sentinel (stay).
+  // Confirm → remove the guard and actually go back. Only while an HTML module is
+  // in progress; cleared on completion (finalize) and on leaving (cleanup).
+  let backArmed = false;
+  function armBackGuard() { if (isHtml && !backArmed) { try { history.pushState({ gmrGuard: 1 }, ''); backArmed = true; } catch (e) { /* ignore */ } } }
+  function onPopGuard() {
+    if (!isHtml || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
+    backArmed = false;
+    if (window.confirm('Leave this module? Your place in it will be lost — you would start it over.')) {
+      window.removeEventListener('popstate', onPopGuard);
+      history.back(); // they confirmed — perform the real back navigation now
+    } else {
+      armBackGuard(); // stay put: re-arm the sentinel so the module keeps its place
+    }
+  }
+  if (isHtml) { armBackGuard(); window.addEventListener('popstate', onPopGuard); }
+
   // HTML package: the learner marks it complete once the time gate is met. This
   // sets the status the server needs (completed) and syncs — the server confirms
   // the gate and completes the module just like a SCORM self-report would.
@@ -2133,6 +2154,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     try { delete window.API; } catch (e) { window.API = undefined; }
     try { delete window.API_1484_11; } catch (e) { window.API_1484_11 = undefined; }
     try { window.removeEventListener('beforeunload', beforeUnloadGuard); } catch (e) { /* ignore */ }
+    try { window.removeEventListener('popstate', onPopGuard); } catch (e) { /* ignore */ }
     window.removeEventListener('hashchange', cleanup);
   });
 }
