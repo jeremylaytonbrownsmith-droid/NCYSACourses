@@ -2,6 +2,8 @@ node_modules/
 data/db.json
 data/db.json.tmp
 data/scorm/
+data/uploads/
+data/images/
 .test-data/
 test-results/
 playwright-report/
