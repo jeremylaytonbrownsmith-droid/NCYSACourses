@@ -1950,6 +1950,11 @@ function renderScormLesson(pane, course, lesson, lp) {
   // first, so the guard below short-circuits. Non-Evolve pages have no ev-* outline
   // and return null (no-op). Evolve markers confirmed live: `.ev-course-outline-
   // page-item` per page, `.ev-page-complete-indicator` shown when that page is done.
+  // True once we've seen the Evolve course outline in the iframe. The Mentor
+  // modules are uploaded as SCORM packages (htmlPackage flag false), so gating the
+  // Evolve handling on isHtml left it dormant. Base it on actually detecting the
+  // Evolve outline instead, so it works however the package was flagged.
+  let evoSeen = false;
   function evolveStatus() {
     try {
       const fr = document.getElementById('scormFrame');
@@ -1957,6 +1962,7 @@ function renderScormLesson(pane, course, lesson, lp) {
       if (!doc) return null; // cross-origin or not loaded yet
       const pages = doc.querySelectorAll('.ev-course-outline-page-item');
       if (!pages.length) return null; // not an Evolve course
+      evoSeen = true;
       let complete = 0;
       pages.forEach((p) => {
         const ind = p.querySelector('.ev-page-complete-indicator');
@@ -1969,9 +1975,10 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   let evoLastLog = 0;
   function checkEvolveComplete() {
-    if (!isHtml || done || reachedEnd) return;
+    if (done || reachedEnd) return;
     const st = evolveStatus();
     if (!st) return;
+    enableBackGuard(); // Evolve detected → turn on the no-persistence protections
     // Breadcrumb so detection can be verified/tuned from the browser console.
     if (Date.now() - evoLastLog > 15000) { evoLastLog = Date.now(); try { console.debug(`[evolve] ${st.complete}/${st.total} pages complete`); } catch (e) { /* ignore */ } }
     if (st.complete > 0 && st.complete >= st.total) {
@@ -1987,7 +1994,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   let beat = null, evoBeat = null;
   function startBeat() {
     if (!beat) beat = setInterval(() => { if (!done && document.visibilityState === 'visible') sync(5); }, 5000);
-    if (!evoBeat && isHtml) evoBeat = setInterval(checkEvolveComplete, 2500);
+    if (!evoBeat) evoBeat = setInterval(checkEvolveComplete, 2500); // self-gates on the Evolve outline
   }
   function stopBeat() {
     if (beat) { clearInterval(beat); beat = null; }
@@ -2003,7 +2010,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   let hiddenSince = 0;
   function onVisibility() {
     if (document.visibilityState === 'hidden') { hiddenSince = Date.now(); return; }
-    if (hiddenSince && !done && required > 0 && !isHtml) {
+    if (hiddenSince && !done && required > 0 && !isHtml && !evoSeen) {
       const away = (Date.now() - hiddenSince) / 1000;
       if (away >= AWAY_LIMIT) resetModule();
     }
@@ -2106,7 +2113,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   // restore (the package stores nothing). Warn before leaving. Dropped the moment
   // the module completes (finalize) or the learner intentionally leaves (cleanup).
   function beforeUnloadGuard(e) {
-    if (isHtml && !done) { e.preventDefault(); e.returnValue = ''; return ''; }
+    if ((isHtml || evoSeen) && !done) { e.preventDefault(); e.returnValue = ''; return ''; }
   }
   window.addEventListener('beforeunload', beforeUnloadGuard);
 
@@ -2116,10 +2123,10 @@ function renderScormLesson(pane, course, lesson, lp) {
   // module stays intact — we then confirm. Decline → re-arm the sentinel (stay).
   // Confirm → remove the guard and actually go back. Only while an HTML module is
   // in progress; cleared on completion (finalize) and on leaving (cleanup).
-  let backArmed = false;
-  function armBackGuard() { if (isHtml && !backArmed) { try { history.pushState({ gmrGuard: 1 }, ''); backArmed = true; } catch (e) { /* ignore */ } } }
+  let backArmed = false, backRegistered = false;
+  function armBackGuard() { if ((isHtml || evoSeen) && !backArmed) { try { history.pushState({ gmrGuard: 1 }, ''); backArmed = true; } catch (e) { /* ignore */ } } }
   function onPopGuard() {
-    if (!isHtml || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
+    if ((!isHtml && !evoSeen) || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
     backArmed = false;
     if (window.confirm('Leave this module? Your place in it will be lost — you would start it over.')) {
       window.removeEventListener('popstate', onPopGuard);
@@ -2128,7 +2135,8 @@ function renderScormLesson(pane, course, lesson, lp) {
       armBackGuard(); // stay put: re-arm the sentinel so the module keeps its place
     }
   }
-  if (isHtml) { armBackGuard(); window.addEventListener('popstate', onPopGuard); }
+  function enableBackGuard() { if (backRegistered) return; backRegistered = true; armBackGuard(); window.addEventListener('popstate', onPopGuard); }
+  if (isHtml) enableBackGuard();
 
   // HTML package: the learner marks it complete once the time gate is met. This
   // sets the status the server needs (completed) and syncs — the server confirms
