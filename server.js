@@ -410,45 +410,42 @@ function setupOmgWebhookTest() {
 // as a single getmatchready.module/v1 lesson. The inner guard only creates it
 // when missing, so re-running never duplicates it; editing the course later in
 // the Course Designer is unaffected (the flag means this never overwrites it).
-const OMG_CARD_MECHANICS_FLAG = 'omg-card-mechanics-v1';
+// Code-managed OMG "Card Mechanics" course, built from the shipped sample
+// (public/samples/card-mechanics.module.json) as one getmatchready.module/v1
+// lesson. Managed via ensureCourse with a FIXED lesson id, so edits we make to
+// the sample reach the live course on the next deploy and learner progress stays
+// tied to a stable id. (Trade-off: edit this course's content in the sample file,
+// not the Course Designer — Designer edits to it won't survive a deploy.)
 function setupOmgCardMechanics() {
-  const db = load();
-  db.migrations = db.migrations || {};
-  if (db.migrations[OMG_CARD_MECHANICS_FLAG]) return;
-  if (!db.courses.some((c) => c.id === 'omg-card-mechanics')) {
-    let moduleDoc;
-    try {
-      moduleDoc = normalizeModuleDoc(JSON.parse(fs.readFileSync(path.join(__dirname, 'public/samples/card-mechanics.module.json'), 'utf8')));
-    } catch (e) { return; } // sample not on disk yet — retry next boot
-    if (!moduleDoc.pages.length) return;
-    db.courses.push({
-      id: 'omg-card-mechanics',
-      orgId: 'omg',
-      title: 'Card Mechanics',
-      tagline: 'The mechanics of issuing a caution or send-off — clean, consistent, and visible.',
-      description: 'An interactive module on correct mechanics for issuing a card: positioning, showing the card, recording, and restarting. Built in the getmatchready.module/v1 block format.',
-      badge: 'Module',
-      estMinutes: moduleDoc.estimatedMinutes || 38,
-      audience: 'referees',
-      published: true,
-      coBrandName: 'OMG Referee Education',
-      coLogoUrl: '/media/omg-logo.png',
-      certOrg: 'Officials Management Group',
-      certTitle: 'Card Mechanics',
-      certPrefix: 'OMG',
-      certAccent: '#2f5a9e',
-      certAccent2: '#ce2b37',
-      lessons: [{
-        id: 'card-mechanics-' + crypto.randomBytes(3).toString('hex'),
-        type: 'module',
-        title: moduleDoc.title || 'Card Mechanics',
-        moduleDoc,
-      }],
-    });
-    console.log('[org] created OMG Card Mechanics module course');
-  }
-  db.migrations[OMG_CARD_MECHANICS_FLAG] = new Date().toISOString();
-  save();
+  let moduleDoc;
+  try {
+    moduleDoc = normalizeModuleDoc(JSON.parse(fs.readFileSync(path.join(__dirname, 'public/samples/card-mechanics.module.json'), 'utf8')));
+  } catch (e) { return; } // sample not on disk yet — retry next boot
+  if (!moduleDoc.pages.length) return;
+  ensureCourse({
+    id: 'omg-card-mechanics',
+    orgId: 'omg',
+    title: 'Card Mechanics',
+    tagline: 'The mechanics of issuing a caution or send-off — clean, consistent, and visible.',
+    description: 'An interactive module on correct mechanics for issuing a card: judging severity, showing the card, recording, and restarting. Built in the getmatchready.module/v1 block format.',
+    badge: 'Module',
+    estMinutes: moduleDoc.estimatedMinutes || 38,
+    audience: 'referees',
+    published: true,
+    coBrandName: 'OMG Referee Education',
+    coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group',
+    certTitle: 'Card Mechanics',
+    certPrefix: 'OMG',
+    certAccent: '#2f5a9e',
+    certAccent2: '#ce2b37',
+    lessons: [{
+      id: 'card-mechanics-main',
+      type: 'module',
+      title: moduleDoc.title || 'Card Mechanics',
+      moduleDoc,
+    }],
+  });
 }
 
 // Add a specific course if it isn't already present, without touching the rest.
@@ -3138,7 +3135,9 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
     if (format === 'module') {
       // Let the AI reference the admin's reusable image library by key, so a
       // "yellow card" moment can pull the real yellow-card photo automatically.
-      const libraryImages = (load().imageLibrary || []).map((im) => ({ key: im.key, label: im.label }));
+      // Scoped to the course's org (OMG's images on an OMG build, etc.).
+      const libOrg = reqOrgScope(req) || slugify(String(b.orgId || '')) || DEFAULT_ORG;
+      const libraryImages = (load().imageLibrary || []).filter((im) => (im.orgId || DEFAULT_ORG) === libOrg).map((im) => ({ key: im.key, label: im.label }));
       const raw = await generateModuleDraft({ topic: b.topic, sourceText: b.sourceText, audience: b.audience, mode: b.mode, approxPages: b.approxPages, libraryImages });
       moduleDoc = normalizeModuleDoc(raw);
       // A Tent Talk is an information session by definition: strip any graded
@@ -3498,9 +3497,22 @@ function safeImageUrl(v) {
   if (/^https?:\/\//i.test(str) || /^\/[^/]/.test(str)) return str;
   return '';
 }
+// The library is scoped per organization: each image belongs to one org, so
+// OMG's images are separate from NCYSA/NCSRA's and a module resolves keys from
+// its own course's org. A partner admin is locked to its org; a global admin
+// chooses the org (defaults to the platform default).
+const orgOfImage = (im) => (im && im.orgId) || DEFAULT_ORG;
+function imageLibraryOrg(req, fallback) {
+  const scope = reqOrgScope(req); // partner → their org, else null
+  if (scope) return scope;
+  const asked = slugify(String((req.query && req.query.org) || (req.body && req.body.orgId) || '').slice(0, 40));
+  return asked || fallback || DEFAULT_ORG;
+}
 app.get('/api/admin/image-library', requireEditor, (req, res) => {
+  const org = imageLibraryOrg(req);
   const db = load();
-  res.json({ images: (db.imageLibrary || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) });
+  const images = (db.imageLibrary || []).filter((x) => orgOfImage(x) === org).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  res.json({ org, images });
 });
 app.post('/api/admin/image-library', requireEditor, (req, res) => {
   const b = req.body || {};
@@ -3508,30 +3520,34 @@ app.post('/api/admin/image-library', requireEditor, (req, res) => {
   const url = safeImageUrl(b.url);
   if (!key) return res.status(400).json({ error: 'Give the image a name (e.g. "yellow-card").' });
   if (!url) return res.status(400).json({ error: 'Upload the image first — a valid image URL is required.' });
+  const org = imageLibraryOrg(req);
   const db = load();
   if (!Array.isArray(db.imageLibrary)) db.imageLibrary = [];
   const label = String(b.label || '').slice(0, 120).trim() || key;
-  const existing = db.imageLibrary.find((x) => x.key === key);
-  if (existing) { existing.label = label; existing.url = url; existing.updatedAt = Date.now(); }
-  else db.imageLibrary.push({ key, label, url, createdAt: Date.now() });
+  const existing = db.imageLibrary.find((x) => x.key === key && orgOfImage(x) === org); // key unique per org
+  if (existing) { existing.label = label; existing.url = url; existing.orgId = org; existing.updatedAt = Date.now(); }
+  else db.imageLibrary.push({ key, label, url, orgId: org, createdAt: Date.now() });
   save();
-  res.json({ ok: true, key, label, url });
+  res.json({ ok: true, key, label, url, org });
 });
 app.delete('/api/admin/image-library/:key', requireEditor, (req, res) => {
   const key = slugify(String(req.params.key || ''));
+  const org = imageLibraryOrg(req);
   const db = load();
   const before = (db.imageLibrary || []).length;
-  db.imageLibrary = (db.imageLibrary || []).filter((x) => x.key !== key);
+  db.imageLibrary = (db.imageLibrary || []).filter((x) => !(x.key === key && orgOfImage(x) === org));
   save();
   res.json({ ok: true, removed: before - db.imageLibrary.length });
 });
 // Public key -> url map so the learner's module renderer can resolve library
-// slugs used in `graphic`. Image URLs are already public (served from /uploads).
+// slugs used in `graphic`, scoped to the course's org (?org=). Image URLs are
+// already public (served from /uploads).
 app.get('/api/image-library', (req, res) => {
+  const org = slugify(String((req.query && req.query.org) || '').slice(0, 40)) || DEFAULT_ORG;
   const db = load();
   const map = {};
-  for (const im of (db.imageLibrary || [])) if (im && im.key && im.url) map[im.key] = im.url;
-  res.json({ map });
+  for (const im of (db.imageLibrary || [])) if (im && im.key && im.url && orgOfImage(im) === org) map[im.key] = im.url;
+  res.json({ org, map });
 });
 
 // Minimal HTML-entity decode for a manifest <title>.

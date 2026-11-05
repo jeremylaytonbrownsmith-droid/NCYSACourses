@@ -3,7 +3,7 @@
   "module": {
     "id": "rt-card-mechanics",
     "title": "Correct Mechanics for Issuing a Card",
-    "course": "NCSRA Referee Recertification",
+    "course": "OMG — Referee Education",
     "estimatedMinutes": 38,
     "passMarkPercent": 80,
     "objectives": [
@@ -17,943 +17,351 @@
   },
   "pages": [
     {
-      "id": "p0",
+      "id": "p0-cover",
       "title": "Correct Mechanics for Issuing a Card",
       "layout": "cover",
       "completionRequires": [],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 48,
-          "transcript": "Every referee carries two cards. What separates a confident official from an uncertain one is not whether they are willing to use them. It is whether the picture they present when they do is clear enough that nobody watching has to guess what just happened. This module is about that picture."
-        },
-        {
-          "type": "prose",
-          "body": [
-            "In this lesson you will learn to identify misconduct under Law 12, decide between no card, a caution and a send-off, and display the card so that the player, both benches and every observer understand the decision.",
-            "A card shown badly costs you more than a card shown late. The Law tells you what to punish. The mechanic is what makes it stick."
-          ]
-        },
-        {
-          "type": "prose",
-          "emphasis": true,
-          "body": [
-            "Estimated time: 35–40 minutes"
-          ]
-        },
-        {
-          "type": "list",
-          "ordered": true,
-          "heading": "By the end of this module you will be able to:",
-          "items": [
-            "Name the cautionable and sending-off offences in Law 12",
-            "Apply the careless, reckless and excessive force test to a challenge",
-            "Run the four-step carding mechanic without having to think about it",
-            "Display a card so the player, both benches and all observers see it",
-            "Decide when the card is shown under advantage or a quick free kick",
-            "Record the incident so it can be acted on in a Match Report"
-          ]
-        },
-        {
-          "type": "gate",
-          "label": "Start module"
-        }
+        { "type": "narration", "durationSeconds": 48, "transcript": "Every referee carries two cards. What separates a confident official from an uncertain one is not whether they are willing to use them. It is whether the picture they present when they do is clear enough that nobody watching has to guess what just happened. This module is about that picture. By the end of it you will know what the Law requires, what the moment demands, and exactly how to deliver it." },
+        { "type": "prose", "body": [
+          "In this lesson you will learn to identify misconduct under Law 12, decide between no card, a caution and a send-off, and display the card so that the player, both benches and every observer understand the decision.",
+          "A card shown badly costs you more than a card shown late. The Law tells you what to punish. The mechanic is what makes it stick."
+        ] },
+        { "type": "prose", "emphasis": true, "body": ["Estimated Time: 35-40 minutes"] },
+        { "type": "prose", "body": [
+          "In order to complete this module, you must complete all elements on each page. You'll see the circle close in the outline as you complete elements and pages.",
+          "Click the Start Module button or select the What Counts as Misconduct page to begin."
+        ] },
+        { "type": "list", "ordered": true, "heading": "By the end of this module you will be able to:", "items": [
+          "Name the cautionable and sending-off offences in Law 12",
+          "Apply the careless, reckless and excessive force test to a challenge",
+          "Run the four-step carding mechanic without having to think about it",
+          "Display a card so the player, both benches and all observers see it",
+          "Decide when the card is shown under advantage or a quick free kick",
+          "Record the incident so it can be acted on in a Match Report"
+        ] },
+        { "type": "gate", "label": "Start Module" }
       ]
     },
     {
-      "id": "p1",
+      "id": "p1-what-counts",
       "title": "What Counts as Misconduct",
-      "completionRequires": [
-        "c1",
-        "a1",
-        "kc1"
-      ],
+      "completionRequires": ["c1-carousel", "a1-offences", "kc1"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 50,
-          "transcript": "A foul and a misconduct are not the same thing. Most of the fouls you call carry no card at all. Misconduct is the smaller set of offences the Law says must be punished with a caution or a send-off — and it does not wait for the ball to be in play."
-        },
-        {
-          "type": "prose",
-          "body": [
-            "Every misconduct is punished with a card. Not every foul is a misconduct.",
-            "Misconduct can occur at any time, including when the ball is out of play, and before kick-off or after the final whistle. It can be committed by a player, a substitute, or a substituted player."
-          ]
-        },
-        {
-          "type": "carousel",
-          "id": "c1",
-          "slides": [
-            {
-              "title": "A foul is not a card.",
-              "graphic": "free-kick",
-              "imageBrief": "Referee awarding a free kick, no card in hand.",
-              "body": "You will call fifteen to thirty fouls in a typical youth match. Most end with a free kick and nothing else. Reaching for a card on a foul that doesn't require one spends credibility you'll need later."
-            },
-            {
-              "title": "The ball does not have to be in play.",
-              "graphic": "confrontation",
-              "imageBrief": "Two players squaring up during a stoppage.",
-              "body": "Dissent during a drinks break. A shove at a throw-in. An elbow off the ball while a corner is set. Each is misconduct, and each is cautionable or worse — even though play had stopped."
-            },
-            {
-              "title": "It is not only the eleven on the field.",
-              "graphic": "bench",
-              "imageBrief": "Substitutes on the bench.",
-              "body": "Substitutes and substituted players are subject to the same offences. A substitute who dissents from the bench is cautioned exactly as a player on the field would be."
-            }
-          ]
-        },
-        {
-          "type": "accordion",
-          "id": "a1",
-          "items": [
-            {
-              "label": "CAUTIONABLE OFFENCES — Yellow card",
-              "intro": "A player is cautioned for:",
-              "bullets": [
-                "Unsporting behaviour — the widest category: a reckless challenge, a tactical shirt pull, simulation, a provoking celebration.",
-                "Dissent by word or action — disputing the decision, not disliking it.",
-                "Persistent offences — a pattern, not a count. There is no magic number in Law 12.",
-                "Delaying the restart of play.",
-                "Entering, re-entering or deliberately leaving the field without permission.",
-                "Failing to respect the required distance at a restart."
-              ]
-            },
-            {
-              "label": "SENDING-OFF OFFENCES — Red card",
-              "intro": "A player, substitute or substituted player is sent off for:",
-              "bullets": [
-                "Serious foul play — a challenge for the ball using excessive force or endangering safety.",
-                "Violent conduct — force or attempted force when not contesting the ball.",
-                "Biting or spitting at someone.",
-                "Offensive, insulting or abusive language or actions.",
-                "Denying a goal or an obvious goal-scoring opportunity (handball, or an offence).",
-                "Receiving a second caution in the same match."
-              ]
-            }
-          ]
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc1",
-          "gateRevealBehindSubmit": true,
-          "prompt": "Twenty minutes into a U15 match, play is stopped for a throw-in. A defender you've already spoken to once walks past you and says, loudly, “That's the third one you've missed.” What is this?",
+        { "type": "narration", "durationSeconds": 50, "transcript": "A foul and a misconduct are not the same thing. Most of the fouls you call carry no card at all. Misconduct is the smaller set of offences the Law says must be punished with a caution or a send-off, and it is the only set that needs a card in your hand. Before you can show a card correctly, you have to be certain this is a moment that calls for one. And misconduct does not wait for the ball to be in play." },
+        { "type": "prose", "body": [
+          "Every misconduct is punished with a card. Not every foul is a misconduct.",
+          "Law 12 names two sets of offences. One is punished with a yellow card. One is punished with a red. Everything outside those two sets is a foul, a free kick, and nothing more.",
+          "Misconduct can occur at any time, including when the ball is out of play, and including before kick-off and after the final whistle. It can be committed by a player, a substitute, or a substituted player."
+        ] },
+        { "type": "carousel", "id": "c1-carousel", "title": "Foul vs. misconduct", "slides": [
+          { "title": "A foul is not a card.", "graphic": "foul-no-card", "imageBrief": "Referee awarding a free kick, no card in hand.", "body": "You will call fifteen to thirty fouls in a typical youth match. Most of them end with a free kick and nothing else. Reaching for a card on a foul that does not require one spends credibility you will need later in the match." },
+          { "title": "The ball does not have to be in play.", "graphic": "misconduct-stoppage", "imageBrief": "Two players squaring up during a stoppage.", "body": "Dissent during a drinks break. A shove at a throw-in. An elbow off the ball while a corner is being set. Each of these is misconduct, and each is cautionable or worse, even though play had already stopped." },
+          { "title": "It is not only the eleven on the field.", "graphic": "substitutes-bench", "imageBrief": "Substitutes on the bench.", "body": "Substitutes and substituted players are subject to the same offences. A substitute who dissents from the bench is cautioned exactly as a player on the field would be." }
+        ] },
+        { "type": "accordion", "id": "a1-offences", "title": "The two lists", "items": [
+          { "label": "CAUTIONABLE OFFENCES — Yellow card", "intro": "A player is cautioned for:", "bullets": [
+            "Unsporting behaviour. The widest category. A reckless challenge, a tactical shirt pull, simulation, a celebration that provokes.",
+            "Dissent by word or action. Disputing the decision, not disliking it. Arms spread, sarcastic applause, following you to argue.",
+            "Persistent offences. A pattern, not a count. There is no magic number in Law 12.",
+            "Delaying the restart of play. Kicking the ball away, standing over a free kick, a slow walk off at a substitution.",
+            "Entering, re-entering or deliberately leaving the field of play without the referee's permission.",
+            "Failing to respect the required distance at a dropped ball, corner kick, free kick or throw-in.",
+            "Entering the referee review area.",
+            "Excessively using the review signal."
+          ] },
+          { "label": "SENDING-OFF OFFENCES — Red card", "intro": "A player, substitute or substituted player is sent off for:", "bullets": [
+            "Serious foul play. A challenge for the ball that uses excessive force or endangers an opponent's safety.",
+            "Violent conduct. Force or attempted force when not contesting the ball, against anyone.",
+            "Biting or spitting at someone.",
+            "Using offensive, insulting or abusive language or actions.",
+            "Denying a goal or an obvious goal-scoring opportunity by a deliberate handball, except a goalkeeper inside their own penalty area.",
+            "Denying a goal or an obvious goal-scoring opportunity to an opponent moving towards goal, by an offence punishable by a free kick.",
+            "Receiving a second caution in the same match.",
+            "Entering the video operation room."
+          ] }
+        ] },
+        { "type": "knowledgeCheck", "id": "kc1", "gateRevealBehindSubmit": true,
+          "prompt": "Twenty minutes into a U15 match, play is stopped for a throw-in. A defender you have already spoken to once walks past you and says, loudly, That's the third one you've missed. What is this?",
           "options": [
-            {
-              "id": "a",
-              "text": "Nothing. The ball is out of play, so Law 12 does not apply."
-            },
-            {
-              "id": "b",
-              "text": "A foul. Restart with an indirect free kick."
-            },
-            {
-              "id": "c",
-              "text": "Misconduct. Dissent by word, and it is cautionable."
-            },
-            {
-              "id": "d",
-              "text": "Misconduct, but you can only deal with it at half time."
-            }
+            { "id": "a", "text": "Nothing. The ball is out of play, so Law 12 does not apply." },
+            { "id": "b", "text": "A foul. Restart with an indirect free kick." },
+            { "id": "c", "text": "Misconduct. Dissent by word, and it is cautionable." },
+            { "id": "d", "text": "Misconduct, but you can only deal with it at half time." }
           ],
-          "correctOptionId": "c",
-          "correctFeedback": "That's it.",
-          "incorrectFeedback": "Not quite.",
+          "correctOptionId": "c", "correctFeedback": "That's it.", "incorrectFeedback": "Not quite.",
           "lessonHeading": "The Lesson",
-          "lesson": "Misconduct applies whenever you have jurisdiction, in play or out of it. Dissent by word or action is cautionable, and a stoppage is the best moment to deal with it."
-        }
+          "lesson": "Misconduct applies whenever you have jurisdiction, in play or out of it. Dissent by word or action is cautionable, and a stoppage is the best moment to deal with it, because play does not have to be interrupted to do so." }
       ]
     },
     {
-      "id": "p2",
+      "id": "p2-levels",
       "title": "Careless, Reckless, or Excessive Force",
-      "completionRequires": [
-        "vd1",
-        "vd2",
-        "vd3",
-        "kc2"
-      ],
+      "completionRequires": ["vd-2-1", "vd-2-2", "vd-2-3", "kc2"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 55,
-          "transcript": "Here is the decision that sits underneath every card you'll ever show for a challenge. Law 12 gives you three levels, and the level you choose decides the sanction for you. Careless is a free kick. Reckless must be a caution. Excessive force must be a send-off. The word must matters."
-        },
-        {
-          "type": "table",
-          "columns": [
-            "Level",
-            "What it means",
-            "Sanction"
-          ],
-          "rows": [
-            [
-              "Careless",
-              "A lack of attention or consideration, or acting without precaution",
-              "Direct free kick. No card."
-            ],
-            [
-              "Reckless",
-              "Disregard to the danger to, or consequences for, an opponent",
-              "Direct free kick. Must be cautioned."
-            ],
-            [
-              "Excessive force",
-              "Exceeds necessary force, or endangers an opponent's safety",
-              "Direct free kick. Must be sent off."
-            ]
-          ]
-        },
-        {
-          "type": "compare",
-          "id": "cmp1",
-          "cards": [
-            {
-              "title": "CARELESS",
-              "sanction": "Free kick, no card",
-              "body": "Mistimed. The player was going for the ball and got it wrong."
-            },
-            {
-              "title": "RECKLESS",
-              "sanction": "Free kick, yellow",
-              "body": "The player knew, or should have known, this could hurt someone, and went anyway."
-            },
-            {
-              "title": "EXCESSIVE FORCE",
-              "sanction": "Free kick, red",
-              "body": "More force than the challenge needed, or the opponent's safety put at risk."
-            }
-          ]
-        },
-        {
-          "type": "callout",
-          "heading": "What you are actually reading",
-          "body": [
-            "Speed. Intensity. Distance into the challenge. Whether the player was in control. Whether the studs were showing. Whether contact was with the ball or the opponent.",
-            "Those are the inputs. Do not add “was anyone hurt” to the list. Injury is evidence, not a level."
-          ]
-        },
-        {
-          "type": "videoDecision",
-          "id": "vd1",
-          "clipBrief": "A side-on challenge. The player wins the ball cleanly, then follows through into the opponent's shin at moderate speed.",
-          "prompt": "What level is this challenge?",
+        { "type": "narration", "durationSeconds": 55, "transcript": "Here is the decision that sits underneath every card you will ever show for a challenge. Law 12 gives you three levels, and the level you choose decides the sanction for you. Careless is a free kick and nothing else. Reckless must be a caution. Excessive force must be a send-off. The word must matters. Once you have named the level honestly, the card stops being a judgement call and becomes a requirement." },
+        { "type": "prose", "body": ["Law 12 sorts challenges into three levels. Each one carries its own sanction, and the sanction is not optional once the level is named."] },
+        { "type": "table", "title": "The three levels", "columns": ["Level", "What it means", "Sanction"], "rows": [
+          ["Careless", "The player shows a lack of attention or consideration, or acts without precaution", "Direct free kick. No card."],
+          ["Reckless", "The player acts with disregard to the danger to, or the consequences for, an opponent", "Direct free kick. Must be cautioned."],
+          ["Using excessive force", "The player exceeds the necessary use of force, or endangers the safety of an opponent", "Direct free kick. Must be sent off."]
+        ] },
+        { "type": "prose", "body": ["The level is decided by what the player did, not by what happened to the opponent. A reckless challenge that happens to miss is still reckless. A careless challenge that happens to injure is still careless."] },
+        { "type": "compare", "id": "cmp-levels", "title": "The three levels, side by side", "cards": [
+          { "title": "CARELESS", "sanction": "Free kick, no card", "body": "Mistimed. The player was going for the ball and got it wrong." },
+          { "title": "RECKLESS", "sanction": "Free kick, yellow", "body": "The player knew, or should have known, that this could hurt someone, and went anyway." },
+          { "title": "EXCESSIVE FORCE", "sanction": "Free kick, red", "body": "More force than the challenge needed, or the opponent's safety put at risk." }
+        ] },
+        { "type": "callout", "heading": "What you are actually reading", "body": [
+          "Speed. Intensity. Distance travelled into the challenge. Whether the player was in control. Whether the studs were showing. Whether the contact was with the ball or with the opponent. Whether the opponent's safety was endangered.",
+          "Those are the inputs. Do not add was anyone hurt to the list. Injury is evidence, not a level."
+        ] },
+        { "type": "prose", "lead": true, "body": ["Read each challenge below and name the level before you check your answer."] },
+        { "type": "knowledgeCheck", "id": "vd-2-1", "gateRevealBehindSubmit": true,
+          "prompt": "Challenge 1. In a side-on challenge the player wins the ball cleanly, then follows through into the opponent's shin at moderate speed. What level is this?",
+          "options": [ { "id": "a", "text": "Careless — free kick, no card" }, { "id": "b", "text": "Reckless — free kick, yellow" }, { "id": "c", "text": "Excessive force — free kick, red" } ],
+          "correctOptionId": "b", "correctFeedback": "Yes.", "incorrectFeedback": "Look again at the follow-through.",
+          "lessonHeading": "The Lesson", "lesson": "Winning the ball first does not downgrade the challenge. The follow-through showed disregard for the consequences for the opponent. Free kick and a caution." },
+        { "type": "knowledgeCheck", "id": "vd-2-2", "gateRevealBehindSubmit": true,
+          "prompt": "Challenge 2. A player stretches for a loose ball, arrives late with light contact, at low speed and under control throughout. What level is this?",
+          "options": [ { "id": "a", "text": "Careless — free kick, no card" }, { "id": "b", "text": "Reckless — free kick, yellow" }, { "id": "c", "text": "Excessive force — free kick, red" } ],
+          "correctOptionId": "a", "correctFeedback": "Yes.", "incorrectFeedback": "Controlled and slow — look again.",
+          "lessonHeading": "The Lesson", "lesson": "Late and clumsy, but controlled and slow. This is a free kick and, if you want one, a word. Carding this is the most common over-reach in youth football." },
+        { "type": "knowledgeCheck", "id": "vd-2-3", "gateRevealBehindSubmit": true,
+          "prompt": "Challenge 3. A player lunges in from distance, both feet off the ground, studs showing, at pace. What level is this?",
+          "options": [ { "id": "a", "text": "Careless — free kick, no card" }, { "id": "b", "text": "Reckless — free kick, yellow" }, { "id": "c", "text": "Excessive force — free kick, red" } ],
+          "correctOptionId": "c", "correctFeedback": "Yes.", "incorrectFeedback": "Speed, distance, studs — look again.",
+          "lessonHeading": "The Lesson", "lesson": "Speed, distance, no control, studs showing. The opponent's safety was endangered. This is serious foul play and the player is sent off." },
+        { "type": "knowledgeCheck", "id": "kc2", "gateRevealBehindSubmit": true,
+          "prompt": "A midfielder makes a committed, high-speed challenge from the side with studs showing. The opponent sees it coming, jumps out of the way, and is untouched. What do you have?",
           "options": [
-            {
-              "id": "a",
-              "text": "Careless, no card"
-            },
-            {
-              "id": "b",
-              "text": "Reckless, yellow"
-            },
-            {
-              "id": "c",
-              "text": "Excessive force, red"
-            }
+            { "id": "a", "text": "Nothing. There was no contact, so there was no foul." },
+            { "id": "b", "text": "A free kick only. No contact means no card." },
+            { "id": "c", "text": "A red card for serious foul play. The challenge endangered the opponent's safety." },
+            { "id": "d", "text": "A yellow card. Without contact it cannot be more than reckless." }
           ],
-          "correctOptionId": "b",
-          "lesson": "Winning the ball first does not downgrade the challenge. The follow-through showed disregard for the consequences. Free kick and a caution."
-        },
-        {
-          "type": "videoDecision",
-          "id": "vd2",
-          "clipBrief": "A player stretches for a loose ball, arrives late, light contact, low speed, under control throughout.",
-          "prompt": "What level is this challenge?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Careless, no card"
-            },
-            {
-              "id": "b",
-              "text": "Reckless, yellow"
-            },
-            {
-              "id": "c",
-              "text": "Excessive force, red"
-            }
-          ],
-          "correctOptionId": "a",
-          "lesson": "Late and clumsy, but controlled and slow. Free kick and, if you want, a word. Carding this is the most common over-reach in youth football."
-        },
-        {
-          "type": "videoDecision",
-          "id": "vd3",
-          "clipBrief": "A player lunges in from distance, both feet off the ground, studs showing, at pace.",
-          "prompt": "What level is this challenge?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Careless, no card"
-            },
-            {
-              "id": "b",
-              "text": "Reckless, yellow"
-            },
-            {
-              "id": "c",
-              "text": "Excessive force, red"
-            }
-          ],
-          "correctOptionId": "c",
-          "lesson": "Speed, distance, no control, studs showing. Safety endangered. Serious foul play — the player is sent off."
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc2",
-          "gateRevealBehindSubmit": true,
-          "prompt": "A midfielder makes a committed, high-speed challenge from the side with studs showing. The opponent sees it coming, jumps clear, and is untouched. What do you have?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Nothing. No contact, so no foul."
-            },
-            {
-              "id": "b",
-              "text": "A free kick only. No contact means no card."
-            },
-            {
-              "id": "c",
-              "text": "A red card for serious foul play. The challenge endangered the opponent's safety."
-            },
-            {
-              "id": "d",
-              "text": "A yellow card. Without contact it can't be more than reckless."
-            }
-          ],
-          "correctOptionId": "c",
-          "correctFeedback": "Exactly right.",
-          "incorrectFeedback": "Close, but no.",
+          "correctOptionId": "c", "correctFeedback": "Exactly right.", "incorrectFeedback": "Close, but no.",
           "lessonHeading": "The Lesson",
-          "lesson": "Law 12 judges the challenge, not the outcome. A challenge made with excessive force, or one that endangers safety, is serious foul play whether or not it connects."
-        }
+          "lesson": "Law 12 judges the challenge, not the outcome. A challenge made with excessive force, or one that endangers an opponent's safety, is serious foul play whether or not it connects. The opponent's evasive skill does not reduce the offence, and you should not let a lucky escape talk you down a level." }
       ]
     },
     {
-      "id": "p3",
+      "id": "p3-srta",
       "title": "See. Recognize. Think. Act.",
-      "completionRequires": [
-        "a3",
-        "ref3"
-      ],
+      "completionRequires": ["a3-model", "ref3"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 42,
-          "transcript": "MOD1 gave you a four-step model. Here is what it looks like when the decision is a card. These are not steps you work through consciously in the moment — they are the habit you build, so the sequence runs on its own and you don't skip the step that matters most. For carding, that's almost always the third one."
-        },
-        {
-          "type": "accordion",
-          "id": "a3",
-          "items": [
-            {
-              "label": "SEE",
-              "heading": "See the Incident",
-              "body": "Observe the offence from an angle that isn't blocked. If you didn't see it cleanly, admit that to yourself and check your assistant. A card shown on a guess is a card you can't defend."
-            },
-            {
-              "label": "RECOGNIZE",
-              "heading": "Recognize the Offence",
-              "body": "Name it in your head in the words Law 12 uses. Reckless challenge. Dissent by word. Second caution. Naming it tells you which card to reach for — and is the phrase you'll need when the coach asks and when you write the report."
-            },
-            {
-              "label": "THINK",
-              "heading": "Think About the Picture",
-              "body": "This is the step officials skip. Before you move, settle three things: who the player is (number and face), where you'll stand so this can be seen, and whether anything has to settle first. Ten seconds here saves ten minutes later."
-            },
-            {
-              "label": "ACT",
-              "heading": "Act With Control",
-              "body": "Isolate the player, establish eye contact, show the card clearly and high, and record it before you restart. Controlled by default; quicker only where speed prevents retaliation."
-            }
-          ]
-        },
-        {
-          "type": "reflection",
-          "id": "ref3",
-          "prompt": "Think back to the last card you showed. Which of the four steps got the least of your attention in that moment? Write a sentence about what you'd do differently.",
-          "followUp": "There's no wrong answer. Most referees name Think — the only one of the four that asks you to slow down at the exact moment everyone around you is speeding up."
-        }
+        { "type": "narration", "durationSeconds": 42, "transcript": "MOD1 gave you a four-step model. Here is what it looks like when the decision is a card. These are not steps you work through consciously in the moment. They are the habit you build, so that when the moment comes the sequence runs on its own and you do not skip the step that matters most. For carding, that is almost always the third one." },
+        { "type": "accordion", "id": "a3-model", "title": "The model, applied to carding", "items": [
+          { "label": "SEE", "heading": "See the Incident", "body": "Observe the offence from an angle that is not blocked. If you did not see it cleanly, admit that to yourself before you do anything else, and check your assistant. A card shown on a guess is a card you cannot defend, to the player, to the coach, or in a report." },
+          { "label": "RECOGNIZE", "heading": "Recognize the Offence", "body": "Name it in your head in the words Law 12 uses. Reckless challenge. Dissent by word. Delaying the restart. Second caution. Naming it is what tells you which card to reach for, and it is the same phrase you will need thirty seconds from now when the coach asks, and three hours from now when you write the report." },
+          { "label": "THINK", "heading": "Think About the Picture", "body": "This is the step officials skip. Before you move, settle three things. Who is the player, by number and by face, not by shirt colour. Where will you stand so this can be seen. Is anything happening right now, a confrontation or a crowd, that has to settle first. Ten seconds here saves ten minutes later." },
+          { "label": "ACT", "heading": "Act With Control", "body": "Isolate the player, establish eye contact, show the card clearly and high, and record it before you restart. Controlled by default. Quicker only where speed prevents retaliation, such as immediately after a dangerous foul or a confrontation." }
+        ] },
+        { "type": "reflection", "id": "ref3",
+          "prompt": "Think back to the last card you showed. Which of the four steps got the least of your attention in that moment? Write a sentence about what you would do differently.",
+          "followUp": "There is no wrong answer here. Most referees name Think, because it is the only one of the four that asks you to slow down at the exact moment everyone around you is speeding up." }
       ]
     },
     {
-      "id": "p4",
+      "id": "p4-showing",
       "title": "Showing the Card",
-      "completionRequires": [
-        "c4",
-        "is4",
-        "a4",
-        "kc3"
-      ],
+      "completionRequires": ["c4-sequence", "is4-spot", "a4-errors", "kc3"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 58,
-          "transcript": "The decision is made. Now comes the part the Law calls presenting the correct picture. When the card goes up, the offending player knows it's for them, both coaching staffs know who it's for, and every observer can see something has been dealt with. If any one of those three is in doubt, the card didn't do its job."
-        },
-        {
-          "type": "scenario",
-          "id": "sc4",
-          "graphic": "confrontation",
-          "imageBrief": "Referee walking in on a group of players in front of the technical area.",
-          "lines": [
-            "Second half. U16 boys. The score is 1–1 and the home bench has been loud for twenty minutes.",
-            "A midfielder catches his opponent late, off the ball, right in front of the benches. I see it clearly. It is reckless. It is a caution.",
-            "Four players arrive before I do. Two of them are shouting at each other. The home coach is already off his seat.",
-            "I have the card in my hand. The question is not whether to show it. The question is when, where, and to whom."
-          ]
-        },
-        {
-          "type": "carousel",
-          "id": "c4",
-          "title": "The sequence",
-          "slides": [
-            {
-              "title": "1. Stop play and signal the restart first.",
-              "graphic": "free-kick",
-              "body": "Blow, then signal the restart. The players need to know play is dead. Pointing the direction first also buys you three seconds to think."
-            },
-            {
-              "title": "2. Move in. Don't card from distance.",
-              "body": "Walk towards the incident at a steady pace. A card shown from twenty-five yards reads as a referee who didn't want to deal with it."
-            },
-            {
-              "title": "3. Separate before you sanction.",
-              "body": "If there's a crowd or a confrontation, deal with that first. A card shown into a group of eight adds fuel to the thing you're trying to put out."
-            },
-            {
-              "title": "4. Identify and isolate the player.",
-              "graphic": "card-group",
-              "body": "Confirm the number and the face. Move the player two or three steps clear of the group."
-            },
-            {
-              "title": "5. Set your distance and angle.",
-              "body": "About an arm's length and a half away, square to the player, with the benches and most spectators in view behind them."
-            },
-            {
-              "title": "6. Show the card high and still.",
-              "graphic": "card-high",
-              "body": "Eye contact first. Then the card goes up above your head height, held still for a full second. Vertical and still. Never pointed, never waved."
-            },
-            {
-              "title": "7. Record it, then restart.",
-              "body": "Notebook out before you walk away. Number, time, offence."
-            }
-          ]
-        },
-        {
-          "type": "imageSelect",
-          "id": "is4",
-          "prompt": "Three of these referees have the mechanic wrong. Choose the one who has it right.",
+        { "type": "narration", "durationSeconds": 58, "transcript": "The decision is made. Now comes the part the Law calls presenting the correct picture. Everything from here is mechanics, and mechanics can be practised. The goal is simple. When the card goes up, the offending player knows it is for them, both coaching staffs know who it is for, and every observer can see that something has been dealt with. If any one of those three is in doubt, the card did not do its job." },
+        { "type": "scenario", "id": "sc4", "graphic": "ref-walking-in-benches", "imageBrief": "Referee walking in on a group of players in front of the technical area.", "lines": [
+          "Second half. U16 boys. The score is 1-1 and the home bench has been loud for twenty minutes.",
+          "A midfielder catches his opponent late, off the ball, right in front of the benches. I see it clearly. It is reckless. It is a caution.",
+          "Four players arrive before I do. Two of them are shouting at each other. The home coach is already off his seat.",
+          "I have the card in my hand. The question is not whether to show it. The question is when, where, and to whom."
+        ] },
+        { "type": "carousel", "id": "c4-sequence", "title": "The sequence", "slides": [
+          { "title": "1. Stop play and signal the restart first.", "graphic": "ref-signal-restart", "imageBrief": "Referee signalling the direction of the restart.", "body": "Blow, then give the signal for the restart you are awarding. The players need to know play is dead before anything else happens. Pointing the direction first also buys you three seconds to think." },
+          { "title": "2. Move in. Do not card from distance.", "graphic": "ref-moving-in", "imageBrief": "Referee walking in toward the incident.", "body": "Walk towards the incident at a steady pace. A card shown from twenty-five yards away reads as a referee who did not want to come and deal with it. Close the distance before you reach for anything." },
+          { "title": "3. Separate before you sanction.", "graphic": "ref-separating", "imageBrief": "Referee stepping between players.", "body": "If there is a crowd or a confrontation, deal with that first. Step between players, use your voice, let it settle. A card shown into the middle of eight players adds fuel to the thing you are trying to put out." },
+          { "title": "4. Identify and isolate the player.", "graphic": "ref-identify-player", "imageBrief": "Referee moving one player clear of the group.", "body": "Confirm the number and confirm the face. Move the player two or three steps clear of the group. You may announce the number out loud if it helps the benches and your crew, though the Law does not require it." },
+          { "title": "5. Set your distance and your angle.", "graphic": "ref-distance-angle", "imageBrief": "Referee an arm's length and a half from the player, square on.", "body": "Stand about an arm's length and a half away, square to the player, with the benches and the majority of spectators in view behind them. Not nose to nose. Not with your back to the technical area." },
+          { "title": "6. Show the card high and still.", "graphic": "ref-card-high", "imageBrief": "Referee holding a card above head height, still.", "body": "Eye contact first. Then the card goes up above your own head height, held still for a full second, so the player sees it, both benches see it, and the crowd sees it. Vertical and still. Never pointed at the player's face, never waved." },
+          { "title": "7. Record it, then restart.", "graphic": "ref-recording", "imageBrief": "Referee writing in the match notebook.", "body": "Notebook out before you walk away. Number, time, offence. You will not remember three cautions accurately at the end of a match, and you will be asked to." }
+        ] },
+        { "type": "imageSelect", "id": "is4-spot", "prompt": "Three of these referees have the mechanic wrong. Click the one who has it right.", "options": [
+          { "id": "a", "graphic": "mechanic-waist-walkaway", "imageBrief": "Card at waist height, referee already walking away, player behind him.", "optionFallbackText": "Card at waist height, referee already walking away, player behind him", "correct": false, "feedback": "Wrong. The player cannot see it and neither can the benches." },
+          { "id": "b", "graphic": "mechanic-correct", "imageBrief": "Card held high and still, referee square to an isolated player, benches visible behind.", "optionFallbackText": "Card held high and still, referee square to an isolated player, benches visible behind", "correct": true, "feedback": "Correct. Player, both benches and the crowd all see it." },
+          { "id": "c", "graphic": "mechanic-in-face", "imageBrief": "Card pointed into the player's face at close range.", "optionFallbackText": "Card pointed into the player's face at close range", "correct": false, "feedback": "Wrong. Aggressive. Turns a sanction into a confrontation." },
+          { "id": "d", "graphic": "mechanic-in-crowd", "imageBrief": "Card held up inside a group of six players.", "optionFallbackText": "Card held up inside a group of six players", "correct": false, "feedback": "Wrong. No isolation. Nobody knows who it is for, and the group is still live." }
+        ] },
+        { "type": "accordion", "id": "a4-errors", "title": "Common errors", "items": [
+          { "label": "Carding the wrong player", "body": "The most damaging error available to you. Confirm number and face. If you are not certain, ask your assistant before you show anything. A card withdrawn costs far more than a card delayed." },
+          { "label": "Carding from distance", "body": "Reads as avoidance. Walk in." },
+          { "label": "Carding into a crowd", "body": "Settle it, then isolate, then sanction." },
+          { "label": "Pointing the card", "body": "The card is displayed, not aimed. Pointing invites a response." },
+          { "label": "Carding on the move", "body": "If you are turning away as the card goes up, half the ground missed it." },
+          { "label": "Showing it and not recording it", "body": "You will misremember. Write it down before the restart." },
+          { "label": "Over-explaining", "body": "One short sentence naming the offence, then stop. The card has already said the rest, and the longer you talk the more you invite an argument." }
+        ] },
+        { "type": "callout", "heading": "The card you never have to show", "body": ["Not every misconduct has to happen. A quiet, early word to a player drifting towards a caution often stops the caution from being needed at all. Number six, that is the last one. It costs you nothing, and when the caution does come, the player and the bench already know why."] },
+        { "type": "callout", "heading": "Every card has a consequence", "body": [
+          "A yellow card does not remove the player, but it changes the match for them. They now know that any further misconduct ends their afternoon and leaves their team a player short. Say so plainly if it will help.",
+          "A red card removes the player immediately. The player must leave the field of play, and the team plays short for the remainder of the match."
+        ] },
+        { "type": "knowledgeCheck", "id": "kc3", "gateRevealBehindSubmit": true,
+          "prompt": "You have decided to caution number 9. Six players are around the incident and two of them are shouting at each other. What do you do first?",
           "options": [
-            {
-              "id": "a",
-              "graphic": "card-low",
-              "imageBrief": "Card at waist height, referee already walking away.",
-              "optionFallbackText": "Card at waist height, referee already walking away, player behind him",
-              "correct": false,
-              "feedback": "Wrong. The player can't see it and neither can the benches."
-            },
-            {
-              "id": "b",
-              "graphic": "card-high",
-              "imageBrief": "Card held high and still, square to an isolated player, benches behind.",
-              "optionFallbackText": "Card held high and still, square to an isolated player, benches visible behind",
-              "correct": true,
-              "feedback": "Correct. Player, both benches and the crowd all see it."
-            },
-            {
-              "id": "c",
-              "graphic": "card-face",
-              "imageBrief": "Card pointed into the player's face.",
-              "optionFallbackText": "Card pointed into the player's face at close range",
-              "correct": false,
-              "feedback": "Wrong. Aggressive. Turns a sanction into a confrontation."
-            },
-            {
-              "id": "d",
-              "graphic": "card-group",
-              "imageBrief": "Card held up inside a group of six.",
-              "optionFallbackText": "Card held up inside a group of six players",
-              "correct": false,
-              "feedback": "Wrong. No isolation. Nobody knows who it's for."
-            }
-          ]
-        },
-        {
-          "type": "accordion",
-          "id": "a4",
-          "title": "Common errors",
-          "items": [
-            {
-              "label": "Carding the wrong player",
-              "body": "The most damaging error available to you. Confirm number and face; if unsure, ask your assistant first. A card withdrawn costs far more than a card delayed."
-            },
-            {
-              "label": "Carding from distance",
-              "body": "Reads as avoidance. Walk in."
-            },
-            {
-              "label": "Pointing the card",
-              "body": "The card is displayed, not aimed. Pointing invites a response."
-            },
-            {
-              "label": "Showing it and not recording it",
-              "body": "You will misremember. Write it down before the restart."
-            },
-            {
-              "label": "Over-explaining",
-              "body": "One short sentence naming the offence, then stop. The longer you talk, the more you invite an argument."
-            }
-          ]
-        },
-        {
-          "type": "callout",
-          "heading": "Every card has a consequence",
-          "body": [
-            "A yellow card doesn't remove the player, but it changes the match for them: any further misconduct ends their afternoon and leaves their team short.",
-            "A red card removes the player immediately. They must leave the field, and the team plays short for the rest of the match."
-          ]
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc3",
-          "gateRevealBehindSubmit": true,
-          "prompt": "You've decided to caution number 9. Six players are around the incident and two of them are shouting at each other. What do you do first?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Show the card immediately, so everyone sees it's dealt with."
-            },
-            {
-              "id": "b",
-              "text": "Step in, separate the two players, let the group settle, then isolate number 9 and caution."
-            },
-            {
-              "id": "c",
-              "text": "Move away and caution number 9 at the next stoppage."
-            },
-            {
-              "id": "d",
-              "text": "Caution number 9 from where you stand, then deal with the two shouting."
-            }
+            { "id": "a", "text": "Show the card immediately, so everyone can see the matter is dealt with." },
+            { "id": "b", "text": "Step in, separate the two players, let the group settle, then isolate number 9 and caution." },
+            { "id": "c", "text": "Move away and caution number 9 at the next stoppage." },
+            { "id": "d", "text": "Caution number 9 from where you stand, then deal with the two who are shouting." }
           ],
-          "correctOptionId": "b",
-          "correctFeedback": "Control first.",
-          "incorrectFeedback": "Have another look.",
+          "correctOptionId": "b", "correctFeedback": "Control first.", "incorrectFeedback": "Have another look.",
           "lessonHeading": "The Lesson",
-          "lesson": "Sanctioning into a live confrontation adds to it. Control, then isolate, then show the card where it can be seen. The caution isn't going anywhere — play can't restart until it's administered."
-        }
+          "lesson": "Sanctioning into a live confrontation adds to it. Control the situation, then isolate the offender, then show the card where it can be seen. The caution is not going anywhere: once you have decided on it, play cannot restart until it has been administered." }
       ]
     },
     {
-      "id": "p5",
+      "id": "p5-timing",
       "title": "When the Card Is Shown",
-      "completionRequires": [
-        "fl5",
-        "ms1",
-        "tbl5"
-      ],
+      "completionRequires": ["ms5-1", "ms5-2", "ms5-3", "ms5-4"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 58,
-          "transcript": "The decision to punish misconduct is made at the moment the offence is committed. When the card is physically shown is a separate question, and the Law gives you several answers depending on what's happening around you."
-        },
-        {
-          "type": "callout",
-          "heading": "The default",
-          "body": [
-            "Once you've decided to caution or send off a player, play must not restart until the sanction has been administered. Everything below is an exception to that one rule."
-          ]
-        },
-        {
-          "type": "flow",
-          "id": "fl5",
-          "nodes": [
-            {
-              "kind": "start",
-              "text": "An offence is committed that carries a card."
-            },
-            {
-              "kind": "decision",
-              "text": "Did you play advantage?",
-              "branches": [
-                {
-                  "answer": "Yes",
-                  "to": "Sanction at the next stoppage — with DOGSO / promising-attack exceptions"
-                },
-                {
-                  "answer": "No",
-                  "to": "Was a quick free kick taken before you started the procedure?"
-                }
-              ]
-            },
-            {
-              "kind": "outcome",
-              "text": "Advantage → sanction when the ball is next out of play.",
-              "exceptions": [
-                "DOGSO offence + a goal resulted → no sanction.",
-                "DOGSO offence + no goal → caution for unsporting behaviour (not a send-off).",
-                "Stopped a promising attack → no caution."
-              ]
-            },
-            {
-              "kind": "outcome",
-              "text": "Quick free kick with a clear chance, procedure not started → allow it; card at the next stoppage."
-            },
-            {
-              "kind": "outcome",
-              "text": "Otherwise → administer the sanction now, before the restart."
-            }
-          ]
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "ms1",
-          "gateRevealBehindSubmit": true,
-          "prompt": "A defender trips an attacker through on goal. You play advantage, the move continues, and a different attacker scores five seconds later. What happens to the defender?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Sent off for denying an obvious goal-scoring opportunity."
-            },
-            {
-              "id": "b",
-              "text": "Cautioned for unsporting behaviour."
-            },
-            {
-              "id": "c",
-              "text": "No sanction."
-            },
-            {
-              "id": "d",
-              "text": "Cautioned, but only if he was the last defender."
-            }
-          ],
-          "correctOptionId": "c",
-          "correctFeedback": "Correct.",
-          "incorrectFeedback": "Not this one.",
-          "lessonHeading": "The Lesson",
-          "lesson": "When advantage is played for a DOGSO offence and the advantage results in a goal, there is no sanction. The team got the thing the offence tried to take from them."
-        },
-        {
-          "type": "table",
-          "id": "tbl5",
-          "title": "Reference table",
-          "columns": [
-            "Situation",
-            "Sanction",
-            "When shown"
-          ],
-          "rows": [
-            [
-              "Offence carrying a card, play stopped",
-              "As the offence requires",
-              "Now, before the restart"
-            ],
-            [
-              "Advantage, DOGSO denied, no goal",
-              "Caution, unsporting behaviour",
-              "Next stoppage"
-            ],
-            [
-              "Advantage, DOGSO denied, goal results",
-              "None",
-              "n/a"
-            ],
-            [
-              "Advantage, promising attack stopped",
-              "None",
-              "n/a"
-            ],
-            [
-              "Disciplinary procedure already started",
-              "As the offence requires",
-              "Now. No quick free kick"
-            ]
-          ]
-        }
+        { "type": "narration", "durationSeconds": 58, "transcript": "The decision to punish misconduct is made at the moment the offence is committed. When the card is physically shown is a separate question, and the Law gives you several answers depending on what is happening around you. Get this wrong and you will either kill a goal-scoring chance that should have been allowed, or restart a match with a sanction still owed. Both are recoverable. Neither is comfortable." },
+        { "type": "callout", "heading": "The default", "body": ["Once you have decided to caution or send off a player, play must not restart until the sanction has been administered. Everything below is an exception to that one rule."] },
+        { "type": "flow", "id": "fl5", "nodes": [
+          { "kind": "start", "text": "An offence is committed that carries a card." },
+          { "kind": "decision", "text": "Did you play advantage?", "branches": [ { "answer": "Yes", "to": "when the ball is next out of play" }, { "answer": "No", "to": "check the quick free kick" } ] },
+          { "kind": "outcome", "text": "Advantage played: the sanction is administered when the ball is next out of play.", "exceptions": [
+            "The offence denied an obvious goal-scoring opportunity and a goal resulted from the advantage. No sanction.",
+            "The offence denied an obvious goal-scoring opportunity and no goal resulted. Caution for unsporting behaviour, not a send-off.",
+            "The offence stopped a promising attack. No caution."
+          ] },
+          { "kind": "decision", "text": "No advantage: is the non-offending team taking a quick free kick with a clear goal-scoring opportunity, and have you not yet started the disciplinary procedure?", "branches": [ { "answer": "Yes", "to": "allow the quick free kick" }, { "answer": "No", "to": "administer now" } ] },
+          { "kind": "outcome", "text": "Yes: allow the quick free kick. Card at the next stoppage, with the same DOGSO and promising-attack exceptions." },
+          { "kind": "outcome", "text": "No: administer the sanction now, before the restart." }
+        ] },
+        { "type": "knowledgeCheck", "id": "ms5-1", "gateRevealBehindSubmit": true,
+          "prompt": "A defender trips an attacker who was through on goal. You play advantage, the move continues, and a different attacker scores five seconds later. What happens to the defender?",
+          "options": [ { "id": "a", "text": "Sent off for denying an obvious goal-scoring opportunity." }, { "id": "b", "text": "Cautioned for unsporting behaviour." }, { "id": "c", "text": "No sanction." }, { "id": "d", "text": "Cautioned, but only if he was the last defender." } ],
+          "correctOptionId": "c", "correctFeedback": "Correct.", "incorrectFeedback": "Not this one.",
+          "lessonHeading": "The Lesson", "lesson": "When advantage is played for a DOGSO offence and the advantage results in a goal, there is no sanction. The team got the thing the offence tried to take from them." },
+        { "type": "knowledgeCheck", "id": "ms5-2", "gateRevealBehindSubmit": true,
+          "prompt": "Same offence, but the advantage breaks down and the move ends without a shot. What happens?",
+          "options": [ { "id": "a", "text": "Sent off for denying an obvious goal-scoring opportunity." }, { "id": "b", "text": "Cautioned for unsporting behaviour, at the next stoppage." }, { "id": "c", "text": "No sanction, because you played advantage." }, { "id": "d", "text": "Play is brought back and a free kick awarded." } ],
+          "correctOptionId": "b", "correctFeedback": "Correct.", "incorrectFeedback": "Not this one.",
+          "lessonHeading": "The Lesson", "lesson": "Playing advantage for a DOGSO offence converts the send-off into a caution for unsporting behaviour, administered at the next stoppage. You cannot bring play back once advantage has been applied." },
+        { "type": "knowledgeCheck", "id": "ms5-3", "gateRevealBehindSubmit": true,
+          "prompt": "A midfielder pulls an opponent's shirt to stop a counter-attack. You play advantage and the move continues. What is the sanction?",
+          "options": [ { "id": "a", "text": "Caution for unsporting behaviour at the next stoppage." }, { "id": "b", "text": "No caution." }, { "id": "c", "text": "Caution, but only if the attack ends in a shot." }, { "id": "d", "text": "Caution for delaying the restart." } ],
+          "correctOptionId": "b", "correctFeedback": "Correct.", "incorrectFeedback": "Not this one.",
+          "lessonHeading": "The Lesson", "lesson": "Where advantage is played for an offence that interfered with or stopped a promising attack, no caution is issued. The same applies where you allow a quick free kick." },
+        { "type": "knowledgeCheck", "id": "ms5-4", "gateRevealBehindSubmit": true,
+          "prompt": "You have awarded a free kick for a reckless challenge and decided to caution. You have started reaching for your card when the attacking team plays the free kick quickly and breaks clear. What do you do?",
+          "options": [ { "id": "a", "text": "Allow play to continue and caution at the next stoppage." }, { "id": "b", "text": "Stop play, caution, and restart with the free kick." }, { "id": "c", "text": "Allow play and drop the caution." }, { "id": "d", "text": "Allow play, and caution only if the attack ends without a goal." } ],
+          "correctOptionId": "b", "correctFeedback": "Correct.", "incorrectFeedback": "Not this one.",
+          "lessonHeading": "The Lesson", "lesson": "A quick free kick is only allowed where the referee has not started the disciplinary sanction procedure. Once you have begun, play must not restart until the caution has been administered." },
+        { "type": "callout", "heading": "The limits of advantage", "body": [
+          "Advantage should not be applied to serious foul play, violent conduct or a second cautionable offence, unless there is a clear opportunity to score a goal.",
+          "If you do play on in one of those cases and the offending player then plays the ball or interferes with an opponent, stop play, send the player off, and restart with an indirect free kick, unless a more serious offence was committed."
+        ] },
+        { "type": "table", "title": "Reference table — when the card is shown", "columns": ["Situation", "Sanction", "When it is shown"], "rows": [
+          ["Offence carrying a card, play stopped", "As the offence requires", "Now, before the restart"],
+          ["Advantage played, DOGSO offence, no goal results", "Caution, unsporting behaviour", "Next stoppage"],
+          ["Advantage played, DOGSO offence, goal results", "None", "n/a"],
+          ["Advantage played, offence stopped a promising attack", "None", "n/a"],
+          ["Advantage played, any other cautionable or sending-off offence", "As the offence requires", "Next stoppage"],
+          ["Quick free kick allowed, clear chance, procedure not yet started", "As above", "Next stoppage"],
+          ["Disciplinary procedure already started", "As the offence requires", "Now. No quick free kick"],
+          ["DOGSO in the penalty area, attempt to play or challenge for the ball", "Caution", "Now"],
+          ["DOGSO in the penalty area, holding, pulling or pushing", "Send off", "Now"]
+        ] }
       ]
     },
     {
-      "id": "p6",
+      "id": "p6-record",
       "title": "Record It",
-      "completionRequires": [
-        "ck6",
-        "ref6",
-        "kc4"
-      ],
+      "completionRequires": ["ck6", "ref6", "kc4"],
       "blocks": [
-        {
-          "type": "narration",
-          "durationSeconds": 40,
-          "transcript": "The card is shown, the game restarts, and ninety seconds later you're thinking about something else entirely. That's exactly why you write it down before you restart."
-        },
-        {
-          "type": "prose",
-          "body": [
-            "Record the incident at the moment it happens, before play restarts. Not at half time. Not afterwards."
-          ]
-        },
-        {
-          "type": "checklist",
-          "id": "ck6",
-          "heading": "Record every card with:",
-          "items": [
-            "Time on the clock",
-            "Player's number and team",
-            "The offence, in the words Law 12 uses",
-            "What the player actually did, in one plain sentence",
-            "Where on the field it happened",
-            "Whether it was a first or second caution"
-          ]
-        },
-        {
-          "type": "compare",
-          "id": "cmp6",
-          "title": "Two report lines",
-          "cards": [
-            {
-              "title": "Weak",
-              "body": "“Yellow card, number 6, bad tackle.”"
-            },
-            {
-              "title": "Strong",
-              "body": "“63rd minute. Blue No. 6. Caution, unsporting behaviour. Reckless challenge from the side on Red No. 11 near the halfway line. Studs showing, follow-through to the shin. No attempt to withdraw.”"
-            }
-          ]
-        },
-        {
-          "type": "reflection",
-          "id": "ref6",
-          "prompt": "Go back to the page-4 scenario. The midfielder catches his opponent late, off the ball, in front of the benches, 58th minute. He is Blue No. 14. Write the line you'd put in your notebook.",
-          "followUp": "Compare yours against the strong example above. Did you name the offence in Law 12's words? Did you describe what he did, not only what you called it?"
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc4",
-          "gateRevealBehindSubmit": true,
+        { "type": "narration", "durationSeconds": 40, "transcript": "The card is shown, the game restarts, and ninety seconds later you are thinking about something else entirely. That is exactly why you write it down before you restart. A match report written from memory three hours after the final whistle is the difference between a disciplinary panel that can act on what you saw and one that cannot." },
+        { "type": "prose", "body": [
+          "Record the incident at the moment it happens, before play restarts. Not at half time. Not afterwards.",
+          "You are writing two things at once: a reminder for yourself, and the raw material for a Match Report if the incident is considered for disciplinary action."
+        ] },
+        { "type": "checklist", "id": "ck6", "heading": "Record every one of these", "items": [
+          "Time on the clock",
+          "Player's number and team",
+          "The offence, in the words Law 12 uses",
+          "What the player actually did, in one plain sentence",
+          "Where on the field it happened",
+          "Whether it was a first or second caution"
+        ] },
+        { "type": "compare", "id": "cmp6", "title": "Two report lines", "cards": [
+          { "title": "Weak", "body": "Yellow card, number 6, bad tackle." },
+          { "title": "Strong", "body": "63rd minute. Blue number 6. Caution, unsporting behaviour. Reckless challenge from the side on Red number 11, near the halfway line. Studs showing, follow-through to the shin. No attempt to withdraw." }
+        ] },
+        { "type": "prose", "body": ["The second one can be acted on. The first one cannot. The difference is not length. It is that the second names the offence in the Law's own words and then describes what the player did, so that someone who was not there can picture it."] },
+        { "type": "reflection", "id": "ref6",
+          "prompt": "Go back to the scenario on the Showing the Card page. The midfielder catches his opponent late, off the ball, in front of the benches, in the 58th minute. He is Blue number 14. Write the line you would put in your notebook.",
+          "followUp": "Compare yours against the strong example above. Did you name the offence in Law 12's words? Did you describe what he did, and not only what you called it?" },
+        { "type": "knowledgeCheck", "id": "kc4", "gateRevealBehindSubmit": true,
           "prompt": "When should the incident be recorded?",
-          "options": [
-            {
-              "id": "a",
-              "text": "At half time, while it's still fresh."
-            },
-            {
-              "id": "b",
-              "text": "Before play restarts."
-            },
-            {
-              "id": "c",
-              "text": "At the final whistle, with the rest of the match details."
-            },
-            {
-              "id": "d",
-              "text": "Only if the card was a red."
-            }
-          ],
-          "correctOptionId": "b",
-          "correctFeedback": "Before the restart.",
-          "incorrectFeedback": "Earlier than that.",
-          "lessonHeading": "The Lesson",
-          "lesson": "Record before the restart. Memory degrades quickly under match load. Every misconduct gets recorded — yellow and red alike."
-        }
+          "options": [ { "id": "a", "text": "At half time, while it is still fresh." }, { "id": "b", "text": "Before play restarts." }, { "id": "c", "text": "At the final whistle, with the rest of the match details." }, { "id": "d", "text": "Only if the card was a red." } ],
+          "correctOptionId": "b", "correctFeedback": "Before the restart.", "incorrectFeedback": "Earlier than that.",
+          "lessonHeading": "The Lesson", "lesson": "Record before the restart. Memory degrades quickly under match load, and three cautions in one half become hard to tell apart by the end of it. Every misconduct gets recorded, yellow and red alike." }
       ]
     },
     {
-      "id": "p7",
+      "id": "p7-capstone",
       "title": "Running the Full Mechanic",
-      "completionRequires": [
-        "br7"
-      ],
+      "completionRequires": ["br7"],
       "blocks": [
-        {
-          "type": "branching",
-          "id": "br7",
+        { "type": "branching", "id": "br7",
           "setup": [
-            "U17 boys, state cup quarter-final. 71st minute. The score is 2–2.",
-            "A long ball goes over the top. Blue No. 4 and Red No. 9 both chase it, forty yards from Blue's goal and drifting towards the touchline. Blue No. 4 arrives late and takes Red No. 9 down from behind with a trailing leg.",
-            "Red No. 9 stays down. Two Red players are already running at me. The Blue bench is shouting that the ball was gone."
+            "U17 boys, state cup quarter-final. 71st minute. The score is 2-2.",
+            "Red is pressing. A long ball goes over the top. Blue number 4 and Red number 9 both chase it, forty yards from Blue's goal and drifting towards the touchline. Blue number 4 arrives late and takes Red number 9 down from behind with a trailing leg.",
+            "Red number 9 stays down. Two Red players are already running at me. The Blue bench is shouting that the ball was gone."
           ],
           "decisions": [
-            {
-              "prompt": "What is this?",
-              "options": [
-                {
-                  "id": "a",
-                  "text": "Careless. Free kick, no card.",
-                  "correct": false,
-                  "feedback": "The trailing leg caught him from behind, at speed, with no attempt to play a ball that had already gone. You've under-read the level — and told both teams this challenge is available for the rest of the match."
-                },
-                {
-                  "id": "b",
-                  "text": "Reckless. Free kick, caution.",
-                  "correct": true,
-                  "feedback": "Right level. From behind, at speed, with disregard for the consequences. A caution for unsporting behaviour."
-                },
-                {
-                  "id": "c",
-                  "text": "Excessive force. Free kick, send off.",
-                  "correct": false,
-                  "feedback": "Worth considering, but check your inputs. Late and from behind — but was there excessive force, and was safety endangered? If speed and follow-through were moderate, reckless is the level."
-                }
-              ]
-            },
-            {
-              "prompt": "Two Red players have arrived, and one is standing over Blue No. 4. What do you do first?",
-              "options": [
-                {
-                  "id": "a",
-                  "text": "Show the yellow now, so the matter is visibly dealt with.",
-                  "correct": false,
-                  "feedback": "You show the card into a live confrontation. The two Red players read it as vindication and close in; the Blue bench reads it as bias. Now you have a second problem on top of the first."
-                },
-                {
-                  "id": "b",
-                  "text": "Step in, separate, check on the injured player, then isolate No. 4 and caution.",
-                  "correct": true,
-                  "feedback": "Control first, sanction second. The caution can't be lost — play can't restart until it's administered — so there's no hurry."
-                },
-                {
-                  "id": "c",
-                  "text": "Move away and caution at the next stoppage.",
-                  "correct": false,
-                  "feedback": "Play is already stopped. There is no next stoppage, and walking away with the sanction owed reads as indecision."
-                }
-              ]
-            },
-            {
-              "prompt": "You've isolated Blue No. 4. Where do you stand, and how do you show it?",
-              "options": [
-                {
-                  "id": "a",
-                  "text": "Close, facing the player, card at chest height.",
-                  "correct": false,
-                  "feedback": "Too close and too low. The benches can't see it, and the proximity invites a response."
-                },
-                {
-                  "id": "b",
-                  "text": "An arm's length and a half away, square to the player, card high and still above head height, benches in view.",
-                  "correct": true,
-                  "feedback": "The player sees it. Both benches see it. The spectators see it. Hold it still for a full second."
-                },
-                {
-                  "id": "c",
-                  "text": "Beside the player, card raised while already turning to the restart.",
-                  "correct": false,
-                  "feedback": "Half the ground missed it, and you'll be asked to explain a decision that should have explained itself."
-                }
-              ]
-            }
+            { "prompt": "What is this?", "options": [
+              { "id": "a", "text": "Careless. Free kick, no card.", "correct": false, "feedback": "You award the free kick and wave play on. Red number 9's teammates are incredulous, and they have a point. The trailing leg caught him from behind, at speed, with no attempt to play a ball that had already gone. You have under-read the level, and you have just told both teams that this sort of challenge is available for the rest of the match." },
+              { "id": "b", "text": "Reckless. Free kick, caution.", "correct": true, "feedback": "Right level. The challenge came from behind, at speed, with disregard for the consequences for the opponent. This is a caution for unsporting behaviour." },
+              { "id": "c", "text": "Excessive force. Free kick, send off.", "correct": false, "feedback": "Worth considering, but check your inputs. The contact was late and from behind, but was there excessive force, and was the opponent's safety endangered? If the speed and follow-through were moderate, reckless is the level. Serious foul play needs more than late and clumsy." }
+            ] },
+            { "prompt": "Two Red players have arrived, and one is standing over Blue number 4. What do you do first?", "options": [
+              { "id": "a", "text": "Show the yellow card now, so the matter is visibly dealt with.", "correct": false, "feedback": "You show the card into a live confrontation. The two Red players read it as vindication and close in. The Blue bench reads it as bias. You now have a second problem stacked on top of the first one, and the original caution has been lost in the noise." },
+              { "id": "b", "text": "Step in, separate, check on the injured player, then isolate number 4 and caution.", "correct": true, "feedback": "Control first, sanction second. The caution cannot be lost: play cannot restart until it has been administered, so there is no hurry and nothing at risk in taking ten seconds." },
+              { "id": "c", "text": "Move away and caution at the next stoppage.", "correct": false, "feedback": "Play is already stopped. There is no next stoppage to wait for, and walking away with the sanction still owed reads as indecision to everyone watching." },
+              { "id": "d", "text": "Send off Blue number 4 for the challenge and the dissent together.", "correct": false, "feedback": "You have escalated a reckless challenge into a send-off the Law does not support, and you have done it under pressure from the players who ran at you." }
+            ] },
+            { "prompt": "You have isolated Blue number 4. Where do you stand, and how do you show it?", "options": [
+              { "id": "a", "text": "Close, facing the player, card at chest height.", "correct": false, "feedback": "Too close and too low. The benches cannot see it, and the proximity invites a response you do not need." },
+              { "id": "b", "text": "An arm's length and a half away, square to the player, card held high and still above head height, benches in view behind.", "correct": true, "feedback": "The player sees it and hears it. Both benches see it. The spectators see it. Hold it still for a full second." },
+              { "id": "c", "text": "Beside the player, card raised while already turning towards the restart.", "correct": false, "feedback": "Half the ground missed it, and you will be asked to explain a decision that should have explained itself." }
+            ] }
           ],
           "close": [
-            "You hold the card for a second. Then the notebook: 71st minute, Blue No. 4, caution, unsporting behaviour, reckless challenge from behind on Red No. 9 near the touchline.",
-            "You check on Red No. 9, confirm he can continue, and restart with the direct free kick.",
-            "The Blue bench is still unhappy. That's fine. Everyone in the ground knows exactly what happened and who it happened to. That is what the mechanic is for."
+            "You hold the card for a second. Then the notebook comes out: 71st minute, Blue number 4, caution, unsporting behaviour, reckless challenge from behind on Red number 9 near the touchline.",
+            "You check on Red number 9, confirm he can continue, and restart with the direct free kick.",
+            "The Blue bench is still unhappy. That is fine. Everyone in the ground knows exactly what happened and who it happened to. That is what the mechanic is for."
           ]
         }
       ]
     },
     {
-      "id": "p8",
+      "id": "p8-complete",
       "title": "Module Complete",
-      "completionRequires": [
-        "as8"
-      ],
+      "completionRequires": ["as8"],
       "blocks": [
-        {
-          "type": "summary",
-          "heading": "Recap",
-          "intro": "Law 12 gives you three steps. Everything in this module sits inside them.",
-          "items": [
-            "Identify the offence. Name it in the Law's own words, and name the level: careless, reckless, or excessive force.",
-            "Stop play and clearly display the proper card. Isolate, set your distance, make eye contact, card high and still.",
-            "Record the decision for the official report. Before the restart, not after."
-          ]
-        },
-        {
-          "type": "assessment",
-          "id": "as8",
-          "passMarkPercent": 80,
-          "items": [
-            {
-              "prompt": "Dissent during a throw-in stoppage is…",
-              "options": [
-                "Not punishable — ball out of play",
-                "A foul only",
-                "Cautionable misconduct"
-              ],
-              "correct": 2
-            },
-            {
-              "prompt": "A reckless challenge that misses the opponent is…",
-              "options": [
-                "No offence",
-                "Still a caution",
-                "A send-off"
-              ],
-              "correct": 1
-            },
-            {
-              "prompt": "A late, slow, controlled challenge is usually…",
-              "options": [
-                "Careless — free kick, no card",
-                "Reckless — yellow",
-                "Excessive force — red"
-              ],
-              "correct": 0
-            },
-            {
-              "prompt": "A high-speed, studs-up challenge that the opponent jumps clear of is…",
-              "options": [
-                "Nothing — no contact",
-                "A yellow at most",
-                "Serious foul play — red"
-              ],
-              "correct": 2
-            },
-            {
-              "prompt": "Carding into a live confrontation is…",
-              "options": [
-                "Fine — deal with it fast",
-                "Wrong — control, isolate, then card",
-                "Only wrong for red cards"
-              ],
-              "correct": 1
-            },
-            {
-              "prompt": "Advantage played on a DOGSO offence, no goal results →",
-              "options": [
-                "Still a send-off",
-                "Caution for unsporting behaviour",
-                "No sanction"
-              ],
-              "correct": 1
-            },
-            {
-              "prompt": "A misconduct should be recorded…",
-              "options": [
-                "At half time",
-                "Before the restart",
-                "At the final whistle"
-              ],
-              "correct": 1
-            },
-            {
-              "prompt": "The card is shown so that…",
-              "options": [
-                "Only the player sees it",
-                "The player, both benches and observers all see it",
-                "It's recorded for later"
-              ],
-              "correct": 1
-            }
-          ]
-        }
+        { "type": "summary", "heading": "Recap", "intro": "Law 12 gives you three steps. Everything in this module sits inside them.", "items": [
+          "Identify the offence to be punished. Name it in the Law's own words, and name the level: careless, reckless, or excessive force.",
+          "Stop play and clearly display the proper card. Isolate, set your distance, make eye contact, card high and still.",
+          "Record the decision for use in the official report. Before the restart, not after."
+        ] },
+        { "type": "assessment", "id": "as8", "passMarkPercent": 80, "items": [
+          { "prompt": "During a stoppage for a throw-in, a defender you have already spoken to walks past and loudly disputes your decisions. This is:", "options": ["Nothing — the ball is out of play, so Law 12 does not apply", "A foul — restart with an indirect free kick", "Misconduct — dissent by word, and it is cautionable", "Misconduct, but it can only be dealt with at half time"], "correct": 2 },
+          { "prompt": "Which of these is a sending-off (red card) offence?", "options": ["Delaying the restart of play", "Dissent by word or action", "Serious foul play", "Entering the field without permission"], "correct": 2 },
+          { "prompt": "A player wins the ball cleanly, then follows through into the opponent's shin at moderate speed. This is:", "options": ["Careless — free kick, no card", "Reckless — free kick and a caution", "Excessive force — free kick and a send-off", "No offence — he won the ball"], "correct": 1 },
+          { "prompt": "A high-speed, studs-showing lunge misses because the opponent jumps clear and is untouched. You have:", "options": ["Nothing — no contact means no foul", "A free kick only — no contact means no card", "A red card for serious foul play — the challenge endangered the opponent's safety", "A yellow — without contact it cannot be more than reckless"], "correct": 2 },
+          { "prompt": "You have decided to caution number 9. Six players surround the incident and two are shouting at each other. You first:", "options": ["Show the card immediately so everyone sees it is dealt with", "Separate the two players, let the group settle, then isolate number 9 and caution", "Move away and caution at the next stoppage", "Caution number 9 from where you stand, then deal with the others"], "correct": 1 },
+          { "prompt": "Which describes correct card-display mechanics?", "options": ["Card at waist height while you walk away", "Card held high and still, square to an isolated player, with the benches in view", "Card pointed into the player's face at close range", "Card raised inside a group of six players"], "correct": 1 },
+          { "prompt": "You play advantage on a foul that denied a goal-scoring opportunity; the move breaks down with no shot. The defender is:", "options": ["Sent off for denying an obvious goal-scoring opportunity", "Cautioned for unsporting behaviour at the next stoppage", "Given no sanction because you played advantage", "Brought back for a free kick"], "correct": 1 },
+          { "prompt": "When should a misconduct incident be recorded?", "options": ["At half time, while it is fresh", "Before play restarts", "At the final whistle with the other match details", "Only if the card was a red"], "correct": 1 }
+        ] }
       ]
     }
   ]

@@ -964,6 +964,11 @@ async function viewCourse(courseId, lessonId) {
   // Modules get a wider, taller stage; reading lessons stay a comfortable
   // reading width.
   pane.className = 'lesson-pane' + (lesson.type === 'scorm' || lesson.type === 'module' ? ' scorm-lesson' : '');
+  // Interactive modules draw custom images by key — load this course's own org
+  // library so an OMG course shows OMG's images, not NCYSA's (they're separate).
+  if (lesson.type === 'module') {
+    try { const lib = await api('/api/image-library?org=' + encodeURIComponent(course.orgId || '')); window.GMR_LIBRARY = (lib && lib.map) || {}; } catch (e) { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; }
+  }
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
   else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
@@ -1043,6 +1048,7 @@ async function openImageLibrary(onPick) {
     <button class="modal-close" id="ilClose" aria-label="Close">×</button>
     <h2 class="rp-title">🖼 Image library</h2>
     <p class="rp-ctx">${onPick ? 'Click <strong>Use</strong> on an image to drop its key into the module JSON as the current block’s <code>graphic</code>. Or upload a new one first.' : 'Upload an image and give it a short <strong>key</strong>. Modules show it by that key, and the AI builder pulls it by name — e.g. name one <code>yellow-card</code> and any yellow-card moment can use it. Reuse across every course.'}</p>
+    <div class="il-org-row"><label>Library for &nbsp;<select id="ilOrg">${ORG_OPTIONS.map(([v, t]) => `<option value="${v}"${v === 'omg' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label><span class="il-org-hint">Each org has its own images — OMG's are separate from NCYSA/NCSRA.</span></div>
     <div class="il-upload">
       <input type="file" id="ilFile" accept="image/png,image/jpeg,image/gif,image/webp" />
       <input type="text" id="ilKey" placeholder="key — e.g. yellow-card" maxlength="60" />
@@ -1056,9 +1062,12 @@ async function openImageLibrary(onPick) {
   document.getElementById('ilOverlay').addEventListener('click', (e) => { if (e.target.id === 'ilOverlay') close(); });
   document.getElementById('ilClose').addEventListener('click', close);
   const grid = document.getElementById('ilGrid'), msg = document.getElementById('ilMsg');
+  const orgSel = document.getElementById('ilOrg');
+  const curOrg = () => (orgSel && orgSel.value) || 'omg';
+  orgSel && orgSel.addEventListener('change', () => { msg.textContent = ''; refresh(); });
   async function refresh() {
     try {
-      const { images } = await api('/api/admin/image-library');
+      const { images } = await api('/api/admin/image-library?org=' + encodeURIComponent(curOrg()));
       grid.innerHTML = images.length ? images.map((im) => `
         <figure class="il-item">
           <img src="${esc(im.url)}" alt="${esc(im.label || im.key)}" loading="lazy" />
@@ -1069,7 +1078,7 @@ async function openImageLibrary(onPick) {
       if (onPick) grid.querySelectorAll('.il-pick').forEach((btn) => btn.addEventListener('click', () => { const im = images.find((x) => x.key === btn.dataset.key); close(); onPick(im); }));
       grid.querySelectorAll('.il-del').forEach((btn) => btn.addEventListener('click', async () => {
         if (!confirm('Remove “' + btn.dataset.key + '” from the library? Modules using it fall back to a placeholder.')) return;
-        try { await api('/api/admin/image-library/' + encodeURIComponent(btn.dataset.key), { method: 'DELETE' }); refresh(); } catch (e) { msg.textContent = e.message || 'Could not delete.'; }
+        try { await api('/api/admin/image-library/' + encodeURIComponent(btn.dataset.key) + '?org=' + encodeURIComponent(curOrg()), { method: 'DELETE' }); refresh(); } catch (e) { msg.textContent = e.message || 'Could not delete.'; }
       }));
     } catch (e) { grid.innerHTML = '<p class="empty">Could not load the library.</p>'; }
   }
@@ -1085,8 +1094,7 @@ async function openImageLibrary(onPick) {
       const up = await fetch('/api/admin/upload-image?name=' + encodeURIComponent(key), { method: 'POST', headers: { 'content-type': file.type }, body: file });
       const upd = await up.json().catch(() => ({}));
       if (!up.ok) throw new Error(upd.error || 'Upload failed.');
-      await api('/api/admin/image-library', { method: 'POST', body: { key, label, url: upd.url } });
-      try { const lib = await api('/api/image-library'); window.GMR_LIBRARY = (lib && lib.map) || window.GMR_LIBRARY; } catch (e) { /* ignore */ }
+      await api('/api/admin/image-library', { method: 'POST', body: { key, label, url: upd.url, orgId: curOrg() } });
       document.getElementById('ilFile').value = ''; document.getElementById('ilKey').value = ''; document.getElementById('ilLabel').value = '';
       msg.textContent = '✓ Added “' + key + '”.';
       refresh();
