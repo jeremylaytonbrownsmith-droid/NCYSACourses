@@ -36,6 +36,7 @@ standard.
 | Optional "expand for detail" | `accordion` |
 | Flip-to-reveal definitions/terms | `flashcards` |
 | Switch between parallel facets | `tabs` |
+| A standalone picture | `image` (`imageUrl` + `caption?`) |
 | Short sequence of steps | `carousel` |
 | Yellow-vs-red style contrast | `compare` |
 | A situation to reason about | `scenario` |
