@@ -1994,10 +1994,14 @@ function renderScormLesson(pane, course, lesson, lp) {
 
   // Away-too-long reset: leaving the tab pauses the timer (above); leaving it for
   // longer than AWAY_LIMIT wipes this module's progress so it must be redone.
+  // Skipped for HTML (Evolve) modules: they keep their progress only in memory
+  // (nothing in storage to restore), so reloading the frame to "reset" would
+  // needlessly wipe a learner's place when they just glanced away. Completion is
+  // gated by actually finishing every page, so there's no skip to guard against.
   let hiddenSince = 0;
   function onVisibility() {
     if (document.visibilityState === 'hidden') { hiddenSince = Date.now(); return; }
-    if (hiddenSince && !done && required > 0) {
+    if (hiddenSince && !done && required > 0 && !isHtml) {
       const away = (Date.now() - hiddenSince) / 1000;
       if (away >= AWAY_LIMIT) resetModule();
     }
