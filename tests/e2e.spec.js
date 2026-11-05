@@ -10,17 +10,19 @@ const COURSE = 'grassroots-coaching-license';
 test.describe.configure({ mode: 'serial' });
 
 test('full learner journey through the coaching license course', async ({ page }) => {
-  // --- 1. Landing page: the portal chooser ----------------------------------
+  // --- 1. Landing page -------------------------------------------------------
+  // The Coaches Portal is hidden for now (SHOW_COACHES_PORTAL = false), so the
+  // landing shows only the Referees Portal. The Coaches route still works for
+  // enrollment below (reached directly), it's just not advertised on the landing.
   await page.goto('/');
-  await expect(page.locator('.portal-card', { hasText: 'Coaches Portal' })).toBeVisible();
   await expect(page.locator('.portal-card', { hasText: 'Referees Portal' })).toBeVisible();
   await page.screenshot({ path: `${SNAP}/01-landing.png`, fullPage: true });
 
-  // --- 1b. Coach/Referee split: referee path leads to the NCSRA portal ------
+  // --- 1b. Referee path leads to the NCSRA portal ---------------------------
   await page.locator('.portal-card', { hasText: 'Referees Portal' }).click();
   await expect(page.locator('.role-hero h2')).toContainText('NCSRA Referee Education');
   await page.click('.back-link');
-  await expect(page.locator('.portal-card', { hasText: 'Coaches Portal' })).toBeVisible();
+  await expect(page.locator('.portal-card', { hasText: 'Referees Portal' })).toBeVisible();
 
   // --- 2. Register (passwordless: name + email only) ------------------------
   await page.click('.topnav a:has-text("Get started")');

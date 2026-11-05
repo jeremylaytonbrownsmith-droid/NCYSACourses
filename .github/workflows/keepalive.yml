@@ -4,10 +4,10 @@
 # wake takes ~30-60s. This workflow pings the app's health endpoint every 10
 # minutes so learners always hit a warm instance.
 #
-# SETUP (one time): in this repo, go to Settings > Secrets and variables >
-# Actions > Variables, and add a repository variable named APP_URL set to your
-# Render URL (e.g. https://ncysa-learn.onrender.com). No secret/token needed —
-# it just makes a public GET request.
+# By default this pings the live site (https://ncysalearn.app). To point it
+# somewhere else, add a repository variable named APP_URL (Settings > Secrets and
+# variables > Actions > Variables) and it will be used instead. No secret/token
+# needed — it just makes a public GET request.
 #
 # If you upgrade Render to the always-on Starter plan, you can delete this file.
 name: keepalive
@@ -23,8 +23,7 @@ jobs:
         run: |
           URL="${{ vars.APP_URL }}"
           if [ -z "$URL" ]; then
-            echo "APP_URL repository variable is not set — skipping. See this file's header for setup."
-            exit 0
+            URL="https://ncysalearn.app"  # live site; override with the APP_URL repo variable
           fi
           echo "Pinging $URL/api/courses"
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$URL/api/courses" || echo 000)
