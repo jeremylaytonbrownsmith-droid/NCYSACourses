@@ -1975,8 +1975,8 @@ function renderScormLesson(pane, course, lesson, lp) {
   }
   let evoLastLog = 0;
   function checkEvolveComplete() {
-    if (done || reachedEnd) return;
-    const st = evolveStatus();
+    if (done) return; // keep polling even after reachedEnd, so a missed completion
+    const st = evolveStatus(); // ping is retried until the server actually confirms
     if (!st) return;
     enableBackGuard(); // Evolve detected → turn on the no-persistence protections
     // Breadcrumb so detection can be verified/tuned from the browser console.
@@ -1984,7 +1984,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     if (st.complete > 0 && st.complete >= st.total) {
       cmi['cmi.core.lesson_status'] = 'completed';
       reachedEnd = true;
-      sync(0, null, true); // server completes the lesson, unlocks the next, records it
+      sync(0, null, true); // re-sent each poll (every 2.5s) until the server confirms
     }
   }
 
