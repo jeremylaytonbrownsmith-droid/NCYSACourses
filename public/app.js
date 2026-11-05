@@ -1034,6 +1034,65 @@ function openReportProblem(course, lesson) {
   });
 }
 
+// Reusable image library (Course Designer): upload images, give each a short key
+// (e.g. "yellow-card"), and reuse them across modules — picked by hand in a block
+// or pulled by the AI builder by that key.
+async function openImageLibrary() {
+  const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
+  host.innerHTML = `<div class="modal-overlay" id="ilOverlay"><div class="modal-card il-card" role="dialog" aria-modal="true" aria-label="Image library">
+    <button class="modal-close" id="ilClose" aria-label="Close">×</button>
+    <h2 class="rp-title">🖼 Image library</h2>
+    <p class="rp-ctx">Upload an image and give it a short <strong>key</strong>. Modules show it by that key, and the AI builder pulls it by name — e.g. name one <code>yellow-card</code> and any yellow-card moment can use it. Reuse across every course.</p>
+    <div class="il-upload">
+      <input type="file" id="ilFile" accept="image/png,image/jpeg,image/gif,image/webp" />
+      <input type="text" id="ilKey" placeholder="key — e.g. yellow-card" maxlength="60" />
+      <input type="text" id="ilLabel" placeholder="description (optional)" maxlength="120" />
+      <button class="btn btn-accent" id="ilAdd" type="button">Add to library</button>
+    </div>
+    <div id="ilMsg" class="il-msg" role="status" aria-live="polite"></div>
+    <div id="ilGrid" class="il-grid"><p class="empty">Loading…</p></div>
+  </div></div>`;
+  const close = () => { host.innerHTML = ''; };
+  document.getElementById('ilOverlay').addEventListener('click', (e) => { if (e.target.id === 'ilOverlay') close(); });
+  document.getElementById('ilClose').addEventListener('click', close);
+  const grid = document.getElementById('ilGrid'), msg = document.getElementById('ilMsg');
+  async function refresh() {
+    try {
+      const { images } = await api('/api/admin/image-library');
+      grid.innerHTML = images.length ? images.map((im) => `
+        <figure class="il-item">
+          <img src="${esc(im.url)}" alt="${esc(im.label || im.key)}" loading="lazy" />
+          <figcaption><code>${esc(im.key)}</code>${(im.label && im.label !== im.key) ? '<span>' + esc(im.label) + '</span>' : ''}</figcaption>
+          <button class="il-del" data-key="${esc(im.key)}" type="button">Delete</button>
+        </figure>`).join('') : '<p class="empty">No images yet — upload your first above.</p>';
+      grid.querySelectorAll('.il-del').forEach((btn) => btn.addEventListener('click', async () => {
+        if (!confirm('Remove “' + btn.dataset.key + '” from the library? Modules using it fall back to a placeholder.')) return;
+        try { await api('/api/admin/image-library/' + encodeURIComponent(btn.dataset.key), { method: 'DELETE' }); refresh(); } catch (e) { msg.textContent = e.message || 'Could not delete.'; }
+      }));
+    } catch (e) { grid.innerHTML = '<p class="empty">Could not load the library.</p>'; }
+  }
+  refresh();
+  document.getElementById('ilAdd').addEventListener('click', async () => {
+    const file = document.getElementById('ilFile').files[0];
+    const key = document.getElementById('ilKey').value.trim();
+    const label = document.getElementById('ilLabel').value.trim();
+    if (!file) { msg.textContent = 'Choose an image file first.'; return; }
+    if (!key) { msg.textContent = 'Give it a key (e.g. yellow-card).'; return; }
+    const btn = document.getElementById('ilAdd'); btn.disabled = true; btn.textContent = 'Uploading…'; msg.textContent = '';
+    try {
+      const up = await fetch('/api/admin/upload-image?name=' + encodeURIComponent(key), { method: 'POST', headers: { 'content-type': file.type }, body: file });
+      const upd = await up.json().catch(() => ({}));
+      if (!up.ok) throw new Error(upd.error || 'Upload failed.');
+      await api('/api/admin/image-library', { method: 'POST', body: { key, label, url: upd.url } });
+      try { const lib = await api('/api/image-library'); window.GMR_LIBRARY = (lib && lib.map) || window.GMR_LIBRARY; } catch (e) { /* ignore */ }
+      document.getElementById('ilFile').value = ''; document.getElementById('ilKey').value = ''; document.getElementById('ilLabel').value = '';
+      msg.textContent = '✓ Added “' + key + '”.';
+      refresh();
+    } catch (e) { msg.textContent = e.message || 'Could not add the image.'; }
+    btn.disabled = false; btn.textContent = 'Add to library';
+  });
+}
+
 function lessonHeader(lesson, course) {
   const typeLabel = { text: 'Reading', video: 'Video lesson', quiz: 'Final exam', scorm: 'Module', slides: 'Slides', module: 'Interactive module' };
   const logo = course && course.coLogoUrl
@@ -1337,7 +1396,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
 
   const gfx = (name) => (window.GMR_GRAPHICS && name && window.GMR_GRAPHICS[name]) || '';
-  const photo = (name) => (window.GMR_PHOTOS && name && window.GMR_PHOTOS[name]) || '';
+  const photo = (name) => (name && window.GMR_LIBRARY && window.GMR_LIBRARY[name]) || (window.GMR_PHOTOS && name && window.GMR_PHOTOS[name]) || '';
   const thumb = (name, imageUrl) => { const src = imageUrl || photo(name); return src ? '<img class="gmr-pimg" src="' + esc(src) + '" alt="" loading="lazy">' : gfx(name); };
   // A block's visual: a real uploaded image URL wins, then a preset photo, then a
   // preset SVG graphic, then a text "Illustration" placeholder describing what to add.
@@ -3466,6 +3525,7 @@ async function viewCourseAdmin(flash) {
         </div>
         <div class="admin-head-actions">
           <button class="btn btn-ghost" id="bulkScormBtn">Bulk-upload modules</button>
+          <button class="btn btn-ghost" id="imageLibraryBtn">🖼 Image library</button>
           <button class="btn btn-ghost" id="storageBtn">Module storage</button>
           <button class="btn btn-ai" id="aiBuildBtn">✨ Build with AI</button>
           <button class="btn btn-ghost" id="integrationBtn">🔌 Integration</button>
@@ -3565,6 +3625,7 @@ async function viewCourseAdmin(flash) {
     document.getElementById('newCoursePanel').innerHTML = storagePanel();
     loadStorage();
   });
+  document.getElementById('imageLibraryBtn').addEventListener('click', openImageLibrary);
   document.getElementById('aiBuildBtn').addEventListener('click', () => {
     document.getElementById('newCoursePanel').innerHTML = aiBuildPanel();
     bindAiBuild();
@@ -5332,5 +5393,8 @@ window.addEventListener('hashchange', route);
   // Don't let a cold-start 502 on /api/me blank the page — route() will show the
   // branded "we'll be right back" screen (and retry) if the server is still waking.
   try { await refreshMe(); } catch (e) { if (!serverDown(e)) throw e; }
+  // Load the reusable image-library key→url map so modules can resolve library
+  // keys used in a block's `graphic` (best-effort; empty is fine).
+  api('/api/image-library').then((r) => { window.GMR_LIBRARY = (r && r.map) || {}; }).catch(() => { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; });
   await route();
 })();

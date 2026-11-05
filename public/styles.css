@@ -1614,6 +1614,20 @@ body.pseudo-fs-lock { overflow: hidden; }
 .modal-close { position: absolute; top: 12px; right: 14px; border: 0; background: none; font-size: 1.5rem; line-height: 1; color: var(--ink-soft); cursor: pointer; }
 .modal-close:hover { color: var(--ink); }
 .rp-title { margin: 0 0 4px; font-size: 1.2rem; }
+/* Image library modal */
+.il-card { max-width: 760px; }
+.il-upload { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 6px; }
+.il-upload input[type="text"] { flex: 1 1 160px; min-width: 120px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
+.il-upload input[type="file"] { flex: 1 1 200px; font: inherit; }
+.il-msg { min-height: 20px; font-size: 0.86rem; color: var(--ink-soft); margin-bottom: 8px; }
+.il-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; max-height: 50vh; overflow-y: auto; }
+.il-item { position: relative; margin: 0; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--bg); }
+.il-item img { display: block; width: 100%; height: 100px; object-fit: cover; background: #eceae7; }
+.il-item figcaption { padding: 7px 9px; font-size: 0.8rem; }
+.il-item figcaption code { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 0.78rem; }
+.il-item figcaption span { display: block; color: var(--ink-soft); margin-top: 3px; line-height: 1.35; }
+.il-del { position: absolute; top: 6px; right: 6px; border: 0; background: rgba(176,47,47,.92); color: #fff; font-size: 0.74rem; font-weight: 700; padding: 3px 8px; border-radius: 7px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.il-item:hover .il-del, .il-del:focus-visible { opacity: 1; }
 .rp-ctx { margin: 0 0 2px; color: var(--ink); }
 .rp-who { margin: 0 0 14px; color: var(--ink-soft); font-size: .88rem; }
 .rp-label { display: block; font-weight: 700; font-size: .9rem; margin: 0 0 6px; color: var(--ink); }

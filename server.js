@@ -3483,6 +3483,54 @@ app.post('/api/admin/upload-image', requireEditor, async (req, res) => {
   res.json({ url: '/uploads/' + name });
 });
 
+// ---- Reusable image library ------------------------------------------------
+// A small catalogue of images keyed by a plain slug (e.g. "yellow-card"). A
+// module block refers to one by putting that slug in its `graphic` field; the
+// learner renderer resolves the slug to the stored URL (see GET /api/image-
+// library). The Course Designer picks from here, and the AI course builder can
+// reference the same slugs by name. Only safe (same-origin /uploads or https)
+// URLs are stored.
+function safeImageUrl(v) {
+  const str = String(v || '').trim().slice(0, 600);
+  if (/^https?:\/\//i.test(str) || /^\/[^/]/.test(str)) return str;
+  return '';
+}
+app.get('/api/admin/image-library', requireEditor, (req, res) => {
+  const db = load();
+  res.json({ images: (db.imageLibrary || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) });
+});
+app.post('/api/admin/image-library', requireEditor, (req, res) => {
+  const b = req.body || {};
+  const key = slugify(String(b.key || '').slice(0, 60));
+  const url = safeImageUrl(b.url);
+  if (!key) return res.status(400).json({ error: 'Give the image a name (e.g. "yellow-card").' });
+  if (!url) return res.status(400).json({ error: 'Upload the image first — a valid image URL is required.' });
+  const db = load();
+  if (!Array.isArray(db.imageLibrary)) db.imageLibrary = [];
+  const label = String(b.label || '').slice(0, 120).trim() || key;
+  const existing = db.imageLibrary.find((x) => x.key === key);
+  if (existing) { existing.label = label; existing.url = url; existing.updatedAt = Date.now(); }
+  else db.imageLibrary.push({ key, label, url, createdAt: Date.now() });
+  save();
+  res.json({ ok: true, key, label, url });
+});
+app.delete('/api/admin/image-library/:key', requireEditor, (req, res) => {
+  const key = slugify(String(req.params.key || ''));
+  const db = load();
+  const before = (db.imageLibrary || []).length;
+  db.imageLibrary = (db.imageLibrary || []).filter((x) => x.key !== key);
+  save();
+  res.json({ ok: true, removed: before - db.imageLibrary.length });
+});
+// Public key -> url map so the learner's module renderer can resolve library
+// slugs used in `graphic`. Image URLs are already public (served from /uploads).
+app.get('/api/image-library', (req, res) => {
+  const db = load();
+  const map = {};
+  for (const im of (db.imageLibrary || [])) if (im && im.key && im.url) map[im.key] = im.url;
+  res.json({ map });
+});
+
 // Minimal HTML-entity decode for a manifest <title>.
 function decodeEntities(s) {
   return String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
