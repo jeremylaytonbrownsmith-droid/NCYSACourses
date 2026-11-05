@@ -1652,7 +1652,10 @@ function renderModuleLesson(pane, course, lesson, lp) {
       + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
     const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 15h5"/></svg>';
     PAGES.forEach((p, i) => {
-      const done = i < state.page && pageSatisfied(i), cur = i === state.page;
+      // A step shows its green check as soon as everything on it is done — the
+      // current page included — so the learner sees they've finished and can
+      // click Next (not only after they've already moved past it).
+      const done = i <= state.page && pageSatisfied(i), cur = i === state.page;
       const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
       const locked = !(noGate || i <= state.max);
       const cp = done ? 100 : Math.round(pageFrac(i) * 100);
