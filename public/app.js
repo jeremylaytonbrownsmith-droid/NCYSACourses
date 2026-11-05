@@ -2135,7 +2135,25 @@ function renderScormLesson(pane, course, lesson, lp) {
       armBackGuard(); // stay put: re-arm the sentinel so the module keeps its place
     }
   }
-  function enableBackGuard() { if (backRegistered) return; backRegistered = true; armBackGuard(); window.addEventListener('popstate', onPopGuard); }
+  function enableBackGuard() {
+    if (backRegistered) return;
+    backRegistered = true;
+    armBackGuard();
+    window.addEventListener('popstate', onPopGuard);
+    // One-time caution banner for these non-persisting modules (shown once the
+    // Evolve outline is detected, so it never appears on a module that saves).
+    try {
+      if (!done && !document.getElementById('evoWarn')) {
+        const shell = document.querySelector('.scorm-shell');
+        if (shell && shell.parentNode) {
+          const w = document.createElement('div');
+          w.id = 'evoWarn'; w.className = 'evo-warn'; w.setAttribute('role', 'note');
+          w.innerHTML = '⚠️ <strong>Finish this module in one sitting.</strong> If you close the tab, reload, or leave before the end, your place isn’t saved and you’ll have to start it over.';
+          shell.parentNode.insertBefore(w, shell);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
   if (isHtml) enableBackGuard();
 
   // HTML package: the learner marks it complete once the time gate is met. This
