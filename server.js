@@ -3136,7 +3136,10 @@ app.post('/api/admin/courses/ai-build', requireEditor, async (req, res) => {
   let draft = null, moduleDoc = null;
   try {
     if (format === 'module') {
-      const raw = await generateModuleDraft({ topic: b.topic, sourceText: b.sourceText, audience: b.audience, mode: b.mode, approxPages: b.approxPages });
+      // Let the AI reference the admin's reusable image library by key, so a
+      // "yellow card" moment can pull the real yellow-card photo automatically.
+      const libraryImages = (load().imageLibrary || []).map((im) => ({ key: im.key, label: im.label }));
+      const raw = await generateModuleDraft({ topic: b.topic, sourceText: b.sourceText, audience: b.audience, mode: b.mode, approxPages: b.approxPages, libraryImages });
       moduleDoc = normalizeModuleDoc(raw);
       // A Tent Talk is an information session by definition: strip any graded
       // blocks the model may have added, so "no test" is guaranteed every time.
