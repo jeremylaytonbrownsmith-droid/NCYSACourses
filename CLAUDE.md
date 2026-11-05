@@ -1,0 +1,101 @@
+# GetMatchReady — project memory & course-building playbook
+
+This file is loaded automatically at the start of every Claude session on this
+repo. It exists so Claude (and new teammates like Dick) don't have to re-explain
+how the platform and the course builder work each time.
+
+## What this is
+
+An org-based referee-education platform. One codebase serves multiple
+organizations, each with its own branded portal:
+
+- **NCYSA** (`ncysa`) — the default org / North Carolina portal.
+- **NCSRA** (`ncsra`) — NC referee association (branding used on referee courses).
+- **OMG** (`omg`) — Officials Management Group, reached at **getmatchready.app/omg**.
+
+Org constants live in `server.js` / `public/app.js`: `DEFAULT_ORG`, `ORG_OPTIONS`,
+`ORG_NAMES`. A course's `orgId` decides which portal shows it. A `partner` account
+is locked to one org (e.g. OMG partner → `omg`).
+
+## Deploy flow
+
+- Merging to `main` auto-deploys to Render (~1 min; free tier may 502 briefly on
+  first hit — that's a cold start, not a failure).
+- The sandbox **cannot reach getmatchready.app** (network policy), so Claude
+  can't curl-verify a live deploy — say so rather than claiming it's up.
+- Develop on the designated feature branch; if its PR already merged, restart the
+  branch from `origin/main` for follow-up work.
+
+## Interactive course format (`getmatchready.module/v1`)
+
+Courses are authored as a JSON "module doc" (one `module`-type lesson) and played
+by a generic block player. Key files:
+
+- `public/app.js` → `renderModuleLesson()` (the player + left progress rail).
+- `lib/moduledoc.js` → `normalizeModuleDoc()` (server-side gatekeeper; drops
+  unknown block types/fields). **Validate any new course against this.**
+- `lib/aicourse.js` → the AI builder + the format spec in prompt form.
+- `docs/MODULE-STANDARD.md` → the house standard.
+
+**Block types:** narration, prose, list, callout, table, compare, carousel,
+accordion, flashcards (flip), tabs (toggle), scenario, image, reflection,
+checklist, knowledgeCheck (gated), videoDecision, imageSelect, flow, branching,
+summary, assessment (final exam), gate.
+
+**Gotchas that have bitten us:**
+- `assessment` needs real `items` (prompt/options/correct index). A `drawFrom`
+  reference list renders an **empty exam** → page never completes → no certificate.
+- `branching` `setup`/`close` must be **string arrays**, not `{style, lines}` objects.
+- `videoDecision` with no real `clipUrl` falls back to a text question — fine, but
+  don't reference "watch the clip". We have **no comparison video** assets.
+- Each page's `completionRequires` must list ids of **interactive** blocks on that page.
+
+## Images — use the built-in art (no upload needed)
+
+The app ships referee photos + SVG diagrams in `public/graphics.js`
+(`GMR_PHOTOS` → `media/signals/*.png`, and `GMR_GRAPHICS` → inline SVG). A block's
+`graphic` key resolves to: uploaded org image (`GMR_LIBRARY`) → preset photo →
+preset SVG → text placeholder. **Prefer the built-in keys so illustrations render
+with zero upload.**
+
+Built-in **photo** keys: `free-kick`, `card-high`, `card-high-red`, `card-low`,
+`card-face`, `card-group`, `confrontation`, `bench`, `flag-up`, `flag-wave`,
+`flag-direction`, `flag-down`.
+SVG-diagram keys include: `eye-contact`, `challenge-side`, `field-position`,
+`whistle`.
+
+The spot-the-error card photos (`card-high`/`card-low`/`card-face`/`card-group`)
+were made for exactly that interaction.
+
+**Org image library** (`/api/image-library?org=<org>`) is per-org: OMG images are
+separate from NCYSA/NCSRA. Upload via the Course Designer's 🖼 Image library (set
+the picker to the org). Keys resolve per the course's `orgId`.
+
+## Progress circles (left rail)
+
+Built into `renderModuleLesson`. Each section's ring **fills by fraction** of its
+completed elements and turns **green the moment the page is complete** (current
+page included), signalling "click Next". Works automatically for every
+module-type course, hand-built or AI-built. (SCORM/Evolve uploads use a different
+player with no rail.)
+
+## The live "Card Mechanics" course (code-managed)
+
+- Course id `omg-card-mechanics`, org `omg`, lesson id `card-mechanics-main`.
+- Seeded by `setupOmgCardMechanics()` in `server.js` via `ensureCourse(...)`, built
+  from `public/samples/card-mechanics.module.json`.
+- **Code-managed:** edit the content in that sample file (not the Course Designer —
+  Designer edits to it won't survive a deploy). It syncs on each deploy; learner
+  progress stays on the fixed lesson id.
+
+## Building a course by hand (Course Designer)
+
+Course Designer → ＋ New course (set **Organization**) → ＋ Add lesson → type
+**Interactive module (block JSON)** → paste/validate JSON (**Check JSON**) →
+Add lesson → **Publish**. A printable cheat-sheet of this lives with the team.
+
+## Working style for this user
+
+Short, concise, plain answers. Do the work; don't over-explain or present long
+option menus. Be honest about limits (what the sandbox can/can't reach, what
+needs their browser login). Don't invent facts.
