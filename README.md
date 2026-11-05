@@ -1,4 +1,4 @@
-# NCYSA Learn — Coaching Education Platform
+# NCYSA Learn — Education & Training Platform
 
 A self-hosted online course platform for the North Carolina Youth Soccer Association,
 modeled on platforms like Thinkific and Teachable — but free, owned by NCYSA, and with

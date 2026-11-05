@@ -983,8 +983,8 @@ function applyContentProtection(pane) {
   if (!pane || !me || !me.user || isStaffViewer()) return;
   const u = me.user;
   const xml = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const label = `${xml(u.name || 'Learner')}   ·   ${xml(u.email || '')}   ·   ${new Date().toLocaleDateString()}`;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='360' height='210'><text x='18' y='160' transform='rotate(-27 18 160)' fill='rgba(22,22,45,0.07)' font-family='Arial, sans-serif' font-size='15' font-weight='700'>${label}</text></svg>`;
+  const label = `${xml(u.name || 'Learner')}  ·  ${xml(u.email || '')}`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='560' height='400'><text x='40' y='320' transform='rotate(-24 40 320)' fill='rgba(30,34,60,0.045)' font-family='Arial, sans-serif' font-size='13' font-weight='500' letter-spacing='0.4'>${label}</text></svg>`;
   const uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   let wm = pane.querySelector(':scope > .content-wm');
   if (!wm) { wm = document.createElement('div'); wm.className = 'content-wm'; wm.setAttribute('aria-hidden', 'true'); pane.appendChild(wm); }
@@ -3006,12 +3006,14 @@ async function viewAdmin() {
             <button class="btn btn-primary btn-sm" id="testEmailBtn">Send test email</button>
             <span id="testEmailResult" class="test-email-result" role="status" aria-live="polite"></span>
           </div>
+          <div class="card-scroll">
           ${d.outbox.length ? d.outbox.map((m) => `
-            <div class="mail">
+            <details class="mail">
+              <summary class="mail-sum"><span class="mail-subj">${esc(m.subject)}</span><span class="mail-meta">${esc(m.to)} · ${esc(m.status)}</span></summary>
               <div class="mail-head"><strong>To:</strong> ${esc(m.to)} · <strong>Sent:</strong> ${new Date(m.createdAt).toLocaleString()} · <strong>Status:</strong> ${esc(m.status)}</div>
-              <div><strong>${esc(m.subject)}</strong></div>
               <pre>${esc(m.body)}</pre>
-            </div>`).join('') : '<p class="empty">Outbox is empty.</p>'}
+            </details>`).join('') : '<p class="empty">Outbox is empty.</p>'}
+          </div>
         </div>
         <div class="admin-card">
           <h2>Partner webhooks</h2>
@@ -5116,7 +5118,44 @@ async function applyBrandForHash(hash) {
 // True when the current context is a co-branded (e.g. NCSRA referee) portal.
 function inPortal() { return !!activeBrand; }
 
+// ----- "We'll be right back" (server updating / cold-start) ---------------
+// Render's free service is briefly unreachable during a deploy or when it
+// wakes from idle. In that window an API call 502s (or the fetch fails). Rather
+// than show a scary "Bad Gateway", we show a calm branded screen and reconnect
+// the visitor automatically once the server answers again.
+let _maintTimer = null, _maintTick = null;
+function clearMaint() {
+  if (_maintTimer) { clearTimeout(_maintTimer); _maintTimer = null; }
+  if (_maintTick) { clearInterval(_maintTick); _maintTick = null; }
+}
+function serverDown(e) {
+  const s = e && e.status;
+  if (s === 502 || s === 503 || s === 504) return true; // upstream not ready
+  if (s) return false;                                  // a real HTTP error (404/400/…)
+  const m = String((e && e.message) || '').toLowerCase();
+  return /failed to fetch|networkerror|load failed|network ?error|fetch/.test(m); // fetch itself failed
+}
+function showMaintenance() {
+  clearMaint();
+  const logo = (activeBrand && activeBrand.logo) || orgLogo(activeOrg) || NCSRA_LOGO;
+  let left = 5;
+  app.innerHTML = `<div class="section"><div class="maint-card" role="status" aria-live="polite">
+    <img src="${esc(logo)}" alt="" class="maint-logo" onerror="this.style.display='none'" />
+    <div class="maint-spin" aria-hidden="true"></div>
+    <h2>We&rsquo;ll be right back</h2>
+    <p class="sub">The site is updating &mdash; this usually takes just a few seconds. We&rsquo;ll reconnect you automatically, so please keep this page open.</p>
+    <button class="btn btn-accent" id="maintRetry" type="button">Check now</button>
+    <p class="maint-small">Reconnecting in <span id="maintCount">${left}</span>s&hellip;</p>
+  </div></div>`;
+  const countEl = document.getElementById('maintCount');
+  const retry = async () => { clearMaint(); try { await refreshMe(); } catch (_) { /* still warming */ } route(); };
+  document.getElementById('maintRetry')?.addEventListener('click', retry);
+  _maintTick = setInterval(() => { left -= 1; if (countEl) countEl.textContent = String(Math.max(0, left)); if (left <= 0) { clearInterval(_maintTick); _maintTick = null; } }, 1000);
+  _maintTimer = setTimeout(retry, 5000);
+}
+
 async function route() {
+  clearMaint(); // navigating away cancels any pending reconnect
   if (videoTracker) { videoTracker.flush(); videoTracker = null; }
   const hash = location.hash || '#/';
   // On a partner's custom domain, the bare URL opens that org's portal (never
@@ -5141,6 +5180,7 @@ async function route() {
       const spinnerTimer = startLoading();
       try { await r.fn(m); } catch (e) {
         if (e.status === 401) { stopLoading(spinnerTimer); location.hash = '#/login'; return; }
+        if (serverDown(e)) { stopLoading(spinnerTimer); showMaintenance(); return; }
         app.innerHTML = `<div class="section"><div class="card"><h2>Something went wrong</h2><p class="sub">${esc(e.message)}</p></div></div>`;
       }
       stopLoading(spinnerTimer);
@@ -5164,6 +5204,8 @@ window.addEventListener('hashchange', route);
     const anchor = document.createElement('span'); anchor.id = 'main'; app.parentNode.insertBefore(anchor, app);
   }
   applyPwaHead();
-  await refreshMe();
+  // Don't let a cold-start 502 on /api/me blank the page — route() will show the
+  // branded "we'll be right back" screen (and retry) if the server is still waking.
+  try { await refreshMe(); } catch (e) { if (!serverDown(e)) throw e; }
   await route();
 })();

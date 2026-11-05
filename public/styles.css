@@ -244,6 +244,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 .no-copy, .no-copy :not(input):not(textarea) { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
 .no-copy input, .no-copy textarea { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
 .no-copy img, .no-copy svg { -webkit-user-drag: none; user-select: none; }
+/* "We'll be right back" screen (deploy / cold-start reconnect) */
+.maint-card { max-width: 440px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 44px 32px 32px; text-align: center; box-shadow: 0 8px 28px rgba(16,8,8,0.06); }
+.maint-card .maint-logo { height: 76px; width: auto; object-fit: contain; margin-bottom: 20px; }
+.maint-card h2 { margin: 6px 0 10px; color: var(--ink); }
+.maint-card .sub { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.55; margin-bottom: 22px; }
+.maint-card .btn { min-width: 150px; }
+.maint-card .maint-small { color: var(--ink-soft); font-size: 0.82rem; margin: 16px 0 0; }
+.maint-spin { width: 34px; height: 34px; margin: 0 auto 18px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: maint-spin 0.9s linear infinite; }
+@keyframes maint-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .maint-spin { animation: none; } }
 .lesson-pane .lesson-kind { color: var(--brand); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
 .lesson-kind-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .staff-preview-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #fde68a; color: #7c5a00; font-weight: 700; font-size: .72rem; letter-spacing: .02em; white-space: nowrap; }
@@ -455,7 +465,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 /* Keep a long list (notifications, records) as a compact panel that scrolls
    inside its card instead of pushing everything else off the screen. */
 .card-scroll { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
-#completionsTable { max-height: 520px; overflow-y: auto; }
+#completionsTable { max-height: 640px; overflow-y: auto; }
 .count-pill { display: inline-block; background: #1f3a5f; color: #fff; font-weight: 700; font-size: 0.72rem; line-height: 1; border-radius: 999px; padding: 3px 9px; vertical-align: middle; margin-left: 4px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count-pill { background: #2fd39c; color: #06231a; } }
 :root[data-theme="dark"] .count-pill { background: #2fd39c; color: #06231a; }
@@ -504,6 +514,20 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
 .mail pre { white-space: pre-wrap; font: inherit; color: var(--ink-body); }
+/* Collapsed-by-default outbox emails: one line each, expand on click. Keeps the
+   outbox compact instead of printing every full email body. */
+details.mail { padding: 0; }
+details.mail > summary.mail-sum { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 11px 14px 11px 34px; position: relative; }
+details.mail > summary.mail-sum::-webkit-details-marker { display: none; }
+details.mail > summary.mail-sum::before { content: ""; position: absolute; left: 14px; top: 50%; width: 7px; height: 7px; border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft); transform: translateY(-60%) rotate(-45deg); transition: transform 0.15s ease; }
+details[open].mail > summary.mail-sum::before { transform: translateY(-30%) rotate(45deg); }
+details.mail > summary.mail-sum:hover { background: var(--bg); }
+.mail .mail-subj { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.mail .mail-meta { color: var(--ink-soft); font-size: 0.78rem; white-space: nowrap; flex: 0 0 auto; }
+details.mail > .mail-head, details.mail > pre { padding-left: 14px; padding-right: 14px; }
+details.mail > .mail-head { margin-top: 6px; }
+details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
+@media (max-width: 560px) { .mail .mail-meta { display: none; } }
 .empty { color: var(--ink-soft); font-size: 0.9rem; }
 
 /* ---------- toast ---------- */

@@ -1,7 +1,7 @@
 {
   "name": "ncysa-learn",
   "version": "1.0.0",
-  "description": "NCYSA Learn - self-hosted coaching education platform for the North Carolina Youth Soccer Association",
+  "description": "NCYSA Learn - self-hosted education & training platform for the North Carolina Youth Soccer Association",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
