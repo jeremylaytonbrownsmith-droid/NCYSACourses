@@ -1437,6 +1437,31 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-ab { padding: 2px 20px 18px 59px; color: var(--ink-body); line-height: 1.6; } .gmr-ab p { margin: 0 0 .6em; } .gmr-ab .intro { color: var(--ink-soft); } .gmr-ab .ah { font-weight: 700; color: var(--ink); } .gmr-ab ul { margin: .2em 0 0; padding-left: 1.2em; } .gmr-ab li { margin: .35em 0; }
 @media (max-width: 760px) { .gmr-ab { padding-left: 20px; } }
 
+/* Interactive block: "flip each card" flashcards */
+.gmr-ilabel { color: var(--accent); font-weight: 700; font-size: 0.9rem; margin: 0 0 12px; }
+.gmr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.gmr-card { height: 140px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; perspective: 1000px; }
+.gmr-card-in { position: relative; display: block; width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; }
+.gmr-card.flipped .gmr-card-in { transform: rotateY(180deg); }
+.gmr-card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 16px; }
+.gmr-card-front { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #fff; }
+.gmr-card-t { font-weight: 800; letter-spacing: 0.02em; font-size: 1rem; text-transform: uppercase; }
+.gmr-card-flip { font-size: 0.85rem; opacity: 0.65; font-weight: 400; }
+.gmr-card-back { background: var(--card); border: 1px solid var(--line); color: var(--ink-body); transform: rotateY(180deg); font-size: 0.92rem; line-height: 1.45; }
+.gmr-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 3px; border-radius: 14px; }
+
+/* Interactive block: "toggle each tab" */
+.gmr-tabs { display: flex; flex-wrap: wrap; gap: 0; }
+.gmr-tab { flex: 1 1 auto; padding: 12px 14px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft); font: inherit; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
+.gmr-tab + .gmr-tab { border-left: 0; }
+.gmr-tab:first-child { border-radius: 10px 0 0 0; }
+.gmr-tab:last-child { border-radius: 0 10px 0 0; }
+.gmr-tab.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.gmr-tabpanels { border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; padding: 18px; color: var(--ink-body); line-height: 1.6; }
+.gmr-tabpanel { display: none; } .gmr-tabpanel.on { display: block; }
+.gmr-tabpanel p { margin: 0 0 .6em; } .gmr-tabpanel ul { margin: .2em 0 0; padding-left: 1.2em; } .gmr-tabpanel li { margin: .35em 0; }
+@media (max-width: 560px) { .gmr-tab { flex-basis: 100%; border-radius: 0 !important; } .gmr-tab + .gmr-tab { border-left: 1px solid var(--line); border-top: 0; } .gmr-tab:first-child { border-radius: 10px 10px 0 0 !important; } }
+
 .gmr-scen { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #eef2fb; border-radius: 14px; padding: 18px; }
 .gmr-slab { font-size: .66rem; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--gold); margin: 0 0 9px; }
 .gmr-scen p { margin: 0 0 .6em; color: #d7deee; } .gmr-scen p:last-child { margin-bottom: 0; }

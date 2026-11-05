@@ -34,6 +34,8 @@ standard.
 |---|---|
 | Key rule / must-know | `callout` |
 | Optional "expand for detail" | `accordion` |
+| Flip-to-reveal definitions/terms | `flashcards` |
+| Switch between parallel facets | `tabs` |
 | Short sequence of steps | `carousel` |
 | Yellow-vs-red style contrast | `compare` |
 | A situation to reason about | `scenario` |
