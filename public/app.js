@@ -1338,10 +1338,12 @@ function renderModuleLesson(pane, course, lesson, lp) {
 
   const gfx = (name) => (window.GMR_GRAPHICS && name && window.GMR_GRAPHICS[name]) || '';
   const photo = (name) => (window.GMR_PHOTOS && name && window.GMR_PHOTOS[name]) || '';
-  const thumb = (name) => { const p = photo(name); return p ? '<img class="gmr-pimg" src="' + p + '" alt="" loading="lazy">' : gfx(name); };
-  const vis = (graphic, brief) => {
-    const p = photo(graphic);
-    if (p) return '<div class="gmr-fig photo"><img class="gmr-pimg" src="' + p + '" alt="' + esc(brief || '') + '" loading="lazy">' + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>';
+  const thumb = (name, imageUrl) => { const src = imageUrl || photo(name); return src ? '<img class="gmr-pimg" src="' + esc(src) + '" alt="" loading="lazy">' : gfx(name); };
+  // A block's visual: a real uploaded image URL wins, then a preset photo, then a
+  // preset SVG graphic, then a text "Illustration" placeholder describing what to add.
+  const vis = (graphic, brief, imageUrl) => {
+    const src = imageUrl || photo(graphic);
+    if (src) return '<div class="gmr-fig photo"><img class="gmr-pimg" src="' + esc(src) + '" alt="' + esc(brief || '') + '" loading="lazy">' + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>';
     const g = gfx(graphic);
     return g ? '<div class="gmr-fig">' + g + (brief ? '<span class="gmr-figcap">' + esc(brief) + '</span>' : '') + '</div>' : '<div class="gmr-vis"><b>Illustration</b>' + esc(brief || '') + '</div>';
   };
@@ -1376,7 +1378,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
         const car = root.querySelector('.gmr-car'), stage = car.querySelector('.gmr-stage'), dots = car.querySelector('.gmr-dots');
         const seen = { 0: 1 }; let i = 0;
         for (let k = 0; k < n; k++) { const d = document.createElement('span'); d.className = 'gmr-dot' + (k === 0 ? ' on' : ''); d.dataset.k = k; dots.appendChild(d); }
-        const draw = () => { const sl = b.slides[i]; stage.innerHTML = ((sl.graphic || sl.imageBrief) ? vis(sl.graphic, sl.imageBrief) : '') + '<h4>' + esc(sl.title) + '</h4>' + (sl.body ? '<p>' + esc(sl.body) + '</p>' : '');
+        const draw = () => { const sl = b.slides[i]; stage.innerHTML = ((sl.graphic || sl.imageUrl || sl.imageBrief) ? vis(sl.graphic, sl.imageBrief, sl.imageUrl) : '') + '<h4>' + esc(sl.title) + '</h4>' + (sl.body ? '<p>' + esc(sl.body) + '</p>' : '');
           car.querySelector('.gmr-cprev').disabled = (i === 0); const nx = car.querySelector('.gmr-cnext'); nx.textContent = (i === n - 1 ? 'Done ✓' : 'Next →');
           Array.prototype.forEach.call(dots.children, (d, k) => { d.className = 'gmr-dot' + (k === i ? ' on' : (seen[k] ? ' seen' : '')); }); };
         const bump = () => { if (Object.keys(seen).length >= n) markDone(b.id); };
@@ -1388,7 +1390,8 @@ function renderModuleLesson(pane, course, lesson, lp) {
     accordion: (b) => { const items = (b.items || []).map((it, ix) => { let body = ''; if (it.intro) body += '<p class="intro">' + esc(it.intro) + '</p>'; if (it.heading && it.heading !== it.label) body += '<p class="ah">' + esc(it.heading) + '</p>'; if (it.body) body += '<p>' + esc(it.body) + '</p>'; if (it.bullets && it.bullets.length) body += '<ul>' + it.bullets.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<details data-ix="' + ix + '"><summary><span class="gmr-accx" aria-hidden="true"></span><span class="gmr-aclabel">' + esc(it.label) + '</span></summary><div class="gmr-ab">' + body + '</div></details>'; }).join(''); return {
       html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-acc">' + items + '</div></div>',
       wire: (root) => { const ds = root.querySelectorAll('details'); const opened = {}; ds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) { opened[d.dataset.ix] = 1; if (Object.keys(opened).length >= ds.length) markDone(b.id); } })); if (noGate) markDone(b.id); } }; },
-    scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + ((b.graphic || b.imageBrief) ? vis(b.graphic, b.imageBrief) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
+    scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + ((b.graphic || b.imageUrl || b.imageBrief) ? vis(b.graphic, b.imageBrief, b.imageUrl) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
+    image: (b) => ({ html: '<div class="gmr-blk flat">' + vis(b.graphic, b.caption, b.imageUrl) + '</div>' }),
     reflection: (b) => ({
       html: '<div class="gmr-blk gmr-refl"><h3 class="gmr-bh">Reflection</h3><p class="gmr-rp">' + esc(b.prompt) + '</p><textarea class="gmr-ta" placeholder="Write your answer…"></textarea><div class="gmr-ractions"><button class="btn btn-accent btn-sm gmr-save" type="button">Save answer</button></div><div class="gmr-fu" hidden><b>Reflect:</b> ' + esc(b.followUp || '') + '</div></div>',
       wire: (root) => { const ta = root.querySelector('.gmr-ta'); if (state.answers[b.id]) ta.value = state.answers[b.id]; root.querySelector('.gmr-save').onclick = function () { state.answers[b.id] = ta.value; root.querySelector('.gmr-fu').hidden = false; markDone(b.id); this.textContent = 'Saved ✓'; }; if (noGate) markDone(b.id); } }),
@@ -1440,7 +1443,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
   // imageSelect fallback: text options, pick → feedback, correct satisfies.
   function imageSelect(b) {
-    const optHtml = (b.options || []).map((o) => { const th = thumb(o.graphic); return '<div class="gmr-opt" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '">' + (th ? '<span class="gmr-othumb">' + th + '</span>' : '') + '<span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>'; }).join('');
+    const optHtml = (b.options || []).map((o) => { const th = thumb(o.graphic, o.imageUrl); return '<div class="gmr-opt' + (th ? ' has-img' : '') + '" data-id="' + esc(o.id) + '" data-c="' + (o.correct ? 1 : 0) + '">' + (th ? '<span class="gmr-othumb">' + th + '</span>' : '') + '<span class="gmr-mk"></span><span class="gmr-otx">' + esc(o.optionFallbackText || o.imageBrief) + '</span></div>'; }).join('');
     const html = '<div class="gmr-q"><div class="gmr-qhd"><span class="gmr-qtag image">Image select</span><p class="gmr-qp">' + esc(b.prompt) + '</p></div><div class="gmr-opts">' + optHtml + '</div><div class="gmr-qfoot"><div class="gmr-fbslot" hidden></div></div></div>';
     return { html, wire: (root) => {
       const slot = root.querySelector('.gmr-fbslot'), optEls = root.querySelectorAll('.gmr-opt');
