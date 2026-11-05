@@ -1936,11 +1936,61 @@ function renderScormLesson(pane, course, lesson, lp) {
     }).catch(() => { /* retried next heartbeat */ });
   }
 
+  // ---- Evolve (ev-*) completion detection -----------------------------------
+  // US Soccer's Mentor modules are Evolve "Web/HTML" exports: they don't call the
+  // SCORM API with a completion and they hide their own JS (window.Adapt isn't
+  // exposed), so the platform never hears "complete" and the module stays locked
+  // forever. But the module is served SAME-ORIGIN (inside our own page), so we can
+  // read its course outline and detect completion from Evolve's own UI: when every
+  // page in the outline shows Evolve's "complete" check, the module is done — and
+  // we then report completion exactly as a SCORM self-report would. This never
+  // affects a real SCORM / self-reporting module (Mentor+): those set reachedEnd
+  // first, so the guard below short-circuits. Non-Evolve pages have no ev-* outline
+  // and return null (no-op). Evolve markers confirmed live: `.ev-course-outline-
+  // page-item` per page, `.ev-page-complete-indicator` shown when that page is done.
+  function evolveStatus() {
+    try {
+      const fr = document.getElementById('scormFrame');
+      const doc = fr && fr.contentWindow && fr.contentWindow.document;
+      if (!doc) return null; // cross-origin or not loaded yet
+      const pages = doc.querySelectorAll('.ev-course-outline-page-item');
+      if (!pages.length) return null; // not an Evolve course
+      let complete = 0;
+      pages.forEach((p) => {
+        const ind = p.querySelector('.ev-page-complete-indicator');
+        const shown = !!ind && ind.getAttribute('aria-hidden') !== 'true';
+        const marked = /(?:is-complete|--complete|-complete)\b/i.test(p.className) && !/incomplete/i.test(p.className);
+        if (shown || marked) complete += 1;
+      });
+      return { total: pages.length, complete };
+    } catch (e) { return null; }
+  }
+  let evoLastLog = 0;
+  function checkEvolveComplete() {
+    if (!isHtml || done || reachedEnd) return;
+    const st = evolveStatus();
+    if (!st) return;
+    // Breadcrumb so detection can be verified/tuned from the browser console.
+    if (Date.now() - evoLastLog > 15000) { evoLastLog = Date.now(); try { console.debug(`[evolve] ${st.complete}/${st.total} pages complete`); } catch (e) { /* ignore */ } }
+    if (st.complete > 0 && st.complete >= st.total) {
+      cmi['cmi.core.lesson_status'] = 'completed';
+      reachedEnd = true;
+      sync(0, null, true); // server completes the lesson, unlocks the next, records it
+    }
+  }
+
   // Heartbeat: credit ~5s of module time every 5s, only while the tab is visible
-  // (so leaving it in a background tab doesn't rack up time).
-  let beat = null;
-  function startBeat() { if (!beat) beat = setInterval(() => { if (!done && document.visibilityState === 'visible') sync(5); }, 5000); }
-  function stopBeat() { if (beat) { clearInterval(beat); beat = null; } }
+  // (so leaving it in a background tab doesn't rack up time). A lighter poll
+  // watches an Evolve module for completion (see checkEvolveComplete above).
+  let beat = null, evoBeat = null;
+  function startBeat() {
+    if (!beat) beat = setInterval(() => { if (!done && document.visibilityState === 'visible') sync(5); }, 5000);
+    if (!evoBeat && isHtml) evoBeat = setInterval(checkEvolveComplete, 2500);
+  }
+  function stopBeat() {
+    if (beat) { clearInterval(beat); beat = null; }
+    if (evoBeat) { clearInterval(evoBeat); evoBeat = null; }
+  }
 
   // Away-too-long reset: leaving the tab pauses the timer (above); leaving it for
   // longer than AWAY_LIMIT wipes this module's progress so it must be redone.
