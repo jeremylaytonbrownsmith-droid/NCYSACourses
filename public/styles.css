@@ -1627,6 +1627,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .il-item figcaption code { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 0.78rem; }
 .il-item figcaption span { display: block; color: var(--ink-soft); margin-top: 3px; line-height: 1.35; }
 .il-del { position: absolute; top: 6px; right: 6px; border: 0; background: rgba(176,47,47,.92); color: #fff; font-size: 0.74rem; font-weight: 700; padding: 3px 8px; border-radius: 7px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.il-pick { position: absolute; top: 6px; left: 6px; border: 0; background: rgba(16,120,80,.95); color: #fff; font-size: 0.74rem; font-weight: 700; padding: 3px 9px; border-radius: 7px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 .il-item:hover .il-del, .il-del:focus-visible { opacity: 1; }
 .rp-ctx { margin: 0 0 2px; color: var(--ink); }
 .rp-who { margin: 0 0 14px; color: var(--ink-soft); font-size: .88rem; }

@@ -1037,12 +1037,12 @@ function openReportProblem(course, lesson) {
 // Reusable image library (Course Designer): upload images, give each a short key
 // (e.g. "yellow-card"), and reuse them across modules — picked by hand in a block
 // or pulled by the AI builder by that key.
-async function openImageLibrary() {
+async function openImageLibrary(onPick) {
   const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
   host.innerHTML = `<div class="modal-overlay" id="ilOverlay"><div class="modal-card il-card" role="dialog" aria-modal="true" aria-label="Image library">
     <button class="modal-close" id="ilClose" aria-label="Close">×</button>
     <h2 class="rp-title">🖼 Image library</h2>
-    <p class="rp-ctx">Upload an image and give it a short <strong>key</strong>. Modules show it by that key, and the AI builder pulls it by name — e.g. name one <code>yellow-card</code> and any yellow-card moment can use it. Reuse across every course.</p>
+    <p class="rp-ctx">${onPick ? 'Click <strong>Use</strong> on an image to drop its key into the module JSON as the current block’s <code>graphic</code>. Or upload a new one first.' : 'Upload an image and give it a short <strong>key</strong>. Modules show it by that key, and the AI builder pulls it by name — e.g. name one <code>yellow-card</code> and any yellow-card moment can use it. Reuse across every course.'}</p>
     <div class="il-upload">
       <input type="file" id="ilFile" accept="image/png,image/jpeg,image/gif,image/webp" />
       <input type="text" id="ilKey" placeholder="key — e.g. yellow-card" maxlength="60" />
@@ -1063,8 +1063,10 @@ async function openImageLibrary() {
         <figure class="il-item">
           <img src="${esc(im.url)}" alt="${esc(im.label || im.key)}" loading="lazy" />
           <figcaption><code>${esc(im.key)}</code>${(im.label && im.label !== im.key) ? '<span>' + esc(im.label) + '</span>' : ''}</figcaption>
+          ${onPick ? `<button class="il-pick" data-key="${esc(im.key)}" type="button">Use ↵</button>` : ''}
           <button class="il-del" data-key="${esc(im.key)}" type="button">Delete</button>
         </figure>`).join('') : '<p class="empty">No images yet — upload your first above.</p>';
+      if (onPick) grid.querySelectorAll('.il-pick').forEach((btn) => btn.addEventListener('click', () => { const im = images.find((x) => x.key === btn.dataset.key); close(); onPick(im); }));
       grid.querySelectorAll('.il-del').forEach((btn) => btn.addEventListener('click', async () => {
         if (!confirm('Remove “' + btn.dataset.key + '” from the library? Modules using it fall back to a placeholder.')) return;
         try { await api('/api/admin/image-library/' + encodeURIComponent(btn.dataset.key), { method: 'DELETE' }); refresh(); } catch (e) { msg.textContent = e.message || 'Could not delete.'; }
@@ -4619,6 +4621,7 @@ async function viewCourseAdmin(flash) {
         <div class="form-row" style="align-items:center;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-ghost btn-sm module-sample" data-url="/samples/card-mechanics.module.json">Load full-course template</button>
           <button type="button" class="btn btn-ghost btn-sm module-sample" data-url="/samples/ar-flag-mechanics-tenttalk.module.json">Load Tent Talk template</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="moduleInsertImage">🖼 Insert image</button>
           <button type="button" class="btn btn-ghost btn-sm" id="moduleValidate">Check JSON</button>
           <span id="moduleStatus" class="meta"></span>
         </div>
@@ -4673,6 +4676,18 @@ async function viewCourseAdmin(flash) {
           st.textContent = `Valid JSON — ${pages.length} page(s), ${blocks} block(s).`; st.style.color = 'var(--success-dark)';
         } catch (e) { st.textContent = 'Invalid: ' + e.message; st.style.color = 'var(--danger)'; }
       });
+      const insImg = document.getElementById('moduleInsertImage');
+      if (insImg) insImg.addEventListener('click', () => openImageLibrary((im) => {
+        if (!im) return;
+        const ta = document.getElementById('moduleDoc');
+        const snippet = '"graphic": "' + im.key + '"';
+        const s = (ta.selectionStart != null) ? ta.selectionStart : ta.value.length;
+        const e = (ta.selectionEnd != null) ? ta.selectionEnd : ta.value.length;
+        ta.value = ta.value.slice(0, s) + snippet + ta.value.slice(e);
+        ta.selectionStart = ta.selectionEnd = s + snippet.length; ta.focus();
+        try { if (navigator.clipboard) navigator.clipboard.writeText(snippet); } catch (_) { /* ignore */ }
+        toast(`Inserted ${snippet} — place it inside the block you want, then Check JSON.`);
+      }));
       const up = document.getElementById('scormUpload');
       if (up) up.addEventListener('click', async () => {
         const fileEl = document.getElementById('scormFile');
