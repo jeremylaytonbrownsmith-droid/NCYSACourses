@@ -393,7 +393,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 /* Modules fill the whole content area (no reading-width cap) and use slim
    padding, so app-style modules render in their full-width desktop layout
    instead of a cramped narrow one. */
-.lesson-pane.scorm-lesson { max-width: none; padding: 24px clamp(10px, 1.5vw, 28px); background: var(--gmr-canvas, #f0ede7); }
+.lesson-pane.scorm-lesson { max-width: none; padding: 24px clamp(10px, 1.5vw, 28px); background: var(--gmr-canvas, #eef1f6); }
 @media (max-width: 640px) {
   /* On phones a fixed tall stage left the (width-fit) slide floating in a sea of
      empty dark space. Size the stage close to the content instead, with a little
@@ -1307,7 +1307,25 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
    and consistent with the rest of the app — no bespoke display face. Buttons reuse
    the platform .btn classes; these rules handle layout and the block chrome. */
 .gmr-module { --gmr-soft: #f6f5f2; --gmr-line-2: #efede7; max-width: 1380px; margin: 0 auto;
-  display: grid; grid-template-columns: 236px minmax(0, 1fr); grid-template-areas: "bar bar" "rail page" "rail nav"; column-gap: 36px; align-items: start; }
+  display: grid; grid-template-columns: 236px minmax(0, 1fr); grid-template-areas: "banner banner" "rail page" "rail nav"; column-gap: 36px; align-items: start; }
+/* Branded course banner — navy with a subtle geometric texture, the org crest,
+   and a red accent stripe. Makes the module read as a course, not a web page. */
+.gmr-banner { grid-area: banner; position: relative; overflow: hidden; border-radius: 16px; margin-bottom: 22px;
+  background: linear-gradient(118deg, #0c1631 0%, #152146 55%, #1b2a5a 100%); color: #fff;
+  padding: 22px 26px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  box-shadow: 0 10px 30px rgba(12,22,49,.28); }
+.gmr-banner::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(60deg, rgba(255,255,255,.045) 0 1px, transparent 1px 26px), repeating-linear-gradient(-60deg, rgba(255,255,255,.045) 0 1px, transparent 1px 26px); }
+.gmr-banner::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--bnr-red, #c8202e); }
+.gmr-banner > * { position: relative; z-index: 1; }
+.gmr-banner-eyebrow { font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.gmr-banner-title { margin: 5px 0 0; font-size: clamp(1.45rem, 2.6vw, 2rem); color: #fff; line-height: 1.1; }
+.gmr-banner-right { display: flex; align-items: center; gap: 16px; flex: none; }
+.gmr-banner-crest { height: 52px; width: auto; }
+.gmr-banner-staff { font-size: .68rem; font-weight: 700; background: rgba(255,255,255,.14); color: #fff; padding: 5px 10px; border-radius: 7px; white-space: nowrap; }
+.gmr-fsbtn { font: inherit; font-weight: 600; font-size: .82rem; color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); border-radius: 8px; padding: 7px 13px; cursor: pointer; white-space: nowrap; }
+.gmr-fsbtn:hover { background: rgba(255,255,255,.22); }
+@media (max-width: 640px) { .gmr-banner { flex-direction: column; align-items: flex-start; } .gmr-banner-right { width: 100%; justify-content: space-between; } }
 /* Keep running prose comfortable even though the module is wide — cards, tables
    and media still use the full page column. */
 .gmr-prose, .gmr-narr p, .gmr-callout p { max-width: 80ch; }

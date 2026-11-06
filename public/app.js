@@ -1668,11 +1668,23 @@ function renderModuleLesson(pane, course, lesson, lp) {
   }
 
   // --- shell ---
+  const bnrRed = (course && course.certAccent2) || '#c8202e';
+  const bnrCrest = (course && course.coLogoUrl) ? '<img class="gmr-banner-crest" src="' + esc(course.coLogoUrl) + '" alt="" onerror="this.style.display=\'none\'">' : '';
+  const bnrEyebrow = (course && course.coBrandName) || 'Interactive module';
   pane.innerHTML = `
-    ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
     <div class="gmr-module" id="gmrModule">
-      <div class="gmr-topbar"><button class="btn btn-ghost btn-sm" id="gmrFs" type="button">⛶ Full screen</button></div>
+      <div class="gmr-banner" style="--bnr-red:${esc(bnrRed)}">
+        <div class="gmr-banner-txt">
+          <span class="gmr-banner-eyebrow">${esc(bnrEyebrow)}</span>
+          <h1 class="gmr-banner-title">${esc(lesson.title)}</h1>
+        </div>
+        <div class="gmr-banner-right">
+          ${isStaffViewer() ? '<span class="gmr-banner-staff" title="Staff preview — gates off so you can test">⚡ Staff preview</span>' : ''}
+          ${bnrCrest}
+          <button class="gmr-fsbtn" id="gmrFs" type="button">⛶ Full screen</button>
+        </div>
+      </div>
       <div class="gmr-rail" id="gmrRail"></div>
       <div class="gmr-page" id="gmrPage"></div>
       <div class="gmr-nav">
