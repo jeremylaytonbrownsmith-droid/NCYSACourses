@@ -178,7 +178,8 @@
           "lessonHeading": "The Lesson",
           "lesson": "Misconduct applies whenever you have jurisdiction, in play or out of it. Dissent by word or action is cautionable, and a stoppage is the best moment to deal with it, because play does not have to be interrupted to do so."
         }
-      ]
+      ],
+      "subtitle": "Why most fouls carry no card — and the small set that always do."
     },
     {
       "id": "p2-levels",
@@ -403,7 +404,8 @@
           "lessonHeading": "The Lesson",
           "lesson": "Law 12 judges the challenge, not the outcome. A challenge made with excessive force, or one that endangers an opponent's safety, is serious foul play whether or not it connects. The opponent's evasive skill does not reduce the offence, and you should not let a lucky escape talk you down a level."
         }
-      ]
+      ],
+      "subtitle": "Three levels of challenge, and the sanction each one forces."
     },
     {
       "id": "p3-srta",
@@ -451,7 +453,8 @@
           "prompt": "Think back to the last card you showed. Which of the four steps got the least of your attention in that moment? Write a sentence about what you would do differently.",
           "followUp": "There is no wrong answer here. Most referees name Think, because it is the only one of the four that asks you to slow down at the exact moment everyone around you is speeding up."
         }
-      ]
+      ],
+      "subtitle": "A four-step habit that runs on its own when the moment comes."
     },
     {
       "id": "p4-showing",
@@ -641,7 +644,8 @@
           "lessonHeading": "The Lesson",
           "lesson": "Sanctioning into a live confrontation adds to it. Control the situation, then isolate the offender, then show the card where it can be seen. The caution is not going anywhere: once you have decided on it, play cannot restart until it has been administered."
         }
-      ]
+      ],
+      "subtitle": "Present the correct picture so everyone sees the decision."
     },
     {
       "id": "p5-timing",
@@ -840,7 +844,8 @@
             ]
           ]
         }
-      ]
+      ],
+      "subtitle": "The decision is made at once; when you show the card depends on what happens next."
     },
     {
       "id": "p6-record",
@@ -902,7 +907,8 @@
           "prompt": "Go back to the scenario on the Showing the Card page. The midfielder catches his opponent late, off the ball, in front of the benches, in the 58th minute. He is Blue number 14. Write the line you would put in your notebook.",
           "followUp": "Compare yours against the strong example above. Did you name the offence in Law 12's words? Did you describe what he did, and not only what you called it?"
         }
-      ]
+      ],
+      "subtitle": "Capture the incident before the restart, in the Law’s own words."
     },
     {
       "id": "p7-capstone",
@@ -1002,7 +1008,8 @@
             "The Blue bench is still unhappy. That is fine. Everyone in the ground knows exactly what happened and who it happened to. That is what the mechanic is for."
           ]
         }
-      ]
+      ],
+      "subtitle": "One live scenario, start to finish — read it, judge it, show it."
     },
     {
       "id": "p8-complete",
@@ -1108,7 +1115,8 @@
             }
           ]
         }
-      ]
+      ],
+      "subtitle": "A quick recap, then the final check."
     }
   ]
 }

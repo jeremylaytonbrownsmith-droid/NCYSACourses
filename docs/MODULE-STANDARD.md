@@ -14,6 +14,9 @@ standard.
 - **Full screen** is available on every module (⛶ button, top-right).
 - **One idea per section.** Pages are short and scannable; a long topic is several
   short sections, not one dense page.
+- **Title + subtitle.** Every standard page has a punchy `title` (2–5 words) and a
+  one-line `subtitle` (6–14 words) that frames the page — not a repeat of the title.
+  Headings use a display face (Archivo); subtitle is a lighter lead line.
 - **Lead with the visual or video, then the teaching text.**
 - Plain, encouraging, second-person coaching voice.
 

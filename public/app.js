@@ -1710,7 +1710,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
     const p = PAGES[state.page]; pageEl.innerHTML = '';
     const hd = document.createElement('div'); hd.className = 'gmr-phead';
     if (p.layout === 'cover') hd.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta();
-    else hd.innerHTML = '<p class="gmr-eyebrow">Page ' + state.page + ' of ' + (PAGES.length - 1) + '</p><h2 class="gmr-ptitle">' + esc(p.title) + '</h2>';
+    else hd.innerHTML = '<p class="gmr-eyebrow">Page ' + state.page + ' of ' + (PAGES.length - 1) + '</p><h2 class="gmr-ptitle">' + esc(p.title) + '</h2>' + (p.subtitle ? '<p class="gmr-psub">' + esc(p.subtitle) + '</p>' : '');
     pageEl.appendChild(hd);
     (p.blocks || []).forEach((b) => {
       const fn = R[b.type]; if (!fn) return; const out = fn(b);
