@@ -43,11 +43,20 @@ standard.
 | Short sequence of steps | `carousel` |
 | Yellow-vs-red style contrast | `compare` |
 | A situation to reason about | `scenario` |
+| "What do I do when…" decision logic | `flow` (renders as a real flowchart) |
+| Run-one-scenario capstone (FULL only) | `branching` (wrong answer explains + retry) |
 | Voiceover script or a real video | `narration` (+ `videoUrl`) |
 | Check understanding (gated) | `knowledgeCheck` (`gateRevealBehindSubmit:true`) |
 | Decision from a clip/scene | `videoDecision` (+ `clipUrl` when real) |
 | End of a FULL lesson | `summary` + `assessment` (6–10 items, 80% pass) |
 | End of a TENT TALK | `checklist` (`id:"ack"`), page `completionRequires:["ack"]` |
+
+**Interactive variety, every time.** A course should feel like a polished
+Captivate/US-Soccer course, not walls of prose — in BOTH modes. Use a mix of the
+blocks above with an interactive/visual block on most pages; include at least one
+`flashcards` or `tabs`, and a `flow` where there's decision logic. The banner,
+display headings, subtitles and progress UI are styled automatically by the
+player — author strong content and this variety.
 
 ## Two modes
 
