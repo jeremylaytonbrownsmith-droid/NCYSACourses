@@ -934,7 +934,7 @@ async function viewCourse(courseId, lessonId) {
       <summary>Start here — how this works</summary>
       <div class="course-intro-body lesson-content">${course.instructions}</div>
     </details>` : ''}
-    <div class="player-layout${lesson.type === 'scorm' ? ' player-wide' : ''}">
+    <div class="player-layout${(lesson.type === 'scorm' || lesson.type === 'module') ? ' player-wide' : ''}">
       <aside class="curriculum">
         <div class="course-head">
           ${course.coBrandName ? `<div class="cobrand">
