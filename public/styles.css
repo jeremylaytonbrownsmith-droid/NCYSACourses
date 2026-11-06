@@ -393,7 +393,7 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 /* Modules fill the whole content area (no reading-width cap) and use slim
    padding, so app-style modules render in their full-width desktop layout
    instead of a cramped narrow one. */
-.lesson-pane.scorm-lesson { max-width: none; padding: 24px clamp(10px, 1.5vw, 28px); }
+.lesson-pane.scorm-lesson { max-width: none; padding: 24px clamp(10px, 1.5vw, 28px); background: var(--gmr-canvas, #f0ede7); }
 @media (max-width: 640px) {
   /* On phones a fixed tall stage left the (width-fit) slide floating in a sea of
      empty dark space. Size the stage close to the content instead, with a little
@@ -1359,7 +1359,7 @@ body.pseudo-fs-lock { overflow: hidden; }
   .gmr-rail { position: static; margin-bottom: 14px; }
 }
 
-.gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 24px; }
+.gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 20px; }
 .gmr-phead { display: flex; flex-direction: column; gap: 4px; }
 .gmr-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin: 0; }
 .gmr-ptitle { font-size: 1.7rem; font-weight: 800; line-height: 1.12; margin: 0; color: var(--brand-dark); }
@@ -1375,7 +1375,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-prose.lead p { font-size: 1.1rem; color: var(--ink); }
 .gmr-prose.em p { font-weight: 600; color: var(--brand); }
 
-.gmr-narr { background: var(--gmr-soft); border: 1px solid var(--gmr-line-2); border-left: 3px solid var(--brand); border-radius: 12px; padding: 14px 18px; }
+.gmr-narr { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 12px; padding: 14px 18px; box-shadow: 0 1px 2px rgba(20,25,45,.05), 0 8px 24px rgba(20,25,45,.05); }
 .gmr-nlab { font-size: .66rem; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 3px; }
 .gmr-narr p:last-child { margin: 0; color: var(--ink-body); font-size: .97rem; line-height: 1.6; }
 /* when a narration/decision block carries a real video */
