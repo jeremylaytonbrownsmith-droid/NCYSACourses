@@ -185,6 +185,7 @@
       "title": "Careless, Reckless, or Excessive Force",
       "completionRequires": [
         "vd-2-1",
+        "vd-2-2",
         "vd-2-3",
         "kc2",
         "level-cards"
@@ -322,6 +323,31 @@
           "incorrectFeedback": "Look again at the follow-through.",
           "lessonHeading": "The Lesson",
           "lesson": "Winning the ball first does not downgrade the challenge. The follow-through showed disregard for the consequences for the opponent. Free kick and a caution."
+        },
+        {
+          "type": "knowledgeCheck",
+          "id": "vd-2-2",
+          "gateRevealBehindSubmit": true,
+          "prompt": "Challenge 2. A player stretches for a loose ball, arrives late with light contact, at low speed and under control throughout. What level is this?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Careless — free kick, no card"
+            },
+            {
+              "id": "b",
+              "text": "Reckless — free kick, yellow"
+            },
+            {
+              "id": "c",
+              "text": "Excessive force — free kick, red"
+            }
+          ],
+          "correctOptionId": "a",
+          "correctFeedback": "Yes.",
+          "incorrectFeedback": "Controlled and slow — look again.",
+          "lessonHeading": "The Lesson",
+          "lesson": "Late and clumsy, but controlled and slow. This is a free kick and, if you want one, a word. Carding this is the most common over-reach in youth football."
         },
         {
           "type": "knowledgeCheck",
