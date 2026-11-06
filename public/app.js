@@ -1542,7 +1542,28 @@ function renderModuleLesson(pane, course, lesson, lp) {
     knowledgeCheck: (b) => question(b, 'Question', 'knowledge'),
     videoDecision: (b) => question(b, 'Video decision', 'video'),
     imageSelect: (b) => imageSelect(b),
-    flow: (b) => { const nodes = (b.nodes || []).map((nd, ix) => { let inner = '<span class="gmr-fk">' + esc(nd.kind) + '</span>' + esc(nd.text); if (nd.branches && nd.branches.length) inner += nd.branches.map((br) => '<div class="gmr-br"><b>' + esc(br.answer) + ' →</b> ' + esc(br.to) + '</div>').join(''); if (nd.exceptions && nd.exceptions.length) inner += '<ul>' + nd.exceptions.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<div class="gmr-flnode ' + esc(nd.kind) + '">' + inner + '</div>' + (ix < b.nodes.length - 1 ? '<div class="gmr-flar">▼</div>' : ''); }).join(''); return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + nodes + '</div></div>' }; },
+    flow: (b) => {
+      const nodes = (b.nodes || []);
+      const parts = nodes.map((nd, ix) => {
+        const kind = ['start', 'decision', 'outcome', 'end'].includes(nd.kind) ? nd.kind : 'outcome';
+        let html;
+        if (kind === 'start' || kind === 'end') {
+          html = '<div class="gmr-flterm ' + kind + '"><span class="gmr-fk">' + esc(nd.kind) + '</span>' + esc(nd.text) + '</div>';
+        } else {
+          let inner = '<span class="gmr-fk">' + esc(nd.kind) + '</span><p class="gmr-fltext">' + esc(nd.text) + '</p>';
+          if (nd.branches && nd.branches.length) {
+            inner += '<div class="gmr-flbranches">' + nd.branches.map((br) => {
+              const yes = /^\s*y/i.test(br.answer || '');
+              return '<div class="gmr-flbranch"><span class="gmr-flpill ' + (yes ? 'yes' : 'no') + '">' + esc(br.answer) + '</span><span class="gmr-flto">' + esc(br.to) + '</span></div>';
+            }).join('') + '</div>';
+          }
+          if (nd.exceptions && nd.exceptions.length) inner += '<ul class="gmr-flexc">' + nd.exceptions.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+          html = '<div class="gmr-flnode ' + kind + '">' + inner + '</div>';
+        }
+        return html + (ix < nodes.length - 1 ? '<div class="gmr-flconn" aria-hidden="true"></div>' : '');
+      }).join('');
+      return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + parts + '</div></div>' };
+    },
     branching: (b) => branching(b),
     summary: (b) => ({ html: '<div class="gmr-summ"><h2>' + esc(b.heading || 'Recap') + '</h2>' + (b.intro ? '<p class="intro">' + esc(b.intro) + '</p>' : '') + '<ol>' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ol></div>' }),
     assessment: (b) => assessment(b),
@@ -1705,11 +1726,15 @@ function renderModuleLesson(pane, course, lesson, lp) {
   // Fraction of a page that's complete: whole if behind you, 0 if ahead, else the
   // share of its required interactions that are done. Drives both the top bar and
   // the ring on the current step (fills as you click/answer — Captivate-style).
+  // A page's completion is based on what's actually DONE (its required
+  // interactions, which persist in state.done) or, for a page with no
+  // interactions, on having reached it (state.max) — never on the current
+  // position. So navigating back to review never un-fills a ring or drops a
+  // green check: completion only ever moves forward.
   function pageFrac(i) {
-    if (i < state.page) return 1;
-    if (i > state.page) return 0;
     const req = PAGES[i].completionRequires || [];
-    return req.length ? req.filter((id) => state.done[id]).length / req.length : 0;
+    if (!req.length) return i <= state.max ? 1 : 0;
+    return req.filter((id) => state.done[id]).length / req.length;
   }
   function overallPct() {
     if (PAGES.length <= 1) return state.page > 0 ? 100 : 0;
@@ -1724,10 +1749,11 @@ function renderModuleLesson(pane, course, lesson, lp) {
       + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
     const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 15h5"/></svg>';
     PAGES.forEach((p, i) => {
-      // A step shows its green check as soon as everything on it is done — the
-      // current page included — so the learner sees they've finished and can
-      // click Next (not only after they've already moved past it).
-      const done = i <= state.page && pageSatisfied(i), cur = i === state.page;
+      // Green as soon as everything on the page is done (current page included),
+      // and it STAYS green when you navigate back to review — completion is read
+      // from what's actually done, never from the current position.
+      const req = p.completionRequires || [];
+      const done = noGate || (req.length ? req.every((id) => state.done[id]) : i <= state.max), cur = i === state.page;
       const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
       const locked = !(noGate || i <= state.max);
       const cp = done ? 100 : Math.round(pageFrac(i) * 100);

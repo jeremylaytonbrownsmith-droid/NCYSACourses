@@ -1506,13 +1506,33 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-fb.ok .gmr-verdict { color: var(--success-dark); } .gmr-fb.no .gmr-verdict { color: var(--accent-dark); }
 .gmr-lh { font-weight: 800; text-transform: uppercase; letter-spacing: .5px; font-size: .7rem; color: var(--ink-soft); margin: 10px 0 3px; }
 
-.gmr-flow { display: flex; flex-direction: column; gap: 9px; }
-.gmr-flnode { border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; background: var(--gmr-soft); color: var(--ink-body); }
-.gmr-fk { font-size: .6rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--brand); display: block; margin-bottom: 3px; }
-.gmr-flnode.decision { border-left: 4px solid var(--brand); } .gmr-flnode.outcome { border-left: 4px solid var(--success); } .gmr-flnode.start { border-left: 4px solid var(--gold); }
-.gmr-br { margin-top: 7px; font-size: .88rem; } .gmr-br b { color: var(--brand); }
-.gmr-flnode ul { margin: 6px 0 0; padding-left: 1.1em; font-size: .88rem; color: var(--ink-soft); }
-.gmr-flar { text-align: center; color: var(--ink-soft); font-size: .9rem; line-height: .6; }
+/* Decision flow — a clean vertical flowchart: terminator pills for start/end,
+   cards for decisions/outcomes, labelled Yes/No branch rows, and connector
+   lines with arrowheads. Centered + width-constrained so it reads as a diagram. */
+.gmr-flow { max-width: 640px; margin: 2px auto 0; display: flex; flex-direction: column; }
+.gmr-flterm { align-self: center; max-width: 92%; text-align: center; background: var(--brand); color: #fff;
+  border-radius: 999px; padding: 11px 26px; font-weight: 600; box-shadow: 0 2px 10px rgba(20,25,45,.18); }
+.gmr-flterm.end { background: var(--success-dark, #1f7a4d); }
+.gmr-flterm .gmr-fk { display: block; color: rgba(255,255,255,.72); margin-bottom: 1px; }
+.gmr-flnode { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px 15px;
+  box-shadow: 0 1px 2px rgba(20,25,45,.05), 0 6px 18px rgba(20,25,45,.05); }
+.gmr-flnode.decision { border-top: 3px solid var(--brand); }
+.gmr-flnode.outcome { border-top: 3px solid var(--success); }
+.gmr-fk { font-size: .62rem; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 6px; }
+.gmr-flnode .gmr-fk::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.gmr-flnode.decision .gmr-fk::before { background: var(--brand); }
+.gmr-flnode.outcome .gmr-fk::before { background: var(--success); }
+.gmr-fltext { margin: 5px 0 0; font-weight: 600; color: var(--ink); line-height: 1.4; }
+.gmr-flbranches { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.gmr-flbranch { display: flex; align-items: center; gap: 11px; }
+.gmr-flpill { flex: none; min-width: 46px; text-align: center; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 5px 11px; border-radius: 7px; color: #fff; }
+.gmr-flpill.yes { background: var(--success); } .gmr-flpill.no { background: var(--brand); }
+.gmr-flto { font-size: .92rem; color: var(--ink-body); line-height: 1.35; }
+.gmr-flexc { margin: 11px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.gmr-flexc li { position: relative; padding-left: 16px; font-size: .86rem; color: var(--ink-soft); line-height: 1.4; }
+.gmr-flexc li::before { content: ''; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-soft); opacity: .6; }
+.gmr-flconn { align-self: center; width: 2px; height: 24px; background: #c8c2b6; position: relative; margin: 3px 0; }
+.gmr-flconn::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #c8c2b6; }
 
 .gmr-brn { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
 .gmr-setup { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #dfe5f3; padding: 17px 18px; }
