@@ -244,14 +244,29 @@ function computePlatformLogos(courses) {
 
 function renderNav() {
   const user = me?.user;
-  let brandLogo = activeBrand
-    ? `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`
-    : logoImg('brandmark');
-  let brandName = activeBrand ? esc(activeBrand.name) : 'NCYSA Learn';
+  // The resolved brand comes from an async fetch. Before it lands, fall back to
+  // the org we can know SYNCHRONOUSLY — from the domain (getmatchready.app = OMG)
+  // or the #/org/<id>/ hash — so an OMG visitor never sees the NCYSA logo flash
+  // on a hard refresh. Only a true NCYSA/neutral context falls back to NCYSA.
+  const domOrg = DOMAIN_ORG[location.hostname] || (PRODUCT_DOMAINS.has(location.hostname) ? 'omg' : null);
+  const fbOrg = (activeOrg && activeOrg !== DEFAULT_ORG) ? activeOrg : domOrg;
+  let brandLogo, brandName;
+  if (activeBrand) {
+    brandLogo = `<img class="brandmark" src="${esc(activeBrand.logo || '')}" alt="${esc(activeBrand.name)}" />`;
+    brandName = esc(activeBrand.name);
+  } else if (fbOrg && fbOrg !== DEFAULT_ORG) {
+    const nm = (ORG_BRANDS[fbOrg] && ORG_BRANDS[fbOrg].coBrandName) || fbOrg.toUpperCase();
+    brandLogo = `<img class="brandmark" src="${esc(orgLogo(fbOrg))}" alt="${esc(nm)}" />`;
+    brandName = esc(nm);
+  } else {
+    brandLogo = logoImg('brandmark');
+    brandName = 'NCYSA Learn';
+  }
   let brandSub = 'Education &amp; Training Platform';
   // In a non-NCYSA organization (e.g. OMG), the top bar shows only that org — no
   // links into NCYSA's portals — and the logo returns to the org's own portal.
-  const orgCtx = (activeBrand && activeBrand.orgId && activeBrand.orgId !== DEFAULT_ORG) ? activeBrand.orgId : null;
+  const orgCtx = (activeBrand && activeBrand.orgId && activeBrand.orgId !== DEFAULT_ORG) ? activeBrand.orgId
+    : (!activeBrand && fbOrg && fbOrg !== DEFAULT_ORG ? fbOrg : null);
   // On the admin DASHBOARD area, for the global staff login (Jeremy/Colin, not a
   // partner), show the platform lockup: GetMatchReady + the two NC orgs it serves
   // (NCYSA + NCSRA). Learner portals and the OMG partner side are untouched.
@@ -5504,9 +5519,11 @@ async function route() {
   // the bare "Referees" portal (#/referees) resolves to NCSRA everywhere; OMG is
   // reached only via its explicit #/org/omg/… links.
   activeOrg = domainOrg || orgFromHash(hash);
-  await applyBrandForHash(hash); // resolve the in-view brand first…
+  renderNav(); // paint immediately with the org we know synchronously (domain/hash),
+               // so an OMG visitor never sees the NCYSA logo while the brand resolves
+  await applyBrandForHash(hash); // then resolve the exact in-view brand (async)…
   applyOrgChrome();              // …so the tab icon + title can match it
-  renderNav(); // reflect navMinimal + brand for this route
+  renderNav(); // re-render with the resolved brand (usually identical — no flash)
   for (const r of routes) {
     const m = hash.match(r.re);
     if (m) {
