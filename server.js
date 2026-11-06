@@ -464,12 +464,13 @@ function ensureCourse(courseObj) {
     save();
     return;
   }
-  // This is a fully code-managed pilot course: keep ALL of it (settings and
-  // lessons) in sync with the source file on each deploy, so changes we make in
-  // code reliably reach the live course. (Trade-off: editing it in the Course
-  // Designer won't stick across deploys — manage this course's content in code.)
+  // A code-managed pilot course: keep its CONTENT (settings and lessons) in sync
+  // with the source on each deploy. Exception: `published` is owned by the admin
+  // — once the course exists, an unpublish/publish from the Course Designer must
+  // stick and never be clobbered by the next deploy. (Content still lives in code.)
   let changed = false;
   for (const [k, v] of Object.entries(courseObj)) {
+    if (k === 'published') continue; // admin controls publish state from the UI
     if (JSON.stringify(existing[k]) !== JSON.stringify(v)) { existing[k] = structuredClone(v); changed = true; }
   }
   if (changed) save();
@@ -601,6 +602,17 @@ function setupLawChangesCourse() {
       },
     ],
   });
+  // One-time: the course shipped published by default, but it's being held back.
+  // Unpublish it once so the admin's choice takes effect now; after this,
+  // ensureCourse no longer touches `published`, so the UI toggle sticks.
+  const db = load();
+  db.migrations = db.migrations || {};
+  if (!db.migrations['omg-law-changes-unpublish-v1']) {
+    const c = db.courses.find((x) => x.id === 'omg-law-changes-2026-27');
+    if (c) c.published = false;
+    db.migrations['omg-law-changes-unpublish-v1'] = new Date().toISOString();
+    save();
+  }
 }
 
 const app = express();
