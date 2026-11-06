@@ -185,7 +185,6 @@
       "title": "Careless, Reckless, or Excessive Force",
       "completionRequires": [
         "vd-2-1",
-        "vd-2-2",
         "vd-2-3",
         "kc2",
         "level-cards"
@@ -323,31 +322,6 @@
           "incorrectFeedback": "Look again at the follow-through.",
           "lessonHeading": "The Lesson",
           "lesson": "Winning the ball first does not downgrade the challenge. The follow-through showed disregard for the consequences for the opponent. Free kick and a caution."
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "vd-2-2",
-          "gateRevealBehindSubmit": true,
-          "prompt": "Challenge 2. A player stretches for a loose ball, arrives late with light contact, at low speed and under control throughout. What level is this?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Careless — free kick, no card"
-            },
-            {
-              "id": "b",
-              "text": "Reckless — free kick, yellow"
-            },
-            {
-              "id": "c",
-              "text": "Excessive force — free kick, red"
-            }
-          ],
-          "correctOptionId": "a",
-          "correctFeedback": "Yes.",
-          "incorrectFeedback": "Controlled and slow — look again.",
-          "lessonHeading": "The Lesson",
-          "lesson": "Late and clumsy, but controlled and slow. This is a free kick and, if you want one, a word. Carding this is the most common over-reach in youth football."
         },
         {
           "type": "knowledgeCheck",
@@ -847,8 +821,7 @@
       "title": "Record It",
       "completionRequires": [
         "ck6",
-        "ref6",
-        "kc4"
+        "ref6"
       ],
       "blocks": [
         {
@@ -902,35 +875,6 @@
           "id": "ref6",
           "prompt": "Go back to the scenario on the Showing the Card page. The midfielder catches his opponent late, off the ball, in front of the benches, in the 58th minute. He is Blue number 14. Write the line you would put in your notebook.",
           "followUp": "Compare yours against the strong example above. Did you name the offence in Law 12's words? Did you describe what he did, and not only what you called it?"
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc4",
-          "gateRevealBehindSubmit": true,
-          "prompt": "When should the incident be recorded?",
-          "options": [
-            {
-              "id": "a",
-              "text": "At half time, while it is still fresh."
-            },
-            {
-              "id": "b",
-              "text": "Before play restarts."
-            },
-            {
-              "id": "c",
-              "text": "At the final whistle, with the rest of the match details."
-            },
-            {
-              "id": "d",
-              "text": "Only if the card was a red."
-            }
-          ],
-          "correctOptionId": "b",
-          "correctFeedback": "Before the restart.",
-          "incorrectFeedback": "Earlier than that.",
-          "lessonHeading": "The Lesson",
-          "lesson": "Record before the restart. Memory degrades quickly under match load, and three cautions in one half become hard to tell apart by the end of it. Every misconduct gets recorded, yellow and red alike."
         }
       ]
     },
