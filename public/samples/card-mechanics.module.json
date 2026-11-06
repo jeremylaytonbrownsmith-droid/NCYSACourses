@@ -187,7 +187,8 @@
         "vd-2-1",
         "vd-2-2",
         "vd-2-3",
-        "kc2"
+        "kc2",
+        "level-cards"
       ],
       "blocks": [
         {
@@ -252,6 +253,34 @@
               "title": "EXCESSIVE FORCE",
               "sanction": "Free kick, red",
               "body": "More force than the challenge needed, or the opponent's safety put at risk."
+            }
+          ]
+        },
+        {
+          "type": "flashcards",
+          "id": "level-cards",
+          "title": "Lock in the three levels",
+          "instruction": "Tap each card to flip it and reveal the sanction.",
+          "cards": [
+            {
+              "front": "Careless",
+              "back": "A lack of attention or precaution — mistimed. Sanction: direct free kick, no card."
+            },
+            {
+              "front": "Reckless",
+              "back": "Disregard for the danger to, or consequences for, an opponent. Sanction: free kick + caution (yellow)."
+            },
+            {
+              "front": "Excessive force",
+              "back": "More force than necessary, or the opponent's safety endangered. Sanction: free kick + send-off (red)."
+            },
+            {
+              "front": "Second caution",
+              "back": "A second yellow in the same match → a red. The player leaves and the team plays a player short."
+            },
+            {
+              "front": "DOGSO",
+              "back": "Denying an Obvious Goal-Scoring Opportunity by a foul or handball — a sending-off offence (red)."
             }
           ]
         },
@@ -464,8 +493,6 @@
             },
             {
               "title": "2. Move in. Do not card from distance.",
-              "graphic": "field-position",
-              "imageBrief": "Referee walking in toward the incident.",
               "body": "Walk towards the incident at a steady pace. A card shown from twenty-five yards away reads as a referee who did not want to come and deal with it. Close the distance before you reach for anything."
             },
             {
@@ -482,8 +509,6 @@
             },
             {
               "title": "5. Set your distance and your angle.",
-              "graphic": "eye-contact",
-              "imageBrief": "Referee an arm's length and a half from the player, square on.",
               "body": "Stand about an arm's length and a half away, square to the player, with the benches and the majority of spectators in view behind them. Not nose to nose. Not with your back to the technical area."
             },
             {
