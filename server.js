@@ -3583,10 +3583,28 @@ function cleanOrgSettings(b) {
     audience: aud,
   };
 }
+// Built-in branding defaults per org, so the settings form (and the new-course
+// prefill) show the known identity before anything is saved. Saved values win.
+const ORG_DEFAULTS = {
+  omg: {
+    coBrandName: 'OMG Referee Education', coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group', certTitle: 'Certificate of Recertification Training',
+    certPrefix: 'OMG', certAccent: '#2f5a9e', certAccent2: '#ce2b37',
+  },
+  ncsra: {
+    coBrandName: 'NCSRA Referee Education', coLogoUrl: '/media/ncsra-logo.png',
+    certOrg: 'North Carolina Soccer Referee Association', certTitle: 'Certificate of Recertification Training',
+    certPrefix: 'NCSRA',
+  },
+  ncysa: { certOrg: 'North Carolina Youth Soccer Association' },
+};
 app.get('/api/admin/org-settings', requireEditor, (req, res) => {
   const org = orgSettingsScope(req);
   const db = load();
-  res.json({ org, settings: (db.orgSettings && db.orgSettings[org]) || {} });
+  const saved = (db.orgSettings && db.orgSettings[org]) || {};
+  const merged = { ...(ORG_DEFAULTS[org] || {}) };
+  for (const [k, v] of Object.entries(saved)) if (v !== '' && v != null && k !== 'updatedAt') merged[k] = v;
+  res.json({ org, settings: merged, saved });
 });
 app.post('/api/admin/org-settings', requireEditor, (req, res) => {
   const org = orgSettingsScope(req);
