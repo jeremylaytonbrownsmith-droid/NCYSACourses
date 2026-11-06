@@ -448,6 +448,41 @@ function setupOmgCardMechanics() {
   });
 }
 
+// OMG "Managing the Technical Area" Tent Talk — a ~5-minute information session,
+// code-managed from its sample (info-session enforced so it can never contain a
+// graded block). Same ensureCourse + fixed-lesson-id pattern as Card Mechanics.
+function setupOmgTechnicalArea() {
+  let moduleDoc;
+  try {
+    moduleDoc = enforceInfoSession(normalizeModuleDoc(JSON.parse(fs.readFileSync(path.join(__dirname, 'public/samples/technical-area-tenttalk.module.json'), 'utf8'))));
+  } catch (e) { return; } // sample not on disk yet — retry next boot
+  if (!moduleDoc.pages.length) return;
+  ensureCourse({
+    id: 'omg-technical-area',
+    orgId: 'omg',
+    title: 'Managing the Technical Area',
+    tagline: 'A 5-minute tournament-side refresher on keeping the technical area under control.',
+    description: 'A Tent Talk on managing the technical area: who belongs there, telling coaching from dissent, and managing before sanctioning. Built in the getmatchready.module/v1 block format.',
+    badge: 'Tent Talk',
+    estMinutes: moduleDoc.estimatedMinutes || 6,
+    audience: 'referees',
+    published: true,
+    coBrandName: 'OMG Referee Education',
+    coLogoUrl: '/media/omg-logo.png',
+    certOrg: 'Officials Management Group',
+    certTitle: 'Managing the Technical Area',
+    certPrefix: 'OMG',
+    certAccent: '#2f5a9e',
+    certAccent2: '#ce2b37',
+    lessons: [{
+      id: 'technical-area-main',
+      type: 'module',
+      title: moduleDoc.title || 'Managing the Technical Area',
+      moduleDoc,
+    }],
+  });
+}
+
 // Add a specific course if it isn't already present, without touching the rest.
 // Unlike seedCourses (which only runs on an empty DB), this lets us ship a new
 // example course to an existing site.
@@ -4481,7 +4516,7 @@ if (require.main === module) {
         cleanupStaleUploads();
         seedCourses(); seedAdmin(); seedEditor(); seedOwner(); seedPartner(); removeRetiredCourses();
         finalizeRefereeCourse(); fixRefereeTitle(); setRefereeCertYear(); fixNcsyaTypo();
-        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupOmgCardMechanics(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
+        fixCourseAudiences(); setupOmgCourse(); setupOmgWebhookTest(); setupOmgCardMechanics(); setupOmgTechnicalArea(); setupLawChangesCourse(); omgNewRefereeFirst(); omgCourseOrder(); fixGrassrootsCourse();
       } catch (e) {
         console.error('[boot] a seed/migration failed (continuing to serve):', e && e.stack || e);
       }

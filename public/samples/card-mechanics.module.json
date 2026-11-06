@@ -260,28 +260,28 @@
         {
           "type": "flashcards",
           "id": "level-cards",
-          "title": "Lock in the three levels",
-          "instruction": "Tap each card to flip it and reveal the sanction.",
+          "title": "Key terms to carry through",
+          "instruction": "Tap each card to flip it and reveal the meaning.",
           "cards": [
             {
-              "front": "Careless",
-              "back": "A lack of attention or precaution — mistimed. Sanction: direct free kick, no card."
+              "front": "Serious foul play",
+              "back": "A challenge for the ball using excessive force or endangering an opponent’s safety. Red card."
             },
             {
-              "front": "Reckless",
-              "back": "Disregard for the danger to, or consequences for, an opponent. Sanction: free kick + caution (yellow)."
-            },
-            {
-              "front": "Excessive force",
-              "back": "More force than necessary, or the opponent's safety endangered. Sanction: free kick + send-off (red)."
-            },
-            {
-              "front": "Second caution",
-              "back": "A second yellow in the same match → a red. The player leaves and the team plays a player short."
+              "front": "Violent conduct",
+              "back": "Force, or attempted force, when NOT challenging for the ball — against anyone. Red card."
             },
             {
               "front": "DOGSO",
-              "back": "Denying an Obvious Goal-Scoring Opportunity by a foul or handball — a sending-off offence (red)."
+              "back": "Denying an Obvious Goal-Scoring Opportunity by a foul or handball. A sending-off offence."
+            },
+            {
+              "front": "Second caution",
+              "back": "A player’s second yellow in the same match → a red. The player leaves; the team plays a player short."
+            },
+            {
+              "front": "Advantage",
+              "back": "Let play continue when the offended team benefits; administer the sanction at the next stoppage."
             }
           ]
         },
