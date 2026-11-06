@@ -1726,11 +1726,15 @@ function renderModuleLesson(pane, course, lesson, lp) {
   // Fraction of a page that's complete: whole if behind you, 0 if ahead, else the
   // share of its required interactions that are done. Drives both the top bar and
   // the ring on the current step (fills as you click/answer — Captivate-style).
+  // A page's completion is based on what's actually DONE (its required
+  // interactions, which persist in state.done) or, for a page with no
+  // interactions, on having reached it (state.max) — never on the current
+  // position. So navigating back to review never un-fills a ring or drops a
+  // green check: completion only ever moves forward.
   function pageFrac(i) {
-    if (i < state.page) return 1;
-    if (i > state.page) return 0;
     const req = PAGES[i].completionRequires || [];
-    return req.length ? req.filter((id) => state.done[id]).length / req.length : 0;
+    if (!req.length) return i <= state.max ? 1 : 0;
+    return req.filter((id) => state.done[id]).length / req.length;
   }
   function overallPct() {
     if (PAGES.length <= 1) return state.page > 0 ? 100 : 0;
@@ -1745,10 +1749,11 @@ function renderModuleLesson(pane, course, lesson, lp) {
       + '<span class="gmr-pct">' + pct + '% complete</span></div><ol class="gmr-steps">';
     const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 15h5"/></svg>';
     PAGES.forEach((p, i) => {
-      // A step shows its green check as soon as everything on it is done — the
-      // current page included — so the learner sees they've finished and can
-      // click Next (not only after they've already moved past it).
-      const done = i <= state.page && pageSatisfied(i), cur = i === state.page;
+      // Green as soon as everything on the page is done (current page included),
+      // and it STAYS green when you navigate back to review — completion is read
+      // from what's actually done, never from the current position.
+      const req = p.completionRequires || [];
+      const done = noGate || (req.length ? req.every((id) => state.done[id]) : i <= state.max), cur = i === state.page;
       const label = i === 0 ? (doc.title || lesson.title || 'Start') : (p.title || ('Section ' + i));
       const locked = !(noGate || i <= state.max);
       const cp = done ? 100 : Math.round(pageFrac(i) * 100);
