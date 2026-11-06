@@ -79,6 +79,37 @@ page included), signalling "click Next". Works automatically for every
 module-type course, hand-built or AI-built. (SCORM/Evolve uploads use a different
 player with no rail.)
 
+## House course standard (apply EVERY time — the Card Mechanics course is the reference)
+
+Every interactive module — hand-built or AI-built, Tent Talk or Full lesson —
+should match this look and feel. Much of it is automatic in the player; the rest
+is enforced in the AI prompt (`lib/aicourse.js`) and should be kept there.
+
+**Automatic in the player (`renderModuleLesson` / `styles.css`), applies to any module:**
+- A **branded banner** at the top: navy with a geometric texture, org eyebrow +
+  lesson title + org crest + full-screen, a red accent stripe from the course's
+  brand color (`.gmr-banner`).
+- **Display typography**: headings use Archivo (`--font-display`); page shows a
+  red **eyebrow → display title → subtitle** lead line.
+- **Cool on-brand canvas** (`--gmr-canvas`), white content cards, navy interactive
+  panels — never the old warm cream, which clashed with navy/red branding.
+- **Progress rings** that fill by fraction and go green when a page is complete
+  and STAY green on back-nav (completion is read from what's done, not position).
+
+**Content standard (must be in the data — the AI prompt enforces it):**
+- Every standard page has a punchy **title (2–5 words) + a one-line subtitle**.
+- **Interactive variety like a Captivate/US-Soccer course** — not walls of prose.
+  Use a mix across pages: flashcards (flip), tabs (toggle), carousel, **flow**
+  (decision flowchart), compare, scenario, accordion, callout. At least one
+  flashcards/tabs somewhere; most content pages carry an interactive/visual block.
+- Full lessons: a **branching** scenario capstone when there's a judgement call,
+  then summary + 8-item assessment (80%). Tent Talks: info blocks only + a final
+  checklist `ack`.
+- Prefer built-in `graphic` photo keys so images render with no upload.
+
+When changing the look or the format, update BOTH the player/CSS AND the AI
+prompt + `docs/MODULE-STANDARD.md`, so generated courses stay on standard.
+
 ## The live "Card Mechanics" course (code-managed)
 
 - Course id `omg-card-mechanics`, org `omg`, lesson id `card-mechanics-main`.
