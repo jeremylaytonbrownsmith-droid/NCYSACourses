@@ -1,0 +1,87 @@
+{
+  "version": "getmatchready.module/v1",
+  "module": {
+    "title": "Managing the Technical Area",
+    "course": "OMG — Referee Education",
+    "estimatedMinutes": 6,
+    "objectives": [
+      "Know who may be in the technical area and how they must behave",
+      "Tell coaching from dissent and handle each correctly",
+      "Manage, then sanction — in the right order"
+    ]
+  },
+  "pages": [
+    {
+      "id": "cover", "title": "Managing the Technical Area", "layout": "cover",
+      "blocks": [
+        { "type": "narration", "durationSeconds": 40, "transcript": "Most of what happens in the technical area is normal — a coach instructing their team. Your job is not to police every word. It is to know the line between coaching and dissent, to manage the area calmly, and to sanction only when management has not worked. This tent talk is a five-minute refresher before you take the field." },
+        { "type": "prose", "lead": true, "body": ["A quick, tournament-side refresher on keeping the technical area under control — without making it a battle."] },
+        { "type": "gate", "label": "Start" }
+      ]
+    },
+    {
+      "id": "who", "title": "Who Belongs There", "subtitle": "Only named team officials and substitutes — and one instruction at a time.",
+      "completionRequires": ["who-tabs"],
+      "blocks": [
+        { "type": "prose", "body": ["The technical area is for the named team officials and the substitutes, nobody else. Toggle each tab to see what each is allowed to do."] },
+        { "type": "tabs", "id": "who-tabs", "title": "Inside the technical area", "instruction": "Toggle each tab.",
+          "tabs": [
+            { "label": "Head coach", "body": "May convey tactical instructions to their players.", "bullets": ["One person conveys instructions at a time", "Must behave in a responsible manner", "Stays within the technical area"] },
+            { "label": "Team officials", "body": "Assistants, medical staff, and other listed officials.", "bullets": ["Only those on the team list may be present", "Same responsible-behaviour standard applies", "May be sanctioned, including dismissal"] },
+            { "label": "Substitutes", "body": "Players waiting to enter or who have been replaced.", "bullets": ["Subject to the same Law 12 offences as players", "Warm up where the referee directs", "Enter only with the referee's permission"] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "line", "title": "Coaching or Dissent", "subtitle": "Instruction to your own players is fine. Aiming it at the officials is not.",
+      "blocks": [
+        { "type": "callout", "heading": "The one rule", "body": ["Everyone in the technical area must behave in a responsible manner. Coaching their own team is allowed. Dissent, delaying the game, and leaving the area to confront an official are not."] },
+        { "type": "compare", "id": "cmp", "title": "Which side of the line?",
+          "cards": [
+            { "title": "Responsible", "sanction": "No action", "body": "Loud, passionate instruction to their own players. Reacting to a decision without aiming it at you." },
+            { "title": "Not responsible", "sanction": "Manage, then sanction", "body": "Dissent aimed at the crew, sarcastic protest, delaying a restart, or stepping out to confront an official." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "decide", "title": "When a Coach Reacts", "subtitle": "A quick read in the moment — and what each read gets.",
+      "blocks": [
+        { "type": "flow", "id": "ta-flow", "nodes": [
+          { "kind": "start", "text": "A coach reacts loudly to a decision." },
+          { "kind": "decision", "text": "Is it instruction to their own players, or is it aimed at the crew?", "branches": [ { "answer": "Own players", "to": "let it go" }, { "answer": "At the crew", "to": "manage it" } ] },
+          { "kind": "outcome", "text": "Own players: responsible behaviour. Let it go — keep refereeing." },
+          { "kind": "decision", "text": "Aimed at the crew: did a calm word settle it?", "branches": [ { "answer": "Yes", "to": "done" }, { "answer": "No", "to": "sanction" } ] },
+          { "kind": "outcome", "text": "Settled: no sanction needed. Manage first, always." },
+          { "kind": "outcome", "text": "Not settled: warn, then dismiss from the technical area for irresponsible behaviour." }
+        ] }
+      ]
+    },
+    {
+      "id": "terms", "title": "Know These", "subtitle": "Three terms that decide how you handle the area.",
+      "completionRequires": ["ta-terms"],
+      "blocks": [
+        { "type": "flashcards", "id": "ta-terms", "title": "Key terms", "instruction": "Tap each card to flip it.",
+          "cards": [
+            { "front": "Technical area", "back": "The marked zone by the team bench where listed officials and subs may be — and must stay." },
+            { "front": "Responsible behaviour", "back": "The standard everyone in the area must meet. Breaching it is managed, then sanctioned." },
+            { "front": "Dismissal", "back": "Removing a team official from the technical area for irresponsible behaviour — recorded in the match report." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ack", "title": "Before You Go", "subtitle": "Your checklist for the next match.",
+      "completionRequires": ["ack"],
+      "blocks": [
+        { "type": "summary", "heading": "The whole talk in three moves", "intro": "In the technical area:",
+          "items": [ "Let coaching happen — it's allowed.", "Read whether a reaction is aimed at the crew.", "Manage first; sanction (dismissal) only if management fails." ]
+        },
+        { "type": "checklist", "id": "ack", "heading": "Before you go — I will:",
+          "items": [ "Let coaches coach their own players", "Separate dissent from passion before reacting", "Manage with a calm word before any sanction", "Record any dismissal in my match report" ]
+        }
+      ]
+    }
+  ]
+}
