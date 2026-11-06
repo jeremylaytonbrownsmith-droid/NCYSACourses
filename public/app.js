@@ -1542,7 +1542,28 @@ function renderModuleLesson(pane, course, lesson, lp) {
     knowledgeCheck: (b) => question(b, 'Question', 'knowledge'),
     videoDecision: (b) => question(b, 'Video decision', 'video'),
     imageSelect: (b) => imageSelect(b),
-    flow: (b) => { const nodes = (b.nodes || []).map((nd, ix) => { let inner = '<span class="gmr-fk">' + esc(nd.kind) + '</span>' + esc(nd.text); if (nd.branches && nd.branches.length) inner += nd.branches.map((br) => '<div class="gmr-br"><b>' + esc(br.answer) + ' →</b> ' + esc(br.to) + '</div>').join(''); if (nd.exceptions && nd.exceptions.length) inner += '<ul>' + nd.exceptions.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'; return '<div class="gmr-flnode ' + esc(nd.kind) + '">' + inner + '</div>' + (ix < b.nodes.length - 1 ? '<div class="gmr-flar">▼</div>' : ''); }).join(''); return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + nodes + '</div></div>' }; },
+    flow: (b) => {
+      const nodes = (b.nodes || []);
+      const parts = nodes.map((nd, ix) => {
+        const kind = ['start', 'decision', 'outcome', 'end'].includes(nd.kind) ? nd.kind : 'outcome';
+        let html;
+        if (kind === 'start' || kind === 'end') {
+          html = '<div class="gmr-flterm ' + kind + '"><span class="gmr-fk">' + esc(nd.kind) + '</span>' + esc(nd.text) + '</div>';
+        } else {
+          let inner = '<span class="gmr-fk">' + esc(nd.kind) + '</span><p class="gmr-fltext">' + esc(nd.text) + '</p>';
+          if (nd.branches && nd.branches.length) {
+            inner += '<div class="gmr-flbranches">' + nd.branches.map((br) => {
+              const yes = /^\s*y/i.test(br.answer || '');
+              return '<div class="gmr-flbranch"><span class="gmr-flpill ' + (yes ? 'yes' : 'no') + '">' + esc(br.answer) + '</span><span class="gmr-flto">' + esc(br.to) + '</span></div>';
+            }).join('') + '</div>';
+          }
+          if (nd.exceptions && nd.exceptions.length) inner += '<ul class="gmr-flexc">' + nd.exceptions.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+          html = '<div class="gmr-flnode ' + kind + '">' + inner + '</div>';
+        }
+        return html + (ix < nodes.length - 1 ? '<div class="gmr-flconn" aria-hidden="true"></div>' : '');
+      }).join('');
+      return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + parts + '</div></div>' };
+    },
     branching: (b) => branching(b),
     summary: (b) => ({ html: '<div class="gmr-summ"><h2>' + esc(b.heading || 'Recap') + '</h2>' + (b.intro ? '<p class="intro">' + esc(b.intro) + '</p>' : '') + '<ol>' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ol></div>' }),
     assessment: (b) => assessment(b),
