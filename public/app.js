@@ -62,11 +62,26 @@ let videoTracker = null; // active video watch tracker (cleaned up on route chan
 // ---------- utilities ----------
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { 'content-type': 'application/json' },
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  // Time-box every request. A redeploy or free-tier cold start can leave the
+  // socket hung with no response; without this the awaiting route would sit on
+  // the loading skeleton forever. On timeout/abort we throw a "failed to fetch"
+  // error, which serverDown() recognizes → the route shows the branded
+  // "we'll be right back" screen and auto-retries instead of hanging.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeout || 20000);
+  let res;
+  try {
+    res = await fetch(path, {
+      headers: { 'content-type': 'application/json' },
+      ...opts,
+      signal: ctrl.signal,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (e) {
+    throw Object.assign(new Error('Could not reach the server (failed to fetch).'), { status: 0 });
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status, data });
   return data;
@@ -5413,7 +5428,7 @@ function serverDown(e) {
   if (s === 502 || s === 503 || s === 504) return true; // upstream not ready
   if (s) return false;                                  // a real HTTP error (404/400/…)
   const m = String((e && e.message) || '').toLowerCase();
-  return /failed to fetch|networkerror|load failed|network ?error|fetch/.test(m); // fetch itself failed
+  return /failed to fetch|networkerror|load failed|network ?error|fetch|abort|tim(e|ed)?out/.test(m); // fetch failed / timed out
 }
 function showMaintenance() {
   clearMaint();
