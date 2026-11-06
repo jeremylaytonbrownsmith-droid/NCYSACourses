@@ -647,9 +647,7 @@
       "id": "p5-timing",
       "title": "When the Card Is Shown",
       "completionRequires": [
-        "ms5-1",
         "ms5-2",
-        "ms5-3",
         "ms5-4"
       ],
       "blocks": [
@@ -722,35 +720,6 @@
         },
         {
           "type": "knowledgeCheck",
-          "id": "ms5-1",
-          "gateRevealBehindSubmit": true,
-          "prompt": "A defender trips an attacker who was through on goal. You play advantage, the move continues, and a different attacker scores five seconds later. What happens to the defender?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Sent off for denying an obvious goal-scoring opportunity."
-            },
-            {
-              "id": "b",
-              "text": "Cautioned for unsporting behaviour."
-            },
-            {
-              "id": "c",
-              "text": "No sanction."
-            },
-            {
-              "id": "d",
-              "text": "Cautioned, but only if he was the last defender."
-            }
-          ],
-          "correctOptionId": "c",
-          "correctFeedback": "Correct.",
-          "incorrectFeedback": "Not this one.",
-          "lessonHeading": "The Lesson",
-          "lesson": "When advantage is played for a DOGSO offence and the advantage results in a goal, there is no sanction. The team got the thing the offence tried to take from them."
-        },
-        {
-          "type": "knowledgeCheck",
           "id": "ms5-2",
           "gateRevealBehindSubmit": true,
           "prompt": "Same offence, but the advantage breaks down and the move ends without a shot. What happens?",
@@ -777,35 +746,6 @@
           "incorrectFeedback": "Not this one.",
           "lessonHeading": "The Lesson",
           "lesson": "Playing advantage for a DOGSO offence converts the send-off into a caution for unsporting behaviour, administered at the next stoppage. You cannot bring play back once advantage has been applied."
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "ms5-3",
-          "gateRevealBehindSubmit": true,
-          "prompt": "A midfielder pulls an opponent's shirt to stop a counter-attack. You play advantage and the move continues. What is the sanction?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Caution for unsporting behaviour at the next stoppage."
-            },
-            {
-              "id": "b",
-              "text": "No caution."
-            },
-            {
-              "id": "c",
-              "text": "Caution, but only if the attack ends in a shot."
-            },
-            {
-              "id": "d",
-              "text": "Caution for delaying the restart."
-            }
-          ],
-          "correctOptionId": "b",
-          "correctFeedback": "Correct.",
-          "incorrectFeedback": "Not this one.",
-          "lessonHeading": "The Lesson",
-          "lesson": "Where advantage is played for an offence that interfered with or stopped a promising attack, no caution is issued. The same applies where you allow a quick free kick."
         },
         {
           "type": "knowledgeCheck",
