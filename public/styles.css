@@ -734,10 +734,14 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
 
   /* Auth + notifications full-bleed-ish */
   .auth-wrap { margin: 32px auto; }
-  .admin-wrap, .notif-list { padding: 0 14px; }
+  .admin-wrap, .notif-list { padding: 0 10px; }
 
-  /* Wide tables scroll inside their card, never the page body */
-  .admin-card { padding: 16px; }
+  /* Wide tables scroll inside their card, never the page body. Trim the card
+     padding on phones so records use more width, and drop the horizontal clip
+     (the table stacks into cards here, so nothing scrolls sideways) — that clip
+     was shaving the live "working now" dot's glow at the card's left edge. */
+  .admin-card { padding: 14px 12px; overflow-x: visible; }
+  .live-banner { padding-left: 3px; }
   .lesson-content table { font-size: 0.85rem; }
 }
 
@@ -1156,6 +1160,10 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-wrap.dash .admin-head h1 { color: var(--ink); }
 .dash-sub { margin: 4px 0 0; color: var(--ink-soft); font-size: .92rem; font-weight: 500; }
 .admin-wrap.dash .admin-card { box-shadow: 0 8px 28px rgba(30,41,90,.08); }
+/* On phones the dashboard's outer gradient panel double-framed the cards inside
+   it and ate ~26px of width per side. Slim its padding so records and KPIs use
+   the screen. */
+@media (max-width: 600px) { .admin-wrap.dash { padding: 12px 8px 22px; border-radius: 16px; margin-top: 14px; } }
 
 /* Interactive KPI cards */
 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin: 4px 0 20px; }
