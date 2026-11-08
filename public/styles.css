@@ -400,6 +400,14 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
      extra for the module's own playbar, so the slide fills the width with almost
      no dead space. Landscape / Full screen give the big view. */
   .scorm-frame { height: auto; aspect-ratio: 16 / 11; min-height: 260px; max-height: 88vh; }
+  /* The uploaded module's own controls live inside its iframe and can't be
+     restyled; on a phone the one reliable path to a big, readable view is our
+     Full-screen button, so make it a prominent full-width tap target and keep
+     the tip compact beneath it. */
+  .scorm-controls { flex-direction: column; align-items: stretch; gap: 8px; }
+  .scorm-controls #scormFsBtn { width: 100%; justify-content: center; padding: 12px;
+    font-size: 1rem; font-weight: 700; background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scorm-tip { font-size: .82rem; }
 }
 .v-controls { display: flex; align-items: center; gap: 12px; background: #0d0a24; padding: 10px 14px; color: #e7eef5; }
 .v-controls button { background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
@@ -918,7 +926,7 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
 /* The "turn your phone sideways" hint only makes sense on a phone. */
 .scorm-tip-mobile { display: none; }
-@media (max-width: 640px) { .scorm-tip-mobile { display: inline; } }
+@media (max-width: 640px) { .scorm-tip-mobile { display: inline; } .scorm-controls .scorm-tip { flex: 0 0 auto; } }
 
 /* "Before you start" tutorial panel shown above a presenter-style module. */
 .module-guide { border: 1px solid var(--line); border-left: 4px solid var(--brand);
