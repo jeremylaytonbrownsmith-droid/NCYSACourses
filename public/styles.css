@@ -519,6 +519,14 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
   .admin-table td::before { content: attr(data-label); font-weight: 700; color: var(--ink-soft);
     text-align: left; white-space: nowrap; }
   .admin-table td:empty { display: none; }                    /* blank action cell */
+  /* Long values were crammed into the right half of the row and broke mid-word
+     (a full email as "…gmail.c/om") or wrapped the name against the Staff-preview
+     badge. Give those their own full-width line under the label. */
+  .admin-table td[data-label="Email"] { flex-direction: column; align-items: flex-start;
+    text-align: left; gap: 3px; overflow-wrap: break-word; }
+  .admin-table td.has-badge { flex-direction: column; align-items: flex-start;
+    text-align: left; gap: 6px; }
+  .admin-table .rec-badge { margin-left: 0; white-space: nowrap; }
 }
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
