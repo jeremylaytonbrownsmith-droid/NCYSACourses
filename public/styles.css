@@ -1373,7 +1373,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 
 /* phone: rail becomes a scrollable list above the content */
 @media (max-width: 760px) {
-  .gmr-module { grid-template-columns: 1fr; grid-template-areas: "bar" "rail" "page" "nav"; }
+  .gmr-module { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "rail" "page" "nav"; column-gap: 0; }
   .gmr-rail { position: static; margin-bottom: 14px; }
 }
 
