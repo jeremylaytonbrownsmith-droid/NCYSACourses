@@ -60,6 +60,21 @@
       ]
     },
     {
+      "id": "manage", "title": "Manage, Don't Police", "subtitle": "Small habits that keep the area calm long before anyone needs a card.",
+      "blocks": [
+        { "type": "list", "heading": "Five habits that keep it calm",
+          "items": [
+            "Manage early — a calm word at the first sign beats a sanction later.",
+            "One voice: hold them to one person standing and giving instructions at a time.",
+            "Keep them in the area — a coach drifting toward the field or the officials is your cue to step in.",
+            "Make it about behaviour, not the person: 'Coach, stay in your area and I'll keep the game moving.'",
+            "Lean on your crew — your assistant or fourth official can help hold the line."
+          ]
+        },
+        { "type": "callout", "heading": "The order never changes", "body": ["Manage first. Warn if it continues. Dismiss only when management has failed — and record it in your match report."] }
+      ]
+    },
+    {
       "id": "decide", "title": "When a Coach Reacts", "subtitle": "A quick read in the moment — and what each read gets.",
       "blocks": [
         { "type": "flow", "id": "ta-flow", "nodes": [

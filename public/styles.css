@@ -1383,11 +1383,17 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-module.pseudo-fs { position: fixed; inset: 0; z-index: 9999; }
 body.pseudo-fs-lock { overflow: hidden; }
 /* Tent Talk / information session = a presentation. In full screen, drop the
-   left progress rail and let the slide use the whole width — PowerPoint-style. */
-.gmr-module.gmr-present.pseudo-fs { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; }
+   left progress rail, let the slide use the whole width, and PIN Back/Next to
+   the bottom (flex column + margin-top:auto) so they stay in the same place on
+   every slide instead of riding up on short pages — PowerPoint-style. */
+.gmr-module.gmr-present.pseudo-fs { display: flex; flex-direction: column; }
 .gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
-.gmr-module.gmr-present:fullscreen { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; }
+.gmr-module.gmr-present.pseudo-fs .gmr-page { flex: 1 1 auto; }
+.gmr-module.gmr-present.pseudo-fs .gmr-nav { margin-top: auto; }
+.gmr-module.gmr-present:fullscreen { display: flex; flex-direction: column; }
 .gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
+.gmr-module.gmr-present:fullscreen .gmr-page { flex: 1 1 auto; }
+.gmr-module.gmr-present:fullscreen .gmr-nav { margin-top: auto; }
 
 /* progress rail — a sticky left panel: course-progress bar + a labelled section list
    whose connecting line fills as you advance (Captivate-style). The bar advances on
@@ -1429,7 +1435,9 @@ body.pseudo-fs-lock { overflow: hidden; }
   .gmr-rail { position: static; margin-bottom: 14px; }
 }
 
-.gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 20px; }
+/* Reserve a consistent minimum height so a short page doesn't let Back/Next ride
+   up — the nav lands in roughly the same place from page to page. */
+.gmr-page { grid-area: page; display: flex; flex-direction: column; gap: 20px; min-height: 44vh; }
 .gmr-phead { display: flex; flex-direction: column; gap: 4px; }
 /* Display face for headings — a little more character than the system body,
    without a "crazy" font. Applied across the module's titles and section heads. */
@@ -1600,15 +1608,19 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-flnode.outcome .gmr-fk::before { background: var(--success); }
 .gmr-fltext { margin: 5px 0 0; font-weight: 600; color: var(--ink); line-height: 1.4; }
 .gmr-flbranches { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.gmr-flbranch { display: flex; align-items: center; gap: 11px; }
+/* Each branch reads as a labelled path: [answer pill] → where it leads, boxed so
+   the fork is obvious at a glance. */
+.gmr-flbranch { display: flex; align-items: center; gap: 10px; background: var(--gmr-soft, #f6f5f2);
+  border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; }
 .gmr-flpill { flex: none; min-width: 46px; text-align: center; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 5px 11px; border-radius: 7px; color: #fff; }
 .gmr-flpill.yes { background: var(--success); } .gmr-flpill.no { background: var(--brand); }
-.gmr-flto { font-size: .92rem; color: var(--ink-body); line-height: 1.35; }
+.gmr-flto { font-size: .92rem; color: var(--ink-body); line-height: 1.35; display: flex; align-items: baseline; gap: 7px; }
+.gmr-flto::before { content: '\2192'; color: var(--ink-soft); font-weight: 800; flex: none; }
 .gmr-flexc { margin: 11px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .gmr-flexc li { position: relative; padding-left: 16px; font-size: .86rem; color: var(--ink-soft); line-height: 1.4; }
 .gmr-flexc li::before { content: ''; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-soft); opacity: .6; }
-.gmr-flconn { align-self: center; width: 2px; height: 24px; background: #c8c2b6; position: relative; margin: 3px 0; }
-.gmr-flconn::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #c8c2b6; }
+.gmr-flconn { align-self: center; width: 2px; height: 24px; background: #b7bed2; position: relative; margin: 3px 0; }
+.gmr-flconn::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #b7bed2; }
 
 .gmr-brn { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
 .gmr-setup { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #dfe5f3; padding: 17px 18px; }
