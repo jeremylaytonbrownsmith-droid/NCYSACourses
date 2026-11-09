@@ -916,6 +916,21 @@ async function viewWatch(courseId) {
 // ---------- course player ----------
 
 let afterAuthHash = null; // where to land after sign-in (e.g. a shared course link)
+// Load an org's image-library key→url map (for modules that use uploaded org
+// images), cached per org and time-boxed so a large/slow response never hangs a
+// course. Built-in photo keys resolve from GMR_PHOTOS regardless, so if this is
+// slow we still render. MUST be awaited BEFORE a course paints (not after), or
+// the loading-skeleton timer can repaint over the rendered page.
+async function ensureOrgLibrary(org) {
+  window.__gmrLibCache = window.__gmrLibCache || {};
+  if (Object.prototype.hasOwnProperty.call(window.__gmrLibCache, org)) { window.GMR_LIBRARY = window.__gmrLibCache[org]; return; }
+  try {
+    const lib = await api('/api/image-library?org=' + encodeURIComponent(org), { timeout: 4000 });
+    window.GMR_LIBRARY = (lib && lib.map) || {};
+  } catch (e) { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; }
+  window.__gmrLibCache[org] = window.GMR_LIBRARY;
+}
+
 async function viewCourse(courseId, lessonId) {
   // A public "watch & redirect" course (e.g. NCSRA referee) skips login entirely —
   // forward the course link straight to the no-login watch page.
@@ -942,6 +957,12 @@ async function viewCourse(courseId, lessonId) {
   }
   const lesson = course.lessons.find((l) => l.id === lessonId) || course.lessons[0];
   const lp = progress.lessons.find((l) => l.id === lesson.id);
+
+  // Preload this course's org image library BEFORE painting the page, so the only
+  // async work left happens before app.innerHTML — nothing can repaint the
+  // loading skeleton over the rendered page afterwards (the "flash then skeleton"
+  // bug). Cached per org, so it's instant on re-open.
+  if (lesson.type === 'module') await ensureOrgLibrary(course.orgId || '');
 
   const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', slides: 'Slides', module: 'Interactive' };
   app.innerHTML = `
@@ -994,28 +1015,12 @@ async function viewCourse(courseId, lessonId) {
   // Modules get a wider, taller stage; reading lessons stay a comfortable
   // reading width.
   pane.className = 'lesson-pane' + (lesson.type === 'scorm' || lesson.type === 'module' ? ' scorm-lesson' : '');
-  // Interactive modules draw custom images by key — load this course's own org
-  // library so an OMG course shows OMG's images, not NCYSA's (they're separate).
-  if (lesson.type === 'module') {
-    // Load this course's org image library, but never let it hang the whole
-    // course. The map can carry large (data-URI) uploads, so a slow response
-    // was blocking the module render for up to the full api() timeout — the
-    // "OMG courses take forever / nothing comes up" bug. Cache it per org (so
-    // re-opening a course is instant) and time-box the fetch to a few seconds;
-    // if it's slow we render anyway — these courses use built-in photo keys, so
-    // their images still appear.
-    const libOrg = course.orgId || '';
-    window.__gmrLibCache = window.__gmrLibCache || {};
-    if (Object.prototype.hasOwnProperty.call(window.__gmrLibCache, libOrg)) {
-      window.GMR_LIBRARY = window.__gmrLibCache[libOrg];
-    } else {
-      try {
-        const lib = await api('/api/image-library?org=' + encodeURIComponent(libOrg), { timeout: 4000 });
-        window.GMR_LIBRARY = (lib && lib.map) || {};
-      } catch (e) { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; }
-      window.__gmrLibCache[libOrg] = window.GMR_LIBRARY;
-    }
-  }
+  // The org image library was already preloaded (before the page was painted —
+  // see ensureOrgLibrary above), so this is a cache hit with no await. Awaiting
+  // AFTER the paint let the loading-skeleton timer repaint over the rendered
+  // page ("content flashes, then skeleton sticks"); keeping the only await
+  // before the paint avoids that race entirely.
+  if (lesson.type === 'module') await ensureOrgLibrary(course.orgId || '');
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
   else if (lesson.type === 'scorm') renderScormLesson(pane, course, lesson, lp);
