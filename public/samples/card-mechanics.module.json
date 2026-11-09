@@ -632,6 +632,13 @@
         },
         {
           "type": "callout",
+          "heading": "First — does it even carry a card?",
+          "body": [
+            "Not every foul is a card. A careless foul is just a free kick — no card. You only reach for one when the foul is reckless (caution — yellow), uses excessive force (send-off — red), or the misconduct itself is cautionable (dissent, delaying the restart, and the like). Everything on this page is about those fouls — when a card is owed, and when to show it."
+          ]
+        },
+        {
+          "type": "callout",
           "heading": "The default",
           "body": [
             "Once you have decided to caution or send off a player, play must not restart until the sanction has been administered. Everything below is an exception to that one rule."
