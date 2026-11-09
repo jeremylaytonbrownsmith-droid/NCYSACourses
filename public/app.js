@@ -1053,6 +1053,65 @@ function applyContentProtection(pane) {
 }
 
 // Learner "Report a problem" modal — pre-filled with who they are and which
+// "Edit with AI": a non-technical admin describes a change in plain English and
+// the AI rewrites just this module lesson (keeping the house standard). Shows a
+// preview outline before anything is saved; applying saves via the lesson PUT
+// (which detaches a code-managed course so the edit sticks).
+function openAiEditLesson(courseId, lessonId, title) {
+  const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
+  let proposed = null;
+  host.innerHTML = `<div class="modal-overlay" id="aiEditOverlay"><div class="modal-card ai-edit-card" role="dialog" aria-modal="true" aria-label="Edit with AI">
+    <button class="modal-close" id="aiEditClose" aria-label="Close">×</button>
+    <h2 class="rp-title">✨ Edit with AI</h2>
+    <p class="rp-ctx">Editing <strong>${esc(title)}</strong></p>
+    <p class="ai-edit-help">Describe the change in plain English — add a page, reword something, swap an example. The AI rewrites just this course and keeps the house style. You'll preview it before anything saves.</p>
+    <label class="rp-label" for="aiEditMsg">What should change?</label>
+    <textarea id="aiEditMsg" rows="4" placeholder="e.g. Add a page on how to dismiss a coach — a warning, then a yellow, then a red — and make clear you don't always go in that order."></textarea>
+    <div id="aiEditResult" class="ai-edit-result" hidden></div>
+    <div class="rp-actions">
+      <button class="btn btn-ghost" id="aiEditCancel" type="button">Cancel</button>
+      <button class="btn btn-accent" id="aiEditGen" type="button">Preview change</button>
+      <button class="btn btn-primary" id="aiEditApply" type="button" hidden>Apply change</button>
+    </div>
+  </div></div>`;
+  const close = () => { host.innerHTML = ''; };
+  document.getElementById('aiEditOverlay').addEventListener('click', (e) => { if (e.target.id === 'aiEditOverlay') close(); });
+  document.getElementById('aiEditClose').addEventListener('click', close);
+  document.getElementById('aiEditCancel').addEventListener('click', close);
+  const msg = document.getElementById('aiEditMsg'); msg.focus();
+  const resultEl = document.getElementById('aiEditResult');
+  const genBtn = document.getElementById('aiEditGen');
+  const applyBtn = document.getElementById('aiEditApply');
+  genBtn.addEventListener('click', async () => {
+    const instruction = msg.value.trim();
+    if (instruction.length < 4) { msg.focus(); toast('Describe the change first.', true); return; }
+    genBtn.disabled = true; genBtn.textContent = 'Thinking…'; applyBtn.hidden = true; proposed = null;
+    resultEl.hidden = false; resultEl.className = 'ai-edit-result'; resultEl.innerHTML = '<p class="ai-edit-working">Rewriting the course… this can take 10–30 seconds.</p>';
+    try {
+      const r = await api(`/api/admin/courses/${courseId}/lessons/${lessonId}/ai-edit`, { method: 'POST', body: { instruction }, timeout: 90000 });
+      proposed = r.moduleDoc;
+      const n = (r.pages || []).length;
+      const pages = (r.pages || []).map((p, i) => `<li><span class="ai-edit-pn">${i + 1}</span>${esc(p.title)}</li>`).join('');
+      resultEl.innerHTML = `
+        <p class="ai-edit-ok">Preview ready — ${n} page${n === 1 ? '' : 's'}${r.wasPages && r.wasPages !== n ? ` (was ${r.wasPages})` : ''}. Review the outline, then apply.</p>
+        <ol class="ai-edit-pages">${pages}</ol>
+        ${r.codeManaged ? '<p class="ai-edit-note">Note: applying makes this course independently editable — it will no longer auto-update from code.</p>' : ''}`;
+      applyBtn.hidden = false;
+    } catch (e) {
+      resultEl.className = 'ai-edit-result err'; resultEl.innerHTML = '<p>' + esc(e.message || 'The edit failed. Try rephrasing the change.') + '</p>';
+    } finally { genBtn.disabled = false; genBtn.textContent = 'Preview change'; }
+  });
+  applyBtn.addEventListener('click', async () => {
+    if (!proposed) return;
+    applyBtn.disabled = true; applyBtn.textContent = 'Applying…';
+    try {
+      await api(`/api/admin/courses/${courseId}/lessons/${lessonId}`, { method: 'PUT', body: { type: 'module', title, moduleDoc: proposed } });
+      close();
+      viewCourseAdmin('Course updated with AI. ✨');
+    } catch (e) { applyBtn.disabled = false; applyBtn.textContent = 'Apply change'; toast(e.message || 'Could not save.', true); }
+  });
+}
+
 // course/module they're on, so the admin gets an actionable report.
 function openReportProblem(course, lesson) {
   const host = document.getElementById('modalHost') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'modalHost' });
@@ -3697,6 +3756,7 @@ async function viewCourseAdmin(flash) {
                     <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="up" title="Move up" ${li === 0 ? 'disabled' : ''}>↑</button>
                     <button class="linkbtn move-lesson" data-course="${c.id}" data-lesson="${l.id}" data-dir="down" title="Move down" ${li === c.lessons.length - 1 ? 'disabled' : ''}>↓</button>
                     ${l.type === 'scorm' ? `<button class="linkbtn mod-timecomplete${l.completeOnTime ? ' on' : ''}" data-course="${c.id}" data-lesson="${l.id}" data-on="${l.completeOnTime ? '1' : '0'}" data-title="${esc(l.title)}" title="Complete this module on time spent, for content whose own completion is broken">${l.completeOnTime ? '⏱ Time-complete: ON' : '⏱ Time-complete'}</button>` : ''}
+                    ${l.type === 'module' ? `<button class="linkbtn ai-edit-lesson" data-course="${c.id}" data-lesson="${l.id}" data-title="${esc(l.title)}" title="Describe a change in plain English and the AI rewrites this course">✨ Edit with AI</button>` : ''}
                     <button class="linkbtn edit-lesson" data-course="${c.id}" data-lesson="${l.id}">Edit</button>
                     <button class="linkbtn danger del-lesson" data-course="${c.id}" data-lesson="${l.id}">Delete</button>
                   </span>
@@ -3936,6 +3996,9 @@ async function viewCourseAdmin(flash) {
     const l = c.lessons.find((x) => x.id === b.dataset.lesson);
     document.querySelector(`.panel-slot[data-course="${c.id}"]`).innerHTML = lessonForm(c.id, l);
     bindLessonForm(c.id, l);
+  }));
+  document.querySelectorAll('.ai-edit-lesson').forEach((b) => b.addEventListener('click', () => {
+    openAiEditLesson(b.dataset.course, b.dataset.lesson, b.dataset.title || 'this course');
   }));
   document.querySelectorAll('.del-lesson').forEach((b) => b.addEventListener('click', async () => {
     await api(`/api/admin/courses/${b.dataset.course}/lessons/${b.dataset.lesson}`, { method: 'DELETE' });
