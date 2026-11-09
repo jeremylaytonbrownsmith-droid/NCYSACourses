@@ -1387,13 +1387,15 @@ body.pseudo-fs-lock { overflow: hidden; }
    a normal module, which fills the screen correctly — a flex column did not) and
    give it rows auto/1fr/auto so the page grows and Back/Next sit at the bottom,
    PowerPoint-style. */
-.gmr-module.gmr-present.pseudo-fs { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
+/* height + minmax(0,1fr) are BOTH needed: the explicit height gives the grid a
+   definite size, and minmax(0,1fr) lets the page row shrink below its content so
+   long content (e.g. a tall decision flow) scrolls WITHIN the page instead of
+   growing the row and pushing the last node under the pinned Back/Next. A plain
+   1fr keeps a min-content floor and overflows. */
+.gmr-module.gmr-present.pseudo-fs { height: 100vh; padding: 20px clamp(16px, 3vw, 40px); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
 .gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
-/* Long content (e.g. a tall decision flow) scrolls WITHIN the page region so the
-   last node is never cut off under the pinned Back/Next — min-height:0 lets the
-   1fr row shrink and scroll instead of growing and pushing the nav off-screen. */
 .gmr-module.gmr-present.pseudo-fs .gmr-page { min-height: 0; overflow-y: auto; }
-.gmr-module.gmr-present:fullscreen { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
+.gmr-module.gmr-present:fullscreen { height: 100vh; padding: 20px clamp(16px, 3vw, 40px); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
 .gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
 .gmr-module.gmr-present:fullscreen .gmr-page { min-height: 0; overflow-y: auto; }
 
@@ -1601,13 +1603,15 @@ body.pseudo-fs-lock { overflow: hidden; }
 
 /* Decision flow — a clean vertical flowchart: terminator pills for start/end,
    cards for decisions/outcomes, labelled Yes/No branch rows, and connector
-   lines with arrowheads. Centered + width-constrained so it reads as a diagram. */
-.gmr-flow { margin: 2px 0 0; display: flex; flex-direction: column; }
+   lines with arrowheads. A CENTERED, width-constrained column so the cards line
+   up with the arrows down the middle (no sea of blank space on a wide slide) and
+   it reads like a tidy PowerPoint diagram rather than full-width bars. */
+.gmr-flow { margin: 4px auto 0; max-width: 760px; display: flex; flex-direction: column; }
 .gmr-flterm { align-self: center; max-width: 92%; text-align: center; background: var(--brand); color: #fff;
   border-radius: 999px; padding: 11px 26px; font-weight: 600; box-shadow: 0 2px 10px rgba(20,25,45,.18); }
 .gmr-flterm.end { background: var(--success-dark, #1f7a4d); }
 .gmr-flterm .gmr-fk { display: block; color: rgba(255,255,255,.72); margin-bottom: 1px; }
-.gmr-flnode { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px 15px;
+.gmr-flnode { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 15px 13px;
   box-shadow: 0 1px 2px rgba(20,25,45,.05), 0 6px 18px rgba(20,25,45,.05); }
 .gmr-flnode.decision { border-top: 3px solid var(--brand); }
 .gmr-flnode.outcome { border-top: 3px solid var(--success); }
@@ -1616,7 +1620,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-flnode.decision .gmr-fk::before { background: var(--brand); }
 .gmr-flnode.outcome .gmr-fk::before { background: var(--success); }
 .gmr-fltext { margin: 5px 0 0; font-weight: 600; color: var(--ink); line-height: 1.4; }
-.gmr-flbranches { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.gmr-flbranches { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
 /* Each branch reads as a labelled path: [answer pill] → where it leads, boxed so
    the fork is obvious at a glance. */
 .gmr-flbranch { display: flex; align-items: center; gap: 10px; background: var(--gmr-soft, #f6f5f2);
@@ -1628,7 +1632,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-flexc { margin: 11px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .gmr-flexc li { position: relative; padding-left: 16px; font-size: .86rem; color: var(--ink-soft); line-height: 1.4; }
 .gmr-flexc li::before { content: ''; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-soft); opacity: .6; }
-.gmr-flconn { align-self: center; width: 2px; height: 24px; background: #b7bed2; position: relative; margin: 3px 0; }
+.gmr-flconn { align-self: center; width: 2px; height: 16px; background: #b7bed2; position: relative; margin: 2px 0; }
 .gmr-flconn::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #b7bed2; }
 /* Dynamic reveal: the diagram builds itself top-to-bottom when the page opens
    (each node/connector staggered in via its inline animation-delay, set in the
