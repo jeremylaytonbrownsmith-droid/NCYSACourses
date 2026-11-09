@@ -1594,7 +1594,13 @@ function renderModuleLesson(pane, course, lesson, lp) {
         }
         return html + (ix < nodes.length - 1 ? '<div class="gmr-flconn" aria-hidden="true"></div>' : '');
       }).join('');
-      return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + parts + '</div></div>' };
+      return { html: '<div class="gmr-blk flat"><h3 class="gmr-bh">Decision flow</h3><div class="gmr-flow">' + parts + '</div></div>',
+        wire: (root) => {
+          // Build the diagram top-to-bottom: stagger each node/connector's
+          // entrance by its position (capped so a long flow still finishes
+          // quickly). The animation itself lives in CSS.
+          root.querySelectorAll('.gmr-flow > *').forEach((el, i) => { el.style.animationDelay = Math.min(i * 0.08, 1.2) + 's'; });
+        } };
     },
     branching: (b) => branching(b),
     summary: (b) => ({ html: '<div class="gmr-summ"><h2>' + esc(b.heading || 'Recap') + '</h2>' + (b.intro ? '<p class="intro">' + esc(b.intro) + '</p>' : '') + '<ol>' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ol></div>' }),
