@@ -211,7 +211,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); }
 @media (max-width: 860px) {
   .player-layout { display: flex; flex-direction: column; }
   .lesson-pane { order: -1; }
-  .curriculum { padding-bottom: 24px; }
+  /* The sidebar stacks last, so its final button ("Report a problem") sat flush
+     at the page bottom and got clipped by the iOS Safari toolbar. Add a buffer
+     (plus the safe-area inset) so the last button always clears the toolbar. */
+  .curriculum { padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px)); }
 }
 
 .curriculum {
@@ -729,7 +732,7 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
   /* Course player: tighter padding on phones (stacking handled at ≤860px) */
   .lesson-pane { padding: 26px 18px; }
   .lesson-pane h1 { font-size: 1.4rem; }
-  .curriculum { padding: 8px 0 20px; }
+  .curriculum { padding: 8px 0 calc(44px + env(safe-area-inset-bottom, 0px)); }
 
   /* Video controls comfortable to tap */
   .v-controls button { font-size: 1.4rem; padding: 8px 10px; }
