@@ -1389,8 +1389,13 @@ body.pseudo-fs-lock { overflow: hidden; }
    PowerPoint-style. */
 .gmr-module.gmr-present.pseudo-fs { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
 .gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
+/* Long content (e.g. a tall decision flow) scrolls WITHIN the page region so the
+   last node is never cut off under the pinned Back/Next — min-height:0 lets the
+   1fr row shrink and scroll instead of growing and pushing the nav off-screen. */
+.gmr-module.gmr-present.pseudo-fs .gmr-page { min-height: 0; overflow-y: auto; }
 .gmr-module.gmr-present:fullscreen { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
 .gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
+.gmr-module.gmr-present:fullscreen .gmr-page { min-height: 0; overflow-y: auto; }
 
 /* progress rail — a sticky left panel: course-progress bar + a labelled section list
    whose connecting line fills as you advance (Captivate-style). The bar advances on
@@ -1524,15 +1529,22 @@ body.pseudo-fs-lock { overflow: hidden; }
 
 /* Interactive block: "flip each card" flashcards */
 .gmr-ilabel { color: var(--accent); font-weight: 700; font-size: 0.9rem; margin: 0 0 12px; }
-.gmr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
-.gmr-card { height: 140px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; perspective: 1000px; }
+.gmr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+/* Big, substantial flip cards — tall enough that the flipped definition has room
+   and the set fills the slide. Scales with the viewport (bigger in full screen). */
+.gmr-card { height: clamp(220px, 34vh, 340px); padding: 0; border: 0; background: none; cursor: pointer; font: inherit; perspective: 1000px; }
+@media (max-width: 560px) {
+  /* On a phone: one full-width card per row, still tall and readable. */
+  .gmr-cards { grid-template-columns: 1fr; }
+  .gmr-card { height: clamp(190px, 34vh, 260px); }
+}
 .gmr-card-in { position: relative; display: block; width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; }
 .gmr-card.flipped .gmr-card-in { transform: rotateY(180deg); }
 .gmr-card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 16px; }
 .gmr-card-front { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #fff; }
-.gmr-card-t { font-weight: 800; letter-spacing: 0.02em; font-size: 1rem; text-transform: uppercase; }
+.gmr-card-t { font-weight: 800; letter-spacing: 0.02em; font-size: clamp(1.05rem, 1.4vw, 1.3rem); text-transform: uppercase; }
 .gmr-card-flip { font-size: 0.85rem; opacity: 0.65; font-weight: 400; }
-.gmr-card-back { background: var(--card); border: 1px solid var(--line); color: var(--ink-body); transform: rotateY(180deg); font-size: 0.92rem; line-height: 1.45; }
+.gmr-card-back { background: var(--card); border: 1px solid var(--line); color: var(--ink-body); transform: rotateY(180deg); font-size: clamp(0.98rem, 1.2vw, 1.12rem); line-height: 1.5; padding: 22px; }
 .gmr-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 3px; border-radius: 14px; }
 
 /* Interactive block: "toggle each tab" */
