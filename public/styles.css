@@ -1190,6 +1190,14 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-card.is-collapsed > h2.collapsible::before { transform: rotate(-45deg); margin-top: 0; }
 .admin-card.is-collapsed > h2.collapsible { margin-bottom: 0; }
 .admin-card.is-collapsed > :not(h2) { display: none; }
+/* "By course" sub-section inside the analytics card: its own collapsible header
+   (same caret), works the same on desktop and phone. */
+.an-collapse-h { cursor: pointer; display: flex; align-items: center; gap: 9px; user-select: none; }
+.an-collapse-h::before { content: ''; flex: none; width: 7px; height: 7px;
+  border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft);
+  transform: rotate(45deg); transition: transform .15s ease; margin-top: -2px; }
+.an-bycourse.collapsed .an-collapse-h::before { transform: rotate(-45deg); margin-top: 0; }
+.an-bycourse.collapsed .an-collapse-body { display: none; }
 /* On phones the dashboard's outer gradient panel double-framed the cards inside
    it and ate ~26px of width per side. Slim its padding so records and KPIs use
    the screen. */

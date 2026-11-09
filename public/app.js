@@ -3189,6 +3189,9 @@ function kpiDelta(n, noun) {
   return n > 0 ? `<span class="kpi-d up">▲ ${n} this week</span>` : `<span class="kpi-d flat">${noun}</span>`;
 }
 function analyticsCard(an) {
+  // The "By course" table can be long; let it collapse, remembered per browser.
+  let byCourseCollapsed = '';
+  try { if (localStorage.getItem('gmr:dashsec:by-course') === '1') byCourseCollapsed = ' collapsed'; } catch (e) { /* ignore */ }
   return `<div class="admin-card">
     <h2>At a glance</h2>
     <div class="an-kpis">
@@ -3199,17 +3202,21 @@ function analyticsCard(an) {
     </div>
     <h3 class="an-sub">Completions by month</h3>
     ${miniBarChart(an.months)}
-    <h3 class="an-sub">By course</h3>
-    <div class="table-scroll"><table class="admin-table an-courses">
-      <tr><th>Course</th><th>Enrolled</th><th>Completed</th><th>Completion rate</th><th>Avg time</th></tr>
-      ${an.courses.length ? an.courses.map((c) => `<tr>
-        <td data-label="Course">${esc(c.name)}</td>
-        <td data-label="Enrolled">${c.enrolled}</td>
-        <td data-label="Completed">${c.completed}</td>
-        <td data-label="Completion rate">${rateBar(c.rate)}</td>
-        <td data-label="Avg time">${c.avgMs != null ? esc(fmtMs(c.avgMs)) : '—'}</td></tr>`).join('')
-        : '<tr><td colspan="5" class="empty">No enrollments yet.</td></tr>'}
-    </table></div>
+    <div class="an-bycourse${byCourseCollapsed}">
+      <h3 class="an-sub an-collapse-h" data-sec="by-course">By course</h3>
+      <div class="an-collapse-body">
+        <div class="table-scroll"><table class="admin-table an-courses">
+          <tr><th>Course</th><th>Enrolled</th><th>Completed</th><th>Completion rate</th><th>Avg time</th></tr>
+          ${an.courses.length ? an.courses.map((c) => `<tr>
+            <td data-label="Course">${esc(c.name)}</td>
+            <td data-label="Enrolled">${c.enrolled}</td>
+            <td data-label="Completed">${c.completed}</td>
+            <td data-label="Completion rate">${rateBar(c.rate)}</td>
+            <td data-label="Avg time">${c.avgMs != null ? esc(fmtMs(c.avgMs)) : '—'}</td></tr>`).join('')
+            : '<tr><td colspan="5" class="empty">No enrollments yet.</td></tr>'}
+        </table></div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -3489,6 +3496,14 @@ async function viewAdmin() {
   // Collapse/expand a dashboard panel when its header is tapped (persisted above).
   const dashGrid = document.querySelector('.admin-wrap.dash .admin-grid');
   if (dashGrid) dashGrid.addEventListener('click', (e) => {
+    // The "By course" sub-section inside the analytics card collapses on its own.
+    const sub = e.target.closest('.an-collapse-h');
+    if (sub && dashGrid.contains(sub)) {
+      const wrap = sub.closest('.an-bycourse'); if (!wrap) return;
+      const c = wrap.classList.toggle('collapsed');
+      try { localStorage.setItem('gmr:dashsec:by-course', c ? '1' : '0'); } catch (err) { /* ignore */ }
+      return;
+    }
     const h = e.target.closest('h2.collapsible');
     if (!h || !dashGrid.contains(h)) return;
     const card = h.closest('.admin-card'); if (!card) return;
