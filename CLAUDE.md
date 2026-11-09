@@ -117,7 +117,10 @@ yes/no question) with the `outcome`(s) they lead to → one `end` node (the fina
 action). Every decision has exactly **2 branches**; each branch's `answer` is the
 short choice and its `to` is a few words naming where it leads (rendered as
 "[answer] → where it leads"). Keep it to **4–7 nodes**. Use a flow for a real
-judgement call, never to list facts. Locked into `lib/aicourse.js`.
+judgement call, never to list facts. Locked into `lib/aicourse.js`. The player
+renders it as a **centered, compact column** (terminator pills, decision/outcome
+cards, arrows down the middle) that reads like a tidy PowerPoint diagram — this is
+automatic, so every flow matches without extra authoring.
 
 **Tent Talk = presentation.** An info session (no assessment) gets the
 `gmr-present` class; in full screen the left progress rail is hidden, the slide
