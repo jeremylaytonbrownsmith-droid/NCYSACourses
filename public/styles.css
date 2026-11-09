@@ -1383,17 +1383,14 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-module.pseudo-fs { position: fixed; inset: 0; z-index: 9999; }
 body.pseudo-fs-lock { overflow: hidden; }
 /* Tent Talk / information session = a presentation. In full screen, drop the
-   left progress rail, let the slide use the whole width, and PIN Back/Next to
-   the bottom (flex column + margin-top:auto) so they stay in the same place on
-   every slide instead of riding up on short pages — PowerPoint-style. */
-.gmr-module.gmr-present.pseudo-fs { display: flex; flex-direction: column; }
+   left progress rail and let the slide use the whole width. Stay a GRID (same as
+   a normal module, which fills the screen correctly — a flex column did not) and
+   give it rows auto/1fr/auto so the page grows and Back/Next sit at the bottom,
+   PowerPoint-style. */
+.gmr-module.gmr-present.pseudo-fs { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
 .gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
-.gmr-module.gmr-present.pseudo-fs .gmr-page { flex: 1 1 auto; }
-.gmr-module.gmr-present.pseudo-fs .gmr-nav { margin-top: auto; }
-.gmr-module.gmr-present:fullscreen { display: flex; flex-direction: column; }
+.gmr-module.gmr-present:fullscreen { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto 1fr auto; }
 .gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
-.gmr-module.gmr-present:fullscreen .gmr-page { flex: 1 1 auto; }
-.gmr-module.gmr-present:fullscreen .gmr-nav { margin-top: auto; }
 
 /* progress rail — a sticky left panel: course-progress bar + a labelled section list
    whose connecting line fills as you advance (Captivate-style). The bar advances on
