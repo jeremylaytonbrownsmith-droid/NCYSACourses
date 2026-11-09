@@ -58,13 +58,26 @@ blocks above with an interactive/visual block on most pages; include at least on
 display headings, subtitles and progress UI are styled automatically by the
 player — author strong content and this variety.
 
+## Flowchart standard (`flow`)
+
+Reproduce this shape every time: one `start` node (the trigger) → alternate
+`decision` nodes (each a clear either/or or yes/no question) with the `outcome`(s)
+they lead to → one `end` node (the final action). Every decision has exactly **2
+branches**; each branch's `answer` is the short choice and its `to` names where
+that path leads in a few words (rendered as "[answer] → where it leads"). Keep the
+flow to **4–7 nodes**. Use it for a genuine judgement call, never to list facts.
+Locked into `lib/aicourse.js`.
+
 ## Two modes
 
 - **Tent Talk** — a ~5-minute, tournament-side **information session**. Informational
   blocks only; **no** graded blocks (`knowledgeCheck`, `videoDecision`, `imageSelect`,
   `branching`, `assessment`). Enforced server-side by `enforceInfoSession`.
+  Plays as a **presentation**: an info session gets the `gmr-present` class, so in
+  full screen the left progress rail is hidden, the slide fills the width, and
+  Back/Next are pinned to the bottom (PowerPoint-style).
 - **Full lesson** — teaches across several pages with a gated `knowledgeCheck` on
-  most content pages and a final `summary` + `assessment`.
+  most content pages and a final `summary` + `assessment`. Keeps its progress rail.
 
 ## Where it lives
 
