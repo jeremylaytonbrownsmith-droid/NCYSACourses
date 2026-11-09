@@ -34,6 +34,10 @@ by a generic block player. Key files:
 - `public/app.js` → `renderModuleLesson()` (the player + left progress rail).
 - `lib/moduledoc.js` → `normalizeModuleDoc()` (server-side gatekeeper; drops
   unknown block types/fields). **Validate any new course against this.**
+- `scripts/check-modules.js` → **run `npm run check:modules` before shipping a
+  course edit.** It audits every `public/samples/*.module.json` for the gotchas
+  below (orphan `completionRequires`, empty assessment, branching/flow shape) —
+  ERRORS block, warnings advise.
 - `lib/aicourse.js` → the AI builder + the format spec in prompt form.
 - `docs/MODULE-STANDARD.md` → the house standard.
 

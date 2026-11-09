@@ -97,7 +97,7 @@
           { "kind": "outcome", "text": "Own players: responsible behaviour. Let it go — keep refereeing." },
           { "kind": "decision", "text": "Aimed at the crew: did a calm word settle it?", "branches": [ { "answer": "Yes", "to": "done" }, { "answer": "No", "to": "sanction" } ] },
           { "kind": "outcome", "text": "Settled: no sanction needed. Manage first, always." },
-          { "kind": "outcome", "text": "Not settled: caution (yellow) for irresponsible behaviour — and a red if it continues or the act is serious, so the official leaves." }
+          { "kind": "end", "text": "Not settled: caution (yellow) for irresponsible behaviour — and a red if it continues or the act is serious, so the official leaves." }
         ] }
       ]
     },
