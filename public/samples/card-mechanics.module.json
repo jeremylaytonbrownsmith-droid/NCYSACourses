@@ -188,7 +188,6 @@
         "vd-2-1",
         "vd-2-2",
         "vd-2-3",
-        "kc2",
         "level-cards"
       ],
       "blocks": [
@@ -374,35 +373,6 @@
           "incorrectFeedback": "Speed, distance, studs — look again.",
           "lessonHeading": "The Lesson",
           "lesson": "Speed, distance, no control, studs showing. The opponent's safety was endangered. This is serious foul play and the player is sent off."
-        },
-        {
-          "type": "knowledgeCheck",
-          "id": "kc2",
-          "gateRevealBehindSubmit": true,
-          "prompt": "A midfielder makes a committed, high-speed challenge from the side with studs showing. The opponent sees it coming, jumps out of the way, and is untouched. What do you have?",
-          "options": [
-            {
-              "id": "a",
-              "text": "Nothing. There was no contact, so there was no foul."
-            },
-            {
-              "id": "b",
-              "text": "A free kick only. No contact means no card."
-            },
-            {
-              "id": "c",
-              "text": "A red card for serious foul play. The challenge endangered the opponent's safety."
-            },
-            {
-              "id": "d",
-              "text": "A yellow card. Without contact it cannot be more than reckless."
-            }
-          ],
-          "correctOptionId": "c",
-          "correctFeedback": "Exactly right.",
-          "incorrectFeedback": "Close, but no.",
-          "lessonHeading": "The Lesson",
-          "lesson": "Law 12 judges the challenge, not the outcome. A challenge made with excessive force, or one that endangers an opponent's safety, is serious foul play whether or not it connects. The opponent's evasive skill does not reduce the offence, and you should not let a lucky escape talk you down a level."
         }
       ],
       "subtitle": "Three levels of challenge, and the sanction each one forces."
