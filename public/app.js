@@ -1728,7 +1728,8 @@ function renderModuleLesson(pane, course, lesson, lp) {
     </div>`;
   const railEl = pane.querySelector('#gmrRail'), pageEl = pane.querySelector('#gmrPage'),
     prevEl = pane.querySelector('#gmrPrev'), nextEl = pane.querySelector('#gmrNext'),
-    ringEl = pane.querySelector('#gmrRing'), ringTxt = pane.querySelector('#gmrRingTxt'), hintEl = pane.querySelector('#gmrHint');
+    ringEl = pane.querySelector('#gmrRing'), ringTxt = pane.querySelector('#gmrRingTxt'), hintEl = pane.querySelector('#gmrHint'),
+    navEl = pane.querySelector('.gmr-nav');
 
   const hasAssessment = PAGES.some((p) => (p.blocks || []).some((b) => b.type === 'assessment'));
   function coverMeta() {
@@ -1758,6 +1759,11 @@ function renderModuleLesson(pane, course, lesson, lp) {
     if (req.length) { const pct = Math.round(doneN / req.length * 100); ringEl.style.setProperty('--p', pct); ringTxt.textContent = doneN + '/' + req.length; ringEl.classList.toggle('full', ok); ringEl.style.display = ''; }
     else ringEl.style.display = 'none';
     const isLast = state.page === PAGES.length - 1;
+    // The cover already advances via its big "Start →" button, so the duplicate
+    // Back/Next nav row there was a second, identical red CTA. Hide the nav on a
+    // cover page that has a Start gate; it returns on every content page.
+    const coverHasGate = state.page === 0 && (p.blocks || []).some((b) => b.type === 'gate');
+    if (navEl) navEl.style.display = coverHasGate ? 'none' : '';
     nextEl.disabled = !ok; nextEl.textContent = isLast ? 'Complete & continue →' : 'Next →';
     prevEl.disabled = state.page === 0; prevEl.style.visibility = state.page === 0 ? 'hidden' : '';
     if (!ok && req.length) { const left = req.length - doneN; hintEl.textContent = left + ' task' + (left > 1 ? 's' : '') + ' left on this page'; }
