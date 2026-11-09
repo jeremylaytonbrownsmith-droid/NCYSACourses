@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "playwright test"
+    "test": "playwright test",
+    "check:modules": "node scripts/check-modules.js"
   },
   "repository": {
     "type": "git",

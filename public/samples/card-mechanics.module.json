@@ -687,7 +687,7 @@
               "text": "Yes: allow the quick free kick. Card at the next stoppage, with the same DOGSO and promising-attack exceptions."
             },
             {
-              "kind": "outcome",
+              "kind": "end",
               "text": "No: administer the sanction now, before the restart."
             }
           ]
