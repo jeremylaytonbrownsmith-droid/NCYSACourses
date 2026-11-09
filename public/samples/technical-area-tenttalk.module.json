@@ -75,6 +75,20 @@
       ]
     },
     {
+      "id": "sanctions", "title": "Warn, Caution, Dismiss", "subtitle": "Team officials can be carded too — and the level is your judgement, not a fixed sequence.",
+      "blocks": [
+        { "type": "prose", "body": ["Team officials are held to the same responsible-behaviour standard, and under the current Laws they can be shown cards — just like players. You have three levels to work with."] },
+        { "type": "compare", "id": "ladder", "title": "The three levels",
+          "cards": [
+            { "title": "Warning", "sanction": "No card", "body": "A clear, calm word: 'Coach, that's enough — stay in your area.' Most situations end right here." },
+            { "title": "Caution", "sanction": "Yellow card", "body": "A yellow to the team official for irresponsible behaviour — persistent dissent, delaying the restart, or leaving the technical area to protest." },
+            { "title": "Dismissal", "sanction": "Red card", "body": "A red: the official must leave the field and its immediate surroundings. For violent conduct, offensive language, or repeated cautionable behaviour." }
+          ]
+        },
+        { "type": "callout", "heading": "It is not a fixed order", "body": ["Climb the ladder when behaviour is minor but persistent. But judge the act in front of you — serious enough on its own, and you go straight to yellow, or straight to red. If you can't identify who did it, the senior coach in the technical area receives the card."] }
+      ]
+    },
+    {
       "id": "decide", "title": "When a Coach Reacts", "subtitle": "A quick read in the moment — and what each read gets.",
       "blocks": [
         { "type": "flow", "id": "ta-flow", "nodes": [
@@ -83,7 +97,7 @@
           { "kind": "outcome", "text": "Own players: responsible behaviour. Let it go — keep refereeing." },
           { "kind": "decision", "text": "Aimed at the crew: did a calm word settle it?", "branches": [ { "answer": "Yes", "to": "done" }, { "answer": "No", "to": "sanction" } ] },
           { "kind": "outcome", "text": "Settled: no sanction needed. Manage first, always." },
-          { "kind": "outcome", "text": "Not settled: warn, then dismiss from the technical area for irresponsible behaviour." }
+          { "kind": "outcome", "text": "Not settled: caution (yellow) for irresponsible behaviour — and a red if it continues or the act is serious, so the official leaves." }
         ] }
       ]
     },
@@ -95,7 +109,7 @@
           "cards": [
             { "front": "Technical area", "back": "The area by the team bench — often unmarked — where listed officials and subs may be, and must stay." },
             { "front": "Responsible behaviour", "back": "The standard everyone in the area must meet. Breaching it is managed, then sanctioned." },
-            { "front": "Dismissal", "back": "Removing a team official from the technical area for irresponsible behaviour — recorded in the match report." }
+            { "front": "Dismissal (red)", "back": "A red card to a team official: they must leave the field and its surroundings. For serious behaviour, or when warnings and a caution haven't worked. Recorded in the match report." }
           ]
         }
       ]

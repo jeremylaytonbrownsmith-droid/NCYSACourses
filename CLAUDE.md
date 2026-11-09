@@ -107,6 +107,20 @@ is enforced in the AI prompt (`lib/aicourse.js`) and should be kept there.
   checklist `ack`.
 - Prefer built-in `graphic` photo keys so images render with no upload.
 
+**Flowchart standard (the `flow` block — reproduce this shape every time):** one
+`start` node (the trigger) → alternate `decision` nodes (a clear either/or or
+yes/no question) with the `outcome`(s) they lead to → one `end` node (the final
+action). Every decision has exactly **2 branches**; each branch's `answer` is the
+short choice and its `to` is a few words naming where it leads (rendered as
+"[answer] → where it leads"). Keep it to **4–7 nodes**. Use a flow for a real
+judgement call, never to list facts. Locked into `lib/aicourse.js`.
+
+**Tent Talk = presentation.** An info session (no assessment) gets the
+`gmr-present` class; in full screen the left progress rail is hidden, the slide
+fills the width, and Back/Next are pinned to the bottom (PowerPoint-style).
+Progress rails matter less for a Tent Talk — it's a presentation, not a graded
+module. Full lessons (with an exam) keep their rail.
+
 When changing the look or the format, update BOTH the player/CSS AND the AI
 prompt + `docs/MODULE-STANDARD.md`, so generated courses stay on standard.
 
