@@ -1382,6 +1382,12 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-module:fullscreen, .gmr-module.pseudo-fs { max-width: none; width: 100%; background: var(--bg, #fbfaf7); padding: 26px clamp(20px, 5vw, 64px); overflow: auto; }
 .gmr-module.pseudo-fs { position: fixed; inset: 0; z-index: 9999; }
 body.pseudo-fs-lock { overflow: hidden; }
+/* Tent Talk / information session = a presentation. In full screen, drop the
+   left progress rail and let the slide use the whole width — PowerPoint-style. */
+.gmr-module.gmr-present.pseudo-fs { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; }
+.gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
+.gmr-module.gmr-present:fullscreen { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; }
+.gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
 
 /* progress rail — a sticky left panel: course-progress bar + a labelled section list
    whose connecting line fills as you advance (Captivate-style). The bar advances on
