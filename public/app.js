@@ -997,7 +997,24 @@ async function viewCourse(courseId, lessonId) {
   // Interactive modules draw custom images by key — load this course's own org
   // library so an OMG course shows OMG's images, not NCYSA's (they're separate).
   if (lesson.type === 'module') {
-    try { const lib = await api('/api/image-library?org=' + encodeURIComponent(course.orgId || '')); window.GMR_LIBRARY = (lib && lib.map) || {}; } catch (e) { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; }
+    // Load this course's org image library, but never let it hang the whole
+    // course. The map can carry large (data-URI) uploads, so a slow response
+    // was blocking the module render for up to the full api() timeout — the
+    // "OMG courses take forever / nothing comes up" bug. Cache it per org (so
+    // re-opening a course is instant) and time-box the fetch to a few seconds;
+    // if it's slow we render anyway — these courses use built-in photo keys, so
+    // their images still appear.
+    const libOrg = course.orgId || '';
+    window.__gmrLibCache = window.__gmrLibCache || {};
+    if (Object.prototype.hasOwnProperty.call(window.__gmrLibCache, libOrg)) {
+      window.GMR_LIBRARY = window.__gmrLibCache[libOrg];
+    } else {
+      try {
+        const lib = await api('/api/image-library?org=' + encodeURIComponent(libOrg), { timeout: 4000 });
+        window.GMR_LIBRARY = (lib && lib.map) || {};
+      } catch (e) { window.GMR_LIBRARY = window.GMR_LIBRARY || {}; }
+      window.__gmrLibCache[libOrg] = window.GMR_LIBRARY;
+    }
   }
   if (lesson.type === 'video') renderVideoLesson(pane, course, lesson, lp);
   else if (lesson.type === 'quiz') renderQuizLesson(pane, course, lesson, lp);
