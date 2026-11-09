@@ -1621,6 +1621,16 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-flexc li::before { content: ''; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-soft); opacity: .6; }
 .gmr-flconn { align-self: center; width: 2px; height: 24px; background: #b7bed2; position: relative; margin: 3px 0; }
 .gmr-flconn::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #b7bed2; }
+/* Dynamic reveal: the diagram builds itself top-to-bottom when the page opens
+   (each node/connector staggered in via its inline animation-delay, set in the
+   flow block's wire). Connectors "draw" downward; cards fade up. */
+@keyframes gmrFlowIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gmrFlowDraw { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+.gmr-flow > * { animation: gmrFlowIn .44s cubic-bezier(.22,.7,.3,1) both; }
+.gmr-flow > .gmr-flconn { transform-origin: top center; animation-name: gmrFlowDraw; animation-duration: .3s; }
+.gmr-flnode { transition: transform .15s ease, box-shadow .15s ease; }
+.gmr-flnode:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20,25,45,.06), 0 14px 30px rgba(20,25,45,.10); }
+@media (prefers-reduced-motion: reduce) { .gmr-flow > * { animation: none; } .gmr-flnode { transition: none; } }
 
 .gmr-brn { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
 .gmr-setup { background: linear-gradient(160deg, var(--brand), var(--brand-dark)); color: #dfe5f3; padding: 17px 18px; }
