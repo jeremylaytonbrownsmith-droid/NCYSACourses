@@ -20,6 +20,20 @@
       ]
     },
     {
+      "id": "area", "title": "What the Area Is", "subtitle": "The bench, by the Laws — and the four rules that define it.",
+      "blocks": [
+        { "type": "callout", "heading": "By the Laws of the Game", "body": ["The technical area — the bench or dugout — is the space outside the field for the named team officials, the substitutes and substituted players. The exceptions: when you allow a physio or team doctor on to treat a player, or when substitutes are warming up where you direct. At many levels it isn't even marked, and each team has its own. It exists for one reason — to reduce conflict with the match officials and the opposition."] },
+        { "type": "table", "title": "What the Laws require", "columns": ["Requirement", "Detail"],
+          "rows": [
+            ["Distance from the field", "At least 1 m (1 yd) from the touchline"],
+            ["Width", "No more than 1 m (1 yd) beyond the designated seating area on either side"],
+            ["How many people", "Whatever the competition rules allow"],
+            ["Standing & coaching", "Only one person per team may stand and give instructions at a time"]
+          ]
+        }
+      ]
+    },
+    {
       "id": "who", "title": "Who Belongs There", "subtitle": "Only named team officials and substitutes — and one instruction at a time.",
       "completionRequires": ["who-tabs"],
       "blocks": [
@@ -64,7 +78,7 @@
       "blocks": [
         { "type": "flashcards", "id": "ta-terms", "title": "Key terms", "instruction": "Tap each card to flip it.",
           "cards": [
-            { "front": "Technical area", "back": "The marked zone by the team bench where listed officials and subs may be — and must stay." },
+            { "front": "Technical area", "back": "The area by the team bench — often unmarked — where listed officials and subs may be, and must stay." },
             { "front": "Responsible behaviour", "back": "The standard everyone in the area must meet. Breaching it is managed, then sanctioned." },
             { "front": "Dismissal", "back": "Removing a team official from the technical area for irresponsible behaviour — recorded in the match report." }
           ]

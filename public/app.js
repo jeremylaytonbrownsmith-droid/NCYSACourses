@@ -1703,9 +1703,12 @@ function renderModuleLesson(pane, course, lesson, lp) {
   const bnrRed = (course && course.certAccent2) || '#c8202e';
   const bnrCrest = (course && course.coLogoUrl) ? '<img class="gmr-banner-crest" src="' + esc(course.coLogoUrl) + '" alt="" onerror="this.style.display=\'none\'">' : '';
   const bnrEyebrow = (course && course.coBrandName) || 'Interactive module';
+  // A Tent Talk / information session (no graded assessment) is meant to play
+  // like a presentation, so in full screen we drop the left progress rail.
+  const isPresentation = !PAGES.some((p) => (p.blocks || []).some((b) => b.type === 'assessment'));
   pane.innerHTML = `
     ${lesson.html ? `<div class="lesson-content" style="margin-bottom:10px">${lesson.html}</div>` : ''}
-    <div class="gmr-module" id="gmrModule">
+    <div class="gmr-module${isPresentation ? ' gmr-present' : ''}" id="gmrModule">
       <div class="gmr-banner" style="--bnr-red:${esc(bnrRed)}">
         <div class="gmr-banner-txt">
           <span class="gmr-banner-eyebrow">${esc(bnrEyebrow)}</span>
