@@ -788,6 +788,15 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
 .admin-lessons { margin: 14px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .admin-lessons li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .admin-lesson-actions { display: flex; gap: 12px; flex: none; }
+/* On phones the lesson row crushed the (long) module title into a sliver and
+   ran its ↑ ↓ / Time-complete / Edit / Delete controls off the right edge.
+   Stack the row: title full-width, controls wrap onto their own line below. */
+@media (max-width: 640px) {
+  .admin-lessons { padding-left: 0; }
+  .admin-lessons li { flex-direction: column; align-items: stretch; gap: 8px;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+  .admin-lesson-actions { flex-wrap: wrap; gap: 10px 16px; }
+}
 .linkbtn { background: none; border: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; padding: 2px; }
 .linkbtn.danger { color: var(--danger); }
 .linkbtn:hover { text-decoration: underline; }
