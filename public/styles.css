@@ -1177,6 +1177,16 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-wrap.dash .admin-head h1 { color: var(--ink); }
 .dash-sub { margin: 4px 0 0; color: var(--ink-soft); font-size: .92rem; font-weight: 500; }
 .admin-wrap.dash .admin-card { box-shadow: 0 8px 28px rgba(30,41,90,.08); }
+/* Collapsible dashboard panels: tap the header to fold the panel away. A caret
+   on the left rotates; when collapsed every child except the header is hidden
+   (the header keeps its count badge, so nothing vanishes without a cue). */
+.admin-card > h2.collapsible { cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; }
+.admin-card > h2.collapsible::before { content: ''; flex: none; width: 8px; height: 8px;
+  border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft);
+  transform: rotate(45deg); transition: transform .15s ease; margin-top: -3px; }
+.admin-card.is-collapsed > h2.collapsible::before { transform: rotate(-45deg); margin-top: 0; }
+.admin-card.is-collapsed > h2.collapsible { margin-bottom: 0; }
+.admin-card.is-collapsed > :not(h2) { display: none; }
 /* On phones the dashboard's outer gradient panel double-framed the cards inside
    it and ate ~26px of width per side. Slim its padding so records and KPIs use
    the screen. */
