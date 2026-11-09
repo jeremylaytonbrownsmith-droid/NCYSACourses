@@ -400,6 +400,14 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
      extra for the module's own playbar, so the slide fills the width with almost
      no dead space. Landscape / Full screen give the big view. */
   .scorm-frame { height: auto; aspect-ratio: 16 / 11; min-height: 260px; max-height: 88vh; }
+  /* The uploaded module's own controls live inside its iframe and can't be
+     restyled; on a phone the one reliable path to a big, readable view is our
+     Full-screen button, so make it a prominent full-width tap target and keep
+     the tip compact beneath it. */
+  .scorm-controls { flex-direction: column; align-items: stretch; gap: 8px; }
+  .scorm-controls #scormFsBtn { width: 100%; justify-content: center; padding: 12px;
+    font-size: 1rem; font-weight: 700; background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scorm-tip { font-size: .82rem; }
 }
 .v-controls { display: flex; align-items: center; gap: 12px; background: #0d0a24; padding: 10px 14px; color: #e7eef5; }
 .v-controls button { background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
@@ -511,6 +519,14 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
   .admin-table td::before { content: attr(data-label); font-weight: 700; color: var(--ink-soft);
     text-align: left; white-space: nowrap; }
   .admin-table td:empty { display: none; }                    /* blank action cell */
+  /* Long values were crammed into the right half of the row and broke mid-word
+     (a full email as "…gmail.c/om") or wrapped the name against the Staff-preview
+     badge. Give those their own full-width line under the label. */
+  .admin-table td[data-label="Email"] { flex-direction: column; align-items: flex-start;
+    text-align: left; gap: 3px; overflow-wrap: break-word; }
+  .admin-table td.has-badge { flex-direction: column; align-items: flex-start;
+    text-align: left; gap: 6px; }
+  .admin-table .rec-badge { margin-left: 0; white-space: nowrap; }
 }
 .mail { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.88rem; }
 .mail .mail-head { color: var(--ink-soft); font-size: 0.8rem; margin-bottom: 6px; }
@@ -726,10 +742,14 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
 
   /* Auth + notifications full-bleed-ish */
   .auth-wrap { margin: 32px auto; }
-  .admin-wrap, .notif-list { padding: 0 14px; }
+  .admin-wrap, .notif-list { padding: 0 10px; }
 
-  /* Wide tables scroll inside their card, never the page body */
-  .admin-card { padding: 16px; }
+  /* Wide tables scroll inside their card, never the page body. Trim the card
+     padding on phones so records use more width, and drop the horizontal clip
+     (the table stacks into cards here, so nothing scrolls sideways) — that clip
+     was shaving the live "working now" dot's glow at the card's left edge. */
+  .admin-card { padding: 14px 12px; overflow-x: visible; }
+  .live-banner { padding-left: 3px; }
   .lesson-content table { font-size: 0.85rem; }
 }
 
@@ -768,6 +788,15 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
 .admin-lessons { margin: 14px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .admin-lessons li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .admin-lesson-actions { display: flex; gap: 12px; flex: none; }
+/* On phones the lesson row crushed the (long) module title into a sliver and
+   ran its ↑ ↓ / Time-complete / Edit / Delete controls off the right edge.
+   Stack the row: title full-width, controls wrap onto their own line below. */
+@media (max-width: 640px) {
+  .admin-lessons { padding-left: 0; }
+  .admin-lessons li { flex-direction: column; align-items: stretch; gap: 8px;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+  .admin-lesson-actions { flex-wrap: wrap; gap: 10px 16px; }
+}
 .linkbtn { background: none; border: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; padding: 2px; }
 .linkbtn.danger { color: var(--danger); }
 .linkbtn:hover { text-decoration: underline; }
@@ -918,7 +947,7 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
   border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
 /* The "turn your phone sideways" hint only makes sense on a phone. */
 .scorm-tip-mobile { display: none; }
-@media (max-width: 640px) { .scorm-tip-mobile { display: inline; } }
+@media (max-width: 640px) { .scorm-tip-mobile { display: inline; } .scorm-controls .scorm-tip { flex: 0 0 auto; } }
 
 /* "Before you start" tutorial panel shown above a presenter-style module. */
 .module-guide { border: 1px solid var(--line); border-left: 4px solid var(--brand);
@@ -1148,6 +1177,20 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .admin-wrap.dash .admin-head h1 { color: var(--ink); }
 .dash-sub { margin: 4px 0 0; color: var(--ink-soft); font-size: .92rem; font-weight: 500; }
 .admin-wrap.dash .admin-card { box-shadow: 0 8px 28px rgba(30,41,90,.08); }
+/* Collapsible dashboard panels: tap the header to fold the panel away. A caret
+   on the left rotates; when collapsed every child except the header is hidden
+   (the header keeps its count badge, so nothing vanishes without a cue). */
+.admin-card > h2.collapsible { cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; }
+.admin-card > h2.collapsible::before { content: ''; flex: none; width: 8px; height: 8px;
+  border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft);
+  transform: rotate(45deg); transition: transform .15s ease; margin-top: -3px; }
+.admin-card.is-collapsed > h2.collapsible::before { transform: rotate(-45deg); margin-top: 0; }
+.admin-card.is-collapsed > h2.collapsible { margin-bottom: 0; }
+.admin-card.is-collapsed > :not(h2) { display: none; }
+/* On phones the dashboard's outer gradient panel double-framed the cards inside
+   it and ate ~26px of width per side. Slim its padding so records and KPIs use
+   the screen. */
+@media (max-width: 600px) { .admin-wrap.dash { padding: 12px 8px 22px; border-radius: 16px; margin-top: 14px; } }
 
 /* Interactive KPI cards */
 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin: 4px 0 20px; }
@@ -1373,7 +1416,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 
 /* phone: rail becomes a scrollable list above the content */
 @media (max-width: 760px) {
-  .gmr-module { grid-template-columns: 1fr; grid-template-areas: "bar" "rail" "page" "nav"; }
+  .gmr-module { grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "rail" "page" "nav"; column-gap: 0; }
   .gmr-rail { position: static; margin-bottom: 14px; }
 }
 

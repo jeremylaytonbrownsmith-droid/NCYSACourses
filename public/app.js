@@ -3242,6 +3242,17 @@ async function viewAdmin() {
   // Refresh the dashboard lockup to include every org that has courses (e.g. OMG).
   platformLogos = computePlatformLogos(d.courses);
   renderNav();
+  // Collapsible dashboard panels: remember each panel's open/closed state per
+  // browser, and default the long log panels to collapsed on phones so the
+  // dashboard isn't a mile of scrolling. The header (with its count badge) stays
+  // visible when collapsed, so nothing is hidden without a cue.
+  const secMobile = !!(window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
+  const secCls = (key, logPanel) => {
+    let v = null; try { v = localStorage.getItem('gmr:dashsec:' + key); } catch (e) { /* ignore */ }
+    if (v === '1') return ' is-collapsed';
+    if (v === '0') return '';
+    return (logPanel && secMobile) ? ' is-collapsed' : '';
+  };
   app.innerHTML = `
     <div class="admin-wrap dash">
       <div class="admin-head">
@@ -3303,8 +3314,8 @@ async function viewAdmin() {
           </div>
           <div id="completionsTable"></div>
         </div>
-        <div class="admin-card">
-          <h2>Problem reports${(d.problemReports && d.problemReports.filter((r) => !r.resolved).length) ? ` <span class="pr-badge">${d.problemReports.filter((r) => !r.resolved).length} open</span>` : ''}</h2>
+        <div class="admin-card${secCls('problems', true)}">
+          <h2 class="collapsible" data-sec="problems">Problem reports${(d.problemReports && d.problemReports.filter((r) => !r.resolved).length) ? ` <span class="pr-badge">${d.problemReports.filter((r) => !r.resolved).length} open</span>` : ''}</h2>
           <p class="empty" style="margin-bottom:12px">Issues learners reported from inside a course. Find the learner by name in the records above, then troubleshoot — or mark resolved when done.</p>
           ${(d.problemReports && d.problemReports.length) ? d.problemReports.map((r) => `
             <div class="pr-item${r.resolved ? ' resolved' : ''}">
@@ -3318,8 +3329,8 @@ async function viewAdmin() {
               </div>
             </div>`).join('') : '<p class="empty">No problem reports. 🎉</p>'}
         </div>
-        <div class="admin-card">
-          <h2>Email outbox</h2>
+        <div class="admin-card${secCls('outbox', true)}">
+          <h2 class="collapsible" data-sec="outbox">Email outbox</h2>
           <p class="empty" style="margin-bottom:12px">Every notification email the platform has generated.
             A status ending in <code>-delivered</code> means it was sent for real; <code>outbox-only</code>
             means email delivery isn't configured yet.</p>
@@ -3337,8 +3348,8 @@ async function viewAdmin() {
             </details>`).join('') : '<p class="empty">Outbox is empty.</p>'}
           </div>
         </div>
-        <div class="admin-card">
-          <h2>Partner webhooks</h2>
+        <div class="admin-card${secCls('webhooks', true)}">
+          <h2 class="collapsible" data-sec="webhooks">Partner webhooks</h2>
           <p class="empty" style="margin-bottom:12px">Completion callbacks sent to a partner (e.g. OMS). A green check means their endpoint accepted it; a red mark means it failed or no webhook URL is set.</p>
           ${(d.partnerWebhooks && d.partnerWebhooks.length) ? d.partnerWebhooks.map((w) => `
             <div class="mail">
@@ -3350,8 +3361,8 @@ async function viewAdmin() {
               <div class="meta" style="word-break:break-all">${esc(w.url || 'no webhook URL configured')}</div>
             </div>`).join('') : '<p class="empty">No partner webhooks sent yet.</p>'}
         </div>
-        <div class="admin-card">
-          <h2>NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
+        <div class="admin-card${secCls('ncysa-notif', true)}">
+          <h2 class="collapsible" data-sec="ncysa-notif">NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
           <div class="card-scroll">
           ${d.ncysaNotifications.length ? d.ncysaNotifications.map((n) => `
             <div class="notif"><h3>${esc(n.title)}</h3>
@@ -3379,6 +3390,15 @@ async function viewAdmin() {
     to: document.getElementById('fltTo'),
     table: document.getElementById('completionsTable'),
   };
+  // Collapse/expand a dashboard panel when its header is tapped (persisted above).
+  const dashGrid = document.querySelector('.admin-wrap.dash .admin-grid');
+  if (dashGrid) dashGrid.addEventListener('click', (e) => {
+    const h = e.target.closest('h2.collapsible');
+    if (!h || !dashGrid.contains(h)) return;
+    const card = h.closest('.admin-card'); if (!card) return;
+    const collapsed = card.classList.toggle('is-collapsed');
+    try { localStorage.setItem('gmr:dashsec:' + h.dataset.sec, collapsed ? '1' : '0'); } catch (err) { /* ignore */ }
+  });
   const whenOf = (c) => c.completedAt || c.startedAt || null;
   function filtered() {
     const q = els.search.value.trim().toLowerCase();
@@ -3449,7 +3469,7 @@ async function viewAdmin() {
       <div class="table-scroll"><table class="admin-table">
         <tr><th>Learner</th><th>Email</th><th>Course</th><th>Modules</th><th>Status</th><th>Due</th><th>Time to complete</th><th>Completed</th><th>Certificate</th><th></th></tr>
         ${list.map((c) => `<tr>
-          <td data-label="Learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner || '—')}</button>` : esc(c.learner || '—')}${c.staffPreview ? '<span class="rec-badge staff">Staff preview</span>' : ''}</td><td data-label="Email">${esc(c.email || '—')}</td><td data-label="Course">${esc(c.course)}</td>
+          <td data-label="Learner"${c.staffPreview ? ' class="has-badge"' : ''}><span class="rec-learner">${presenceDot(c)}${c.userId ? `<button class="linkbtn learner-link" data-user="${esc(c.userId)}">${esc(c.learner || '—')}</button>` : esc(c.learner || '—')}</span>${c.staffPreview ? '<span class="rec-badge staff">Staff preview</span>' : ''}</td><td data-label="Email">${esc(c.email || '—')}</td><td data-label="Course">${esc(c.course)}</td>
           <td data-label="Modules">${progOf(c)}</td>
           <td data-label="Status">${statusCell(c)}</td>
           <td data-label="Due">${dueCell(c)}</td>
