@@ -19,7 +19,7 @@ const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/st
 const { onCourseCompleted, sendTestEmail, sendEmail } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
-const { aiEnabled, generateCourseDraft, generateModuleDraft } = require('./lib/aicourse');
+const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
 const { normalizeModuleDoc, enforceInfoSession } = require('./lib/moduledoc');
 const { buildPackage, FORMATS: EXPORT_FORMATS } = require('./lib/scormexport');
@@ -495,10 +495,14 @@ function ensureCourse(courseObj) {
   const db = load();
   const existing = db.courses.find((c) => c.id === courseObj.id);
   if (!existing) {
-    db.courses.push(structuredClone(courseObj));
+    db.courses.push({ ...structuredClone(courseObj), codeManaged: true });
     save();
     return;
   }
+  // Once a human/AI has edited a code-managed course in the Designer (incl. "Edit
+  // with AI"), it is DETACHED: the stored version becomes authoritative and a
+  // deploy no longer overwrites it. This lets a partner own their own edits.
+  if (existing.detached) return;
   // A code-managed pilot course: keep its CONTENT (settings and lessons) in sync
   // with the source on each deploy. Exception: `published` is owned by the admin
   // — once the course exists, an unpublish/publish from the Course Designer must
@@ -508,6 +512,7 @@ function ensureCourse(courseObj) {
     if (k === 'published') continue; // admin controls publish state from the UI
     if (JSON.stringify(existing[k]) !== JSON.stringify(v)) { existing[k] = structuredClone(v); changed = true; }
   }
+  if (existing.codeManaged !== true) { existing.codeManaged = true; changed = true; }
   if (changed) save();
 }
 
@@ -3462,13 +3467,59 @@ app.put('/api/admin/courses/:courseId/lessons/:lessonId', requireEditor, (req, r
   if (body.type === 'scorm' && body.completeOnTime == null && existing.completeOnTime) {
     body.completeOnTime = true;
   }
+  // "Edit with AI" and other partial module saves don't resend the optional intro
+  // HTML — keep what's there instead of clearing it.
+  if (body.type === 'module' && body.html == null && existing.html != null) {
+    body.html = existing.html;
+  }
   const built = buildLesson(body);
   if (built.type === 'module' && (!built.moduleDoc || !built.moduleDoc.pages.length))
     return res.status(400).json({ error: 'This interactive module has no usable pages. Check the module JSON — each page needs a title and at least one block.' });
   course.lessons[idx] = built;
+  // Editing a code-managed course in the Designer detaches it, so this change
+  // sticks instead of being overwritten by the next deploy.
+  if (course.codeManaged && !course.detached) course.detached = true;
   save();
   res.json({ lesson: course.lessons[idx] });
 });
+
+// "Edit with AI": rewrite an interactive module lesson from a plain-language
+// instruction. Returns a PREVIEW (not saved) — the client reviews it, then saves
+// via the normal lesson PUT above (which detaches a code-managed course so the
+// change sticks). Keeps the house format + flowchart standard via editModuleDraft.
+app.post('/api/admin/courses/:courseId/lessons/:lessonId/ai-edit', requireEditor, ah(async (req, res) => {
+  if (!aiEnabled()) return res.status(400).json({ error: 'AI editing is not configured. Set ANTHROPIC_API_KEY in the environment, then redeploy.' });
+  const db = load();
+  const course = db.courses.find((c) => c.id === req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found' });
+  if (!courseInScope(req, res, course)) return;
+  const lesson = (course.lessons || []).find((l) => l.id === req.params.lessonId);
+  if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+  if (lesson.type !== 'module' || !lesson.moduleDoc || !Array.isArray(lesson.moduleDoc.pages) || !lesson.moduleDoc.pages.length) {
+    return res.status(400).json({ error: 'Edit with AI works on interactive module lessons only.' });
+  }
+  const instruction = String((req.body && req.body.instruction) || '').trim();
+  if (!instruction) return res.status(400).json({ error: 'Describe the change you want to make.' });
+  // A Tent Talk (no graded assessment) stays an information session after the edit.
+  const isTent = !lesson.moduleDoc.pages.some((p) => (p.blocks || []).some((bl) => bl.type === 'assessment'));
+  const libOrg = course.orgId || DEFAULT_ORG;
+  const libraryImages = (db.imageLibrary || []).filter((im) => (im.orgId || DEFAULT_ORG) === libOrg).map((im) => ({ key: im.key, label: im.label }));
+  let doc;
+  try {
+    const raw = await editModuleDraft({ currentDoc: lesson.moduleDoc, instruction, mode: isTent ? 'tenttalk' : 'full', audience: course.audience, libraryImages });
+    doc = normalizeModuleDoc(raw);
+    if (isTent) doc = enforceInfoSession(doc);
+  } catch (e) {
+    return res.status(502).json({ error: e.message || 'AI edit failed.' });
+  }
+  if (!doc.pages.length) return res.status(502).json({ error: 'The AI returned an empty module. Try rephrasing the change.' });
+  res.json({
+    moduleDoc: doc,
+    pages: doc.pages.map((p) => ({ id: p.id, title: p.title || '(untitled)' })),
+    wasPages: lesson.moduleDoc.pages.length,
+    codeManaged: !!course.codeManaged && !course.detached,
+  });
+}));
 
 // Toggle time-based completion for ONE module (for content whose own completion
 // signal is broken). In place — never rebuilds the lesson, so packageId etc. are

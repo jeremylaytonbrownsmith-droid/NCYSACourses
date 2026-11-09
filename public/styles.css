@@ -1763,7 +1763,22 @@ body.pseudo-fs-lock { overflow: hidden; }
 .rp-label { display: block; font-weight: 700; font-size: .9rem; margin: 0 0 6px; color: var(--ink); }
 #rpMsg { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--bg, #fbfaf7); color: var(--ink); font: inherit; padding: 11px 12px; resize: vertical; }
 #rpMsg:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.rp-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.rp-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+/* Edit-with-AI modal */
+.ai-edit-card { max-width: 540px; }
+.ai-edit-card textarea { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.45;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); resize: vertical; }
+.ai-edit-card textarea:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ai-edit-help { font-size: .9rem; color: var(--ink-soft); margin: 2px 0 14px; line-height: 1.45; }
+.ai-edit-result { margin: 14px 0 2px; border-top: 1px solid var(--line); padding-top: 14px; }
+.ai-edit-result.err { color: var(--danger); }
+.ai-edit-working { color: var(--ink-soft); font-size: .92rem; margin: 0; }
+.ai-edit-ok { font-weight: 700; color: var(--success-dark, #1d7a4d); font-size: .92rem; margin: 0 0 10px; }
+.ai-edit-pages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 38vh; overflow: auto; }
+.ai-edit-pages li { display: flex; align-items: center; gap: 10px; font-size: .92rem; color: var(--ink-body); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+.ai-edit-pn { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: #fff; font-size: .72rem; font-weight: 800; display: grid; place-items: center; }
+.ai-edit-note { margin: 12px 0 0; font-size: .82rem; color: var(--ink-body); background: #fff7e0; border: 1px solid #f0e2b8; border-radius: 8px; padding: 8px 11px; line-height: 1.4; }
 
 .pr-badge { font-size: .7rem; font-weight: 800; color: #fff; background: var(--accent); border-radius: 99px; padding: 2px 9px; vertical-align: middle; }
 .pr-item { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 13px 15px; margin-bottom: 11px; }
