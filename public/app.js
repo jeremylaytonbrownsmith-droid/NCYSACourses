@@ -1812,18 +1812,38 @@ function renderModuleLesson(pane, course, lesson, lp) {
     chips.push(hasAssessment ? '<span class="gmr-chip">Pass mark ' + (doc.passMarkPercent || 80) + '%</span>' : '<span class="gmr-chip">Information session</span>');
     return '<div class="gmr-cmeta">' + chips.join('') + '</div>';
   }
-  function drawPage() {
-    const p = PAGES[state.page]; pageEl.innerHTML = '';
-    const hd = document.createElement('div'); hd.className = 'gmr-phead';
-    if (p.layout === 'cover') hd.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta();
-    else hd.innerHTML = '<p class="gmr-eyebrow">Page ' + state.page + ' of ' + (PAGES.length - 1) + '</p><h2 class="gmr-ptitle">' + esc(p.title) + '</h2>' + (p.subtitle ? '<p class="gmr-psub">' + esc(p.subtitle) + '</p>' : '');
-    pageEl.appendChild(hd);
+  function renderBlocks(p, skip) {
     (p.blocks || []).forEach((b) => {
+      if (skip && skip.indexOf(b) !== -1) return;
       const fn = R[b.type]; if (!fn) return; const out = fn(b);
       const region = document.createElement('div'); region.className = 'gmr-region'; region.innerHTML = out.html;
       pageEl.appendChild(region);
       if (out.wire) { try { out.wire(region); } catch (e) { console.error('module block', b.type, e); } }
     });
+  }
+  function drawPage() {
+    const p = PAGES[state.page]; pageEl.innerHTML = '';
+    // Cover pages with a lead photo render a full-bleed hero: the photo as the
+    // background, the lesson eyebrow / title / meta and the opening narration
+    // over a dark scrim. Covers without a photo fall back to the plain header.
+    const heroBlk = p.layout === 'cover' ? (p.blocks || []).find((b) => b.type === 'image' && photo(b.graphic || '')) : null;
+    const heroSrc = heroBlk ? photo(heroBlk.graphic) : '';
+    if (heroSrc) {
+      const narr = (p.blocks || []).find((b) => b.type === 'narration' && b.transcript);
+      const hero = document.createElement('div'); hero.className = 'gmr-hero';
+      hero.style.backgroundImage = 'url("' + heroSrc + '")';
+      hero.style.setProperty('--gmr-brand', bnrRed || '#d0342c');
+      hero.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta()
+        + (narr ? '<div class="gmr-narr gmr-hero-narr"><p class="gmr-nlab">Narration' + (narr.durationSeconds ? ' · ' + narr.durationSeconds + 's' : '') + '</p><p>' + esc(narr.transcript) + '</p></div>' : '');
+      pageEl.appendChild(hero);
+      renderBlocks(p, [heroBlk, narr]);
+      return;
+    }
+    const hd = document.createElement('div'); hd.className = 'gmr-phead';
+    if (p.layout === 'cover') hd.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta();
+    else hd.innerHTML = '<p class="gmr-eyebrow">Page ' + state.page + ' of ' + (PAGES.length - 1) + '</p><h2 class="gmr-ptitle">' + esc(p.title) + '</h2>' + (p.subtitle ? '<p class="gmr-psub">' + esc(p.subtitle) + '</p>' : '');
+    pageEl.appendChild(hd);
+    renderBlocks(p, null);
   }
   function pageSatisfied(pi) { return (PAGES[pi].completionRequires || []).every((id) => state.done[id]); }
   function refreshGate() {
