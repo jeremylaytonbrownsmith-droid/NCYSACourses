@@ -1832,6 +1832,10 @@ function renderModuleLesson(pane, course, lesson, lp) {
       const narr = (p.blocks || []).find((b) => b.type === 'narration' && b.transcript);
       const hero = document.createElement('div'); hero.className = 'gmr-hero';
       hero.style.backgroundImage = 'url("' + heroSrc + '")';
+      // Per-photo vertical focal point so faces/heads sit fully in frame (lower
+      // % keeps more headroom). Falls back to a sensible default for new photos.
+      const HERO_FOCAL = { 'ref-crew': 'center 14%', 'ref-coin-toss': 'center 22%' };
+      hero.style.backgroundPosition = HERO_FOCAL[heroBlk.graphic] || 'center 30%';
       hero.style.setProperty('--gmr-brand', bnrRed || '#d0342c');
       hero.innerHTML = '<p class="gmr-eyebrow">' + esc(doc.course || '') + '</p><h2 class="gmr-ptitle">' + esc(doc.title || lesson.title) + '</h2>' + coverMeta()
         + (narr ? '<div class="gmr-narr gmr-hero-narr"><p class="gmr-nlab">Narration' + (narr.durationSeconds ? ' · ' + narr.durationSeconds + 's' : '') + '</p><p>' + esc(narr.transcript) + '</p></div>' : '');
