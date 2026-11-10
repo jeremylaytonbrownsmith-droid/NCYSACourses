@@ -17,6 +17,77 @@ Org constants live in `server.js` / `public/app.js`: `DEFAULT_ORG`, `ORG_OPTIONS
 `ORG_NAMES`. A course's `orgId` decides which portal shows it. A `partner` account
 is locked to one org (e.g. OMG partner → `omg`).
 
+## Architecture map — the whole project, start to finish
+
+A Node/Express server + a vanilla-JS single-page app. No build step; the browser
+loads `app.js`/`styles.css` directly. Key files:
+
+- **`server.js`** — the Express app: auth (cookie sessions), per-domain org
+  routing, serves the SPA shell (`sendIndexHtml`, which injects per-domain
+  `<title>`/OG meta **and** cache-busts `app.js`/`styles.css`/`graphics.js` with
+  `?v=<newest-mtime>`), static files, all `/api/...` routes (courses, lessons,
+  learner progress, the SCORM runtime callback, the admin dashboard, the AI
+  builder, image library, partner integration), and seeds the code-managed
+  courses (e.g. `setupOmgCardMechanics`). `/health` reports persistence
+  durability.
+- **`public/app.js`** — the entire SPA (hash-routed, vanilla JS): landing/login,
+  course list, and the players — `renderModuleLesson()` (interactive module +
+  progress rail), `renderScormLesson()` (uploaded SCORM/Evolve/Captivate in an
+  iframe, with the active-time heartbeat + resume), plus reading/video/quiz
+  renderers, the **admin Dashboard**, the **AI Studio** (build + Edit-with-AI),
+  and the **Course Designer**.
+- **`public/styles.css`** — all styling (the module player, banner, hero, dashboard).
+- **`public/graphics.js`** — `GMR_PHOTOS` (real photos in `media/signals/*`) and
+  `GMR_GRAPHICS` (inline SVG diagrams); a block's `graphic` key resolves here.
+- **`lib/store.js`** — the data layer (see **Data & persistence** below).
+- **`lib/moduledoc.js`** — `normalizeModuleDoc()` gatekeeper for module JSON.
+- **`lib/aicourse.js`** — the AI course builder + the format spec in prompt form.
+- **`lib/integration.js`** — partner/SCORM export + score mapping.
+- **`public/samples/*.module.json`** — code-managed course content (synced on deploy).
+- **`scripts/check-modules.js`** — `npm run check:modules` audit (run before shipping).
+
+## Data & persistence (important — this is where "lost progress" lives)
+
+`lib/store.js` keeps the whole database in memory (`db`: users, courses,
+progress, sessions, certs/enrollments). Reads are synchronous; `save()` writes:
+
+- **Firestore** when `FIREBASE_SERVICE_ACCOUNT` is set — per-record write-through,
+  **durable** (survives restarts/redeploys). This is what the live site uses.
+- **Local `data/db.json`** otherwise — fine for dev, but **ephemeral on Render**
+  (wiped on sleep/redeploy). `status.durable` is false in this case.
+
+**`GET /health`** → `{ ok, durable, backend, uptimeSeconds }`. `durable:true` +
+`backend:"firestore"` = progress is safe. The sandbox can't reach the live site,
+so ask the user to open `getmatchready.app/health` to check. (Confirmed durable +
+firestore as of this writing.)
+
+## Learner progress, completion & gates
+
+Progress is per **user + course + lesson** (`getProgress` / `upsertProgress`),
+saved with `save()`. Lessons **unlock sequentially** — a lesson is locked until
+the previous one is complete (`lessonState`). Course completion issues a
+certificate (`maybeCompleteCourse`) and may fire a partner return URL.
+
+- **Reading/video** (`POST /complete`): video has a watch-seconds gate.
+- **Quiz** (`POST /quiz`): graded; pass ≥ `passPercent`.
+- **SCORM/Evolve modules** (`POST /scorm`): the in-page `window.API` relays
+  `cmi` status/location/`suspend_data`; **active time accrues via a 5s heartbeat
+  that only counts while the tab is visible** (the anti-skip gate), and
+  `suspend_data`/`location` let a learner **resume where they left off**.
+  Completes when enough active time **and** the package reports done (or
+  `completeOnTime`). **We removed the old "away too long" auto-reset** that wiped
+  progress when a tab sat hidden >3 min — a break or overnight gap no longer
+  loses a learner's place. An explicit `{reset:true}` (admin "start over") remains.
+- **Interactive module** lessons: `renderModuleLesson` tracks per-page element
+  completion against each page's `completionRequires`; the rings fill as you go.
+
+## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
+
+In the SPA: learner progress by course, live presence, **reset a learner's
+module**, and **mark a module complete for a learner** (how you credit someone
+like Jay for modules they already finished — no backend work). Plus course CRUD,
+the AI builder, and export to SCORM / web page.
+
 ## Deploy flow
 
 - Merging to `main` auto-deploys to Render (~1 min; free tier may 502 briefly on
@@ -161,3 +232,11 @@ Add lesson → **Publish**. A printable cheat-sheet of this lives with the team.
 Short, concise, plain answers. Do the work; don't over-explain or present long
 option menus. Be honest about limits (what the sandbox can/can't reach, what
 needs their browser login). Don't invent facts.
+
+**Drafting emails:** keep them **short and concise** — a few tight lines, not a
+long message. (The user often handles these quickly between school duties.)
+
+**Keep this file current:** when the project grows or a fact here changes (a new
+feature, a fixed bug, a changed standard), update `CLAUDE.md` in the same change
+so the next session starts with an accurate map. This file is the project's
+living summary — checked every session.
