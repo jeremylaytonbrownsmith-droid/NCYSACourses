@@ -101,15 +101,25 @@ is enforced in the AI prompt (`lib/aicourse.js`) and should be kept there.
   and STAY green on back-nav (completion is read from what's done, not position).
 
 **Content standard (must be in the data — the AI prompt enforces it):**
+- **Cover hero (every course):** the cover page's first block is an `image` with a
+  real referee **photo** `graphic` (one of the `COVER_PHOTO_KEYS` in
+  `lib/aicourse.js`: `ref-crew`, `ref-coin-toss`, `ref-card-yellow`, …). The player
+  renders the cover's lead image as a full-bleed hero — photo background, title +
+  meta over a scrim, red stripe (a Captivate title slide). Per-photo focal points
+  live in `HERO_FOCAL` in `renderModuleLesson`. Non-refereeing topics omit it.
+- **Photos live ONLY in the cover hero.** Content pages carry **no** decorative
+  `image`/photo blocks (they read as clutter). Pedagogical SVG diagrams inside
+  carousels/scenario/imageSelect are fine.
 - Every standard page has a punchy **title (2–5 words) + a one-line subtitle**.
 - **Interactive variety like a Captivate/US-Soccer course** — not walls of prose.
   Use a mix across pages: flashcards (flip), tabs (toggle), carousel, **flow**
   (decision flowchart), compare, scenario, accordion, callout. At least one
-  flashcards/tabs somewhere; most content pages carry an interactive/visual block.
+  flashcards/tabs somewhere; most content pages carry an interactive block.
 - Full lessons: a **branching** scenario capstone when there's a judgement call,
   then summary + 8-item assessment (80%). Tent Talks: info blocks only + a final
   checklist `ack`.
-- Prefer built-in `graphic` photo keys so images render with no upload.
+- **Two course types only** (AI Studio): **Education Module** (`full`) and **Tent
+  Talk** (`tenttalk`). The old reading-+-quiz path is retired from the UI.
 
 **Flowchart standard (the `flow` block — reproduce this shape every time):** one
 `start` node (the trigger) → alternate `decision` nodes (a clear either/or or
