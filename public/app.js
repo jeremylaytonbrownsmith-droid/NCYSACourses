@@ -2175,7 +2175,6 @@ function renderScormLesson(pane, course, lesson, lp) {
   // learner never needs a button. We only surface a manual "mark complete" link as
   // a last-resort safety net for a *dumb* HTML page that never touches the API.
   const isHtml = !!lesson.htmlPackage;
-  const AWAY_LIMIT = 180; // seconds hidden (tab away) before this module resets
   let active = Math.max(0, Number(saved.activeSeconds) || 0);
   let done = false;
   let reachedEnd = saved.status === 'completed' || saved.status === 'passed';
@@ -2330,32 +2329,13 @@ function renderScormLesson(pane, course, lesson, lp) {
     if (evoBeat) { clearInterval(evoBeat); evoBeat = null; }
   }
 
-  // Away-too-long reset: leaving the tab pauses the timer (above); leaving it for
-  // longer than AWAY_LIMIT wipes this module's progress so it must be redone.
-  // Skipped for HTML (Evolve) modules: they keep their progress only in memory
-  // (nothing in storage to restore), so reloading the frame to "reset" would
-  // needlessly wipe a learner's place when they just glanced away. Completion is
-  // gated by actually finishing every page, so there's no skip to guard against.
-  let hiddenSince = 0;
-  function onVisibility() {
-    if (document.visibilityState === 'hidden') { hiddenSince = Date.now(); return; }
-    if (hiddenSince && !done && required > 0 && !isHtml && !evoSeen) {
-      const away = (Date.now() - hiddenSince) / 1000;
-      if (away >= AWAY_LIMIT) resetModule();
-    }
-    hiddenSince = 0;
-  }
-  function resetModule() {
-    active = 0; reachedEnd = false;
-    cmi['cmi.core.lesson_status'] = 'incomplete';
-    cmi['cmi.core.lesson_location'] = '';
-    cmi['cmi.suspend_data'] = '';
-    api(`/api/courses/${course.id}/lessons/${lesson.id}/scorm`, { method: 'POST', body: { reset: true } }).catch(() => {});
-    paintGate({ activeSeconds: 0, required });
-    const frame = document.getElementById('scormFrame');
-    if (frame) frame.src = frame.src; // reload → the module restarts from the beginning
-    toast('You were away too long — this module was reset. Please go through it again.', true);
-  }
+  // Returning after an absence resumes where the learner left off. The active
+  // timer already pauses while the tab is hidden (the heartbeat only credits time
+  // while the tab is visible), so there is no skip to guard against — we do NOT
+  // wipe a learner's progress for being away. The old 3-minute away-reset was
+  // losing people their place after a short break or overnight. An explicit
+  // "start over" still exists via the server /scorm {reset:true} path.
+  function onVisibility() { /* progress is kept on return; the timer pauses while hidden */ }
   document.addEventListener('visibilitychange', onVisibility);
 
   window.API = {
