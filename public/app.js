@@ -3468,6 +3468,15 @@ async function viewAdmin() {
               <div class="meta" style="word-break:break-all">${esc(w.url || 'no webhook URL configured')}</div>
             </div>`).join('') : '<p class="empty">No partner webhooks sent yet.</p>'}
         </div>
+        ${(d.ncysaAlerts && d.ncysaAlerts.length) ? `
+        <div class="admin-card${secCls('ncysa-alerts', false)}">
+          <h2 class="collapsible" data-sec="ncysa-alerts">⚠️ Alerts <span class="count-pill alert">${d.ncysaAlerts.length}</span></h2>
+          <div class="card-scroll">
+          ${d.ncysaAlerts.map((n) => `
+            <div class="notif alert"><h3>${esc(n.title)}</h3>
+              <time>${new Date(n.createdAt).toLocaleString()}</time><p>${esc(n.body)}</p></div>`).join('')}
+          </div>
+        </div>` : ''}
         <div class="admin-card${secCls('ncysa-notif', true)}">
           <h2 class="collapsible" data-sec="ncysa-notif">NCYSA notifications${d.ncysaNotifications.length ? ` <span class="count-pill">${d.ncysaNotifications.length}</span>` : ''}</h2>
           <div class="card-scroll">
