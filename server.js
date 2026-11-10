@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 const QRCode = require('qrcode'); // certificate verify QR codes (generated as data URLs)
 
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
-const { onCourseCompleted, sendTestEmail, sendEmail } = require('./lib/notifier');
+const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
@@ -2324,6 +2324,15 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
   rec.scorm = rec.scorm || { status: 'not attempted', location: '', suspendData: '', activeSeconds: 0 };
   if (typeof rec.scorm.activeSeconds !== 'number') rec.scorm.activeSeconds = 0;
 
+  // Snapshot of the learner's resume state BEFORE this heartbeat is applied, so we
+  // can spot a silent regression below (resume blob/location wiped while the module
+  // is still unfinished — the "lost my place" symptom).
+  const prevResume = {
+    susLen: (rec.scorm.suspendData || '').length,
+    hadLocation: !!rec.scorm.location,
+    activeSeconds: rec.scorm.activeSeconds,
+  };
+
   // Reset an in-progress module (e.g. the learner was away from the tab too
   // long). Never un-completes a module already finished.
   if (b.reset && !rec.completed) {
@@ -2353,6 +2362,36 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
       // the other). See scoreObject in lib/integration.js.
       scaled: b.scoreScaled != null && b.scoreScaled !== '' ? numOrNull(b.scoreScaled) : (prev.scaled ?? null),
     };
+  }
+
+  // Reset watch: alert staff if a learner's resume state silently collapsed while
+  // the module is still unfinished. We had real saved progress (a meaningful
+  // suspend_data blob, or a location), and this update left them with neither —
+  // without an explicit admin "start over" (that path returns above). This is the
+  // "logged back in and it put me at the start" symptom; catching it on the server
+  // means we hear about it before the learner emails. Fires once per regression:
+  // afterwards the stored state is empty, so the guard below no longer trips.
+  const nowSusLen = (rec.scorm.suspendData || '').length;
+  const nowHasLocation = !!rec.scorm.location;
+  const hadRealProgress = prevResume.susLen >= 32 || prevResume.hadLocation;
+  const nowEmpty = nowSusLen === 0 && !nowHasLocation;
+  if (hadRealProgress && nowEmpty && !rec.completed) {
+    const who = req.user.name || req.user.email || req.user.id;
+    const line = `${who} may have lost their place in "${course.title}" — module "${lesson.title}". `
+      + `Resume data went from ${prevResume.susLen} chars${prevResume.hadLocation ? ' + a saved location' : ''} to empty `
+      + `while the module is still unfinished (${rec.scorm.activeSeconds}s active). Check their progress on the dashboard.`;
+    try {
+      console.warn('[reset-alert] ' + line);
+      notifyInApp({ audience: 'ncysa', title: 'Possible progress reset', body: line });
+      const supportTo = process.env.SUPPORT_EMAIL || '';
+      if (supportTo) {
+        sendEmail({
+          to: supportTo,
+          subject: `Possible progress reset — ${course.title}`,
+          body: line + `\n\nLearner id: ${req.user.id}\nCourse: ${course.id}\nModule: ${lesson.id}\nWhen: ${new Date().toISOString()}\n`,
+        });
+      }
+    } catch (e) { /* alerting must never break the learner's heartbeat */ }
   }
 
   // Minimum time before completion counts. Modules uploaded before this gate
