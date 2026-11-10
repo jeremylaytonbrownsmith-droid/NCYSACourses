@@ -81,6 +81,15 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   Stored `suspend_data` is capped at `SCORM_SUSPEND_MAX` (64000, the SCORM 2004
   limit) in `server.js` — a bigger package's resume blob used to be truncated to
   4096 and bounce the learner back a module.
+- **Reset-alert safety net** (SCORM `/scorm` handler): if a learner's resume
+  state silently collapses — they had a real `suspend_data` blob (≥32 chars) or a
+  saved `location`, and a heartbeat leaves them with neither while the module is
+  still unfinished — we `notifyInApp({audience:'ncysa'})` (shows on the admin
+  Dashboard under **NCYSA notifications**) and email `SUPPORT_EMAIL` if set. Fires
+  once per regression (state is empty afterward). The explicit admin
+  `{reset:true}` path returns before this, so a deliberate "start over" never
+  alerts. This is a monitor to catch new/unknown causes before a learner emails —
+  not a fix for a cause we know.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
