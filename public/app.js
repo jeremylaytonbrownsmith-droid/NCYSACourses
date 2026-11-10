@@ -1833,7 +1833,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
       hero.style.backgroundImage = 'url("' + heroSrc + '")';
       // Per-photo vertical focal point so the referees' heads sit in the visible
       // band above the overlaid title. Falls back to a sensible default.
-      const HERO_FOCAL = { 'ref-crew': 'center 18%', 'ref-coin-toss': 'center 48%' };
+      const HERO_FOCAL = { 'ref-crew': 'center 8%', 'ref-coin-toss': 'center 48%' };
       hero.style.backgroundPosition = HERO_FOCAL[heroBlk.graphic] || 'center 30%';
       hero.style.setProperty('--gmr-brand', bnrRed || '#d0342c');
       // Title + meta sit over the photo; the opening narration renders as a
