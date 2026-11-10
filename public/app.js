@@ -1603,7 +1603,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
 
   // --- block renderers: each returns { html, wire(region)? } ---
   const R = {
-    narration: (b) => ({ html: '<div class="gmr-narr' + (b.videoUrl ? ' hasvid' : '') + '">' + mediaEmbed(b.videoUrl, b.poster) + '<p class="gmr-nlab">' + (b.videoUrl ? 'Watch' : 'Narration') + (b.durationSeconds ? ' · ' + b.durationSeconds + 's' : '') + '</p>' + (b.transcript ? '<p>' + esc(b.transcript) + '</p>' : '') + '</div>' }),
+    narration: (b) => ({ html: '<div class="gmr-narr' + (b.videoUrl ? ' hasvid' : '') + '">' + mediaEmbed(b.videoUrl, b.poster) + '<p class="gmr-nlab">' + (b.videoUrl ? 'Watch' + (b.durationSeconds ? ' · ' + b.durationSeconds + 's' : '') : 'Narration') + '</p>' + (b.transcript ? '<p>' + esc(b.transcript) + '</p>' : '') + '</div>' }),
     prose: (b) => ({ html: '<div class="gmr-prose' + (b.emphasis ? ' em' : (b.lead ? ' lead' : '')) + '">' + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
     list: (b) => { const tag = b.ordered ? 'ol' : 'ul'; return { html: '<div class="gmr-blk">' + (b.heading ? '<h3 class="gmr-bh">' + esc(b.heading) + '</h3>' : '') + '<' + tag + ' class="gmr-lst' + (b.ordered ? ' ord' : '') + '">' + (b.items || []).map((i) => '<li>' + esc(i) + '</li>').join('') + '</' + tag + '></div>' }; },
     callout: (b) => ({ html: '<div class="gmr-callout">' + (b.heading ? '<h3>' + esc(b.heading) + '</h3>' : '') + (b.body || []).map((p) => '<p>' + esc(p) + '</p>').join('') + '</div>' }),
