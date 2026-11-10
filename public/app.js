@@ -2985,17 +2985,23 @@ async function downloadCertificatePdf(c, dateStr) {
   })(W / 2, 685);
 
   // Verify QR + URL (bottom-left) so even a printed certificate can be scanned to
-  // confirm it's genuine on the public /verify page.
+  // confirm it's genuine on the public /verify page. The whole block is anchored
+  // to the INNER frame line (y = 760) and sits fully inside it with a clear margin
+  // — the URL used to be drawn at y=768, below that line, so it crossed the border.
+  const innerBottom = 760;      // inner frame line (strokeRect at 40,40,W-80,H-80)
+  const verifyUrlY = innerBottom - 26;  // URL baseline, ~24px clear of the line
+  const verifyLabelY = verifyUrlY - 18; // "Verify at" label above the URL
   if (c.qrDataUrl) {
     try {
       const qr = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = c.qrDataUrl; });
-      ctx.drawImage(qr, 70, H - 160, 96, 96);
+      const qrSize = 92, qrBottom = verifyLabelY - 16; // sit just above the label
+      ctx.drawImage(qr, 70, qrBottom - qrSize, qrSize, qrSize);
     } catch { /* ignore QR */ }
   }
   if (c.verifyUrl) {
     ctx.textAlign = 'left';
-    ctx.font = '600 12px Arial'; ctx.fillStyle = '#6b645e'; ctx.fillText('Verify at', 70, H - 48);
-    ctx.font = '400 12px Arial'; ctx.fillStyle = titleColor; ctx.fillText(c.verifyUrl.replace(/^https?:\/\//, ''), 70, H - 32);
+    ctx.font = '600 12px Arial'; ctx.fillStyle = '#6b645e'; ctx.fillText('Verify at', 70, verifyLabelY);
+    ctx.font = '400 12px Arial'; ctx.fillStyle = titleColor; ctx.fillText(c.verifyUrl.replace(/^https?:\/\//, ''), 70, verifyUrlY);
   }
 
   // Canvas → JPEG → minimal PDF
