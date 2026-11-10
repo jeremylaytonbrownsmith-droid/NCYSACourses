@@ -82,11 +82,6 @@
       ],
       "blocks": [
         {
-          "type": "image",
-          "graphic": "player-duel",
-          "caption": "Most challenges are just fouls. Only a few cross into misconduct."
-        },
-        {
           "type": "narration",
           "durationSeconds": 50,
           "transcript": "A foul and a misconduct are not the same thing. Most of the fouls you call carry no card at all. Misconduct is the smaller set of offences the Law says must be punished with a caution or a send-off, and it is the only set that needs a card in your hand. Before you can show a card correctly, you have to be certain this is a moment that calls for one. And misconduct does not wait for the ball to be in play."
@@ -201,11 +196,6 @@
         "level-cards"
       ],
       "blocks": [
-        {
-          "type": "image",
-          "graphic": "ref-signal-red",
-          "caption": "Name the level honestly, and the signal — and the sanction — follow."
-        },
         {
           "type": "narration",
           "durationSeconds": 55,
@@ -452,11 +442,6 @@
       ],
       "blocks": [
         {
-          "type": "image",
-          "graphic": "ref-card-yellow",
-          "caption": "Card up, player identified, benches in view — the picture done right."
-        },
-        {
           "type": "narration",
           "durationSeconds": 58,
           "transcript": "The decision is made. Now comes the part the Law calls presenting the correct picture. Everything from here is mechanics, and mechanics can be practised. The goal is simple. When the card goes up, the offending player knows it is for them, both coaching staffs know who it is for, and every observer can see that something has been dealt with. If any one of those three is in doubt, the card did not do its job."
@@ -645,11 +630,6 @@
         "ms5-4"
       ],
       "blocks": [
-        {
-          "type": "image",
-          "graphic": "player-gk",
-          "caption": "Play on, or stop it? Timing the card is its own decision."
-        },
         {
           "type": "narration",
           "durationSeconds": 58,
