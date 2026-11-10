@@ -2164,6 +2164,12 @@ const WATCH_STEP_CAP = 30;
 const WATCH_PCT = 0.97; // fraction of the real video that must be watched
 const SCORM_STEP_CAP = 15; // max seconds of module time credited per heartbeat
 const DEFAULT_SCORM_MIN_SECONDS = 0; // no time gate by default — the module's own "complete every element" requirement is the anti-skip
+// Max stored resume blob. SCORM 1.2 caps cmi.suspend_data at 4096 chars, but
+// SCORM 2004 packages (e.g. Captivate) can write up to 64000 — truncating a
+// bigger module's resume blob corrupts it and bounces the learner back a module.
+// Store the full SCORM 2004 allowance (64000); still bounded so a client can't
+// send an unbounded payload. Comfortably within the Firestore 1 MB field limit.
+const SCORM_SUSPEND_MAX = 64000;
 const DEFAULT_SLIDE_GATE_SECONDS = 30; // per-slide review time for our slideshow player when a module doesn't set its own (matches the platform-wide behavior before it became configurable)
 
 // --- Live presence: "who's working right now" ------------------------------
@@ -2332,7 +2338,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
   rec.scorm.activeSeconds += delta;
   if (typeof b.status === 'string' && b.status) rec.scorm.status = b.status;
   if (b.location != null) rec.scorm.location = String(b.location).slice(0, 4096);
-  if (b.suspendData != null) rec.scorm.suspendData = String(b.suspendData).slice(0, 4096);
+  if (b.suspendData != null) rec.scorm.suspendData = String(b.suspendData).slice(0, SCORM_SUSPEND_MAX);
   // Capture the SCORM test score the package reports (cmi.core.score.raw/min/max).
   // Stored as-is so we can pass raw + min/max through without guessing the scale.
   const numOrNull = (v) => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);

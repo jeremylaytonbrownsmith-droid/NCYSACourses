@@ -78,6 +78,9 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   `completeOnTime`). **We removed the old "away too long" auto-reset** that wiped
   progress when a tab sat hidden >3 min — a break or overnight gap no longer
   loses a learner's place. An explicit `{reset:true}` (admin "start over") remains.
+  Stored `suspend_data` is capped at `SCORM_SUSPEND_MAX` (64000, the SCORM 2004
+  limit) in `server.js` — a bigger package's resume blob used to be truncated to
+  4096 and bounce the learner back a module.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
