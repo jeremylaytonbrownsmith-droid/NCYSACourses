@@ -2382,7 +2382,7 @@ app.post('/api/courses/:courseId/lessons/:lessonId/scorm', requireAuth, ah(async
       + `while the module is still unfinished (${rec.scorm.activeSeconds}s active). Check their progress on the dashboard.`;
     try {
       console.warn('[reset-alert] ' + line);
-      notifyInApp({ audience: 'ncysa', title: 'Possible progress reset', body: line });
+      notifyInApp({ audience: 'ncysa', kind: 'alert', title: 'Possible progress reset', body: line });
       const supportTo = process.env.SUPPORT_EMAIL || '';
       if (supportTo) {
         sendEmail({
@@ -2738,8 +2738,13 @@ app.get('/api/admin/overview', requireDashboard, (req, res) => {
     }).sort((a, b) => String(b.completedAt || b.startedAt || '').localeCompare(String(a.completedAt || a.startedAt || ''))),
     // NC-internal notifications/outbox are hidden from a partner (they may name
     // other orgs' learners); a partner sees only its own org's webhook/upload log.
+    // Action-needed alerts (e.g. a progress reset) are split out so they don't
+    // drown in the routine course-completion stream below.
+    ncysaAlerts: scope ? [] : db.notifications
+      .filter((n) => n.audience === 'ncysa' && n.kind === 'alert')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     ncysaNotifications: scope ? [] : db.notifications
-      .filter((n) => n.audience === 'ncysa')
+      .filter((n) => n.audience === 'ncysa' && n.kind !== 'alert')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     outbox: scope ? [] : db.outbox.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     // Learner-filed problem reports, newest first, unresolved first. Org-scoped for partners.

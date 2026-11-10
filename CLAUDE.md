@@ -84,8 +84,10 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
 - **Reset-alert safety net** (SCORM `/scorm` handler): if a learner's resume
   state silently collapses — they had a real `suspend_data` blob (≥32 chars) or a
   saved `location`, and a heartbeat leaves them with neither while the module is
-  still unfinished — we `notifyInApp({audience:'ncysa'})` (shows on the admin
-  Dashboard under **NCYSA notifications**) and email `SUPPORT_EMAIL` if set. Fires
+  still unfinished — we `notifyInApp({audience:'ncysa', kind:'alert'})` and email
+  `SUPPORT_EMAIL` if set. `kind:'alert'` notifications render in their own
+  **⚠️ Alerts** section on the dashboard (red, split out so they don't drown in
+  the routine course-completion stream under **NCYSA notifications**). Fires
   once per regression (state is empty afterward). The explicit admin
   `{reset:true}` path returns before this, so a deliberate "start over" never
   alerts. This is a monitor to catch new/unknown causes before a learner emails —
