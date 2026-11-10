@@ -1387,7 +1387,7 @@ td .empty, .admin-table .empty { background: none; border: 0; padding: 14px; }
 .gmr-region { display: contents; }
 
 /* full screen (native API, or the .pseudo-fs CSS fallback on iPhone) */
-.gmr-module:fullscreen, .gmr-module.pseudo-fs { max-width: none; width: 100%; background: var(--bg, #fbfaf7); padding: 26px clamp(20px, 5vw, 64px); overflow: auto; }
+.gmr-module:fullscreen, .gmr-module.pseudo-fs { max-width: none; width: 100%; background: var(--bg, #fbfaf7); padding: 26px clamp(20px, 5vw, 64px); padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px)); overflow: auto; }
 .gmr-module.pseudo-fs { position: fixed; inset: 0; z-index: 9999; }
 body.pseudo-fs-lock { overflow: hidden; }
 /* Tent Talk / information session = a presentation. In full screen, drop the
@@ -1400,10 +1400,13 @@ body.pseudo-fs-lock { overflow: hidden; }
    long content (e.g. a tall decision flow) scrolls WITHIN the page instead of
    growing the row and pushing the last node under the pinned Back/Next. A plain
    1fr keeps a min-content floor and overflows. */
-.gmr-module.gmr-present.pseudo-fs { height: 100vh; padding: 20px clamp(16px, 3vw, 40px); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
+/* height: use dvh (dynamic viewport) so the pinned Back/Next row is NOT hidden
+   behind the iOS Safari toolbar — plain 100vh ignores the toolbar and pushes
+   the nav off-screen. Safe-area padding keeps it clear of the home indicator. */
+.gmr-module.gmr-present.pseudo-fs { height: 100vh; height: 100dvh; padding: 20px clamp(16px, 3vw, 40px); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
 .gmr-module.gmr-present.pseudo-fs .gmr-rail { display: none; }
 .gmr-module.gmr-present.pseudo-fs .gmr-page { min-height: 0; overflow-y: auto; }
-.gmr-module.gmr-present:fullscreen { height: 100vh; padding: 20px clamp(16px, 3vw, 40px); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
+.gmr-module.gmr-present:fullscreen { height: 100vh; height: 100dvh; padding: 20px clamp(16px, 3vw, 40px); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); grid-template-columns: minmax(0, 1fr); grid-template-areas: "banner" "page" "nav"; grid-template-rows: auto minmax(0, 1fr) auto; }
 .gmr-module.gmr-present:fullscreen .gmr-rail { display: none; }
 .gmr-module.gmr-present:fullscreen .gmr-page { min-height: 0; overflow-y: auto; }
 
