@@ -1512,7 +1512,7 @@ body.pseudo-fs-lock { overflow: hidden; }
 .gmr-fig { border: 1px solid var(--line); border-radius: 10px; background: #eef1f4; padding: 10px; margin-bottom: 12px; text-align: center; }
 .gmr-fig .gmr-svg { width: 100%; max-width: 330px; height: 150px; display: inline-block; vertical-align: top; }
 .gmr-fig.photo { width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
-.gmr-fig .gmr-pimg { width: auto; max-width: 100%; height: 230px; object-fit: contain; display: block; border-radius: 8px; }
+.gmr-fig .gmr-pimg { width: auto; max-width: 100%; height: 230px; object-fit: contain; display: block; border-radius: 8px; margin-left: auto; margin-right: auto; }
 .gmr-figcap { display: block; font-size: .76rem; color: var(--ink-soft); margin-top: 7px; }
 /* Decorative photos (standalone image blocks) carry a soft transparency so they
    read as on-brand background texture, not hard blocks. Teaching photos (in
