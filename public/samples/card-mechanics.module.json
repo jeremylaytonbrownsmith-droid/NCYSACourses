@@ -23,6 +23,11 @@
       "completionRequires": [],
       "blocks": [
         {
+          "type": "image",
+          "graphic": "ref-crew",
+          "caption": "Confident, prepared, together — the picture every crew wants to present."
+        },
+        {
           "type": "narration",
           "durationSeconds": 48,
           "transcript": "Every referee carries two cards. What separates a confident official from an uncertain one is not whether they are willing to use them. It is whether the picture they present when they do is clear enough that nobody watching has to guess what just happened. This module is about that picture. By the end of it you will know what the Law requires, what the moment demands, and exactly how to deliver it."
@@ -76,6 +81,11 @@
         "kc1"
       ],
       "blocks": [
+        {
+          "type": "image",
+          "graphic": "player-duel",
+          "caption": "Most challenges are just fouls. Only a few cross into misconduct."
+        },
         {
           "type": "narration",
           "durationSeconds": 50,
@@ -191,6 +201,11 @@
         "level-cards"
       ],
       "blocks": [
+        {
+          "type": "image",
+          "graphic": "ref-signal-red",
+          "caption": "Name the level honestly, and the signal — and the sanction — follow."
+        },
         {
           "type": "narration",
           "durationSeconds": 55,
@@ -437,6 +452,11 @@
       ],
       "blocks": [
         {
+          "type": "image",
+          "graphic": "ref-card-yellow",
+          "caption": "Card up, player identified, benches in view — the picture done right."
+        },
+        {
           "type": "narration",
           "durationSeconds": 58,
           "transcript": "The decision is made. Now comes the part the Law calls presenting the correct picture. Everything from here is mechanics, and mechanics can be practised. The goal is simple. When the card goes up, the offending player knows it is for them, both coaching staffs know who it is for, and every observer can see that something has been dealt with. If any one of those three is in doubt, the card did not do its job."
@@ -625,6 +645,11 @@
         "ms5-4"
       ],
       "blocks": [
+        {
+          "type": "image",
+          "graphic": "player-gk",
+          "caption": "Play on, or stop it? Timing the card is its own decision."
+        },
         {
           "type": "narration",
           "durationSeconds": 58,

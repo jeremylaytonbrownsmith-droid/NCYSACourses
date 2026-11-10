@@ -1628,7 +1628,7 @@ function renderModuleLesson(pane, course, lesson, lp) {
       html: '<div class="gmr-blk flat">' + (b.title ? '<h3 class="gmr-bh">' + esc(b.title) + '</h3>' : '') + '<div class="gmr-acc">' + items + '</div></div>',
       wire: (root) => { const ds = root.querySelectorAll('details'); const opened = {}; ds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) { opened[d.dataset.ix] = 1; if (Object.keys(opened).length >= ds.length) markDone(b.id); } })); if (noGate) markDone(b.id); } }; },
     scenario: (b) => ({ html: '<div class="gmr-scen"><p class="gmr-slab">● Live scenario</p>' + ((b.graphic || b.imageUrl || b.imageBrief) ? vis(b.graphic, b.imageBrief, b.imageUrl) : '') + (b.lines || []).map((l) => '<p>' + esc(l) + '</p>').join('') + '</div>' }),
-    image: (b) => ({ html: '<div class="gmr-blk flat">' + vis(b.graphic, b.caption, b.imageUrl) + '</div>' }),
+    image: (b) => ({ html: '<div class="gmr-blk flat gmr-photo-soft">' + vis(b.graphic, b.caption, b.imageUrl) + '</div>' }),
     reflection: (b) => ({
       html: '<div class="gmr-blk gmr-refl"><h3 class="gmr-bh">Reflection</h3><p class="gmr-rp">' + esc(b.prompt) + '</p><textarea class="gmr-ta" placeholder="Write your answer…"></textarea><div class="gmr-ractions"><button class="btn btn-accent btn-sm gmr-save" type="button">Save answer</button></div><div class="gmr-fu" hidden><b>Reflect:</b> ' + esc(b.followUp || '') + '</div></div>',
       wire: (root) => { const ta = root.querySelector('.gmr-ta'); if (state.answers[b.id]) ta.value = state.answers[b.id]; root.querySelector('.gmr-save').onclick = function () { state.answers[b.id] = ta.value; root.querySelector('.gmr-fu').hidden = false; markDone(b.id); this.textContent = 'Saved ✓'; }; if (noGate) markDone(b.id); } }),

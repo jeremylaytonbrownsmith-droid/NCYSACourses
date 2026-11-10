@@ -135,6 +135,18 @@
     'card-group': 'media/signals/card-group.png',
     'confrontation': 'media/signals/confrontation.png',
     'bench': 'media/signals/bench.png',
+    // Real match photography (NCYSA/NCSRA summer staff referees) — tournament
+    // action, used as section heros and illustrative figures in the OMG courses.
+    'ref-crew': 'media/signals/ref-crew.jpg',
+    'ref-coin-toss': 'media/signals/ref-coin-toss.jpg',
+    'ref-card-yellow': 'media/signals/ref-card-yellow.jpg',
+    'ref-card-caution': 'media/signals/ref-card-caution.jpg',
+    'ref-signal': 'media/signals/ref-signal.jpg',
+    'ref-signal-red': 'media/signals/ref-signal-red.jpg',
+    'ref-ar-flag': 'media/signals/ref-ar-flag.jpg',
+    'ref-ar-line': 'media/signals/ref-ar-line.jpg',
+    'player-duel': 'media/signals/player-duel.jpg',
+    'player-gk': 'media/signals/player-gk.jpg',
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = G;
   root.GMR_GRAPHICS = G;
