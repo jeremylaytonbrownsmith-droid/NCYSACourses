@@ -23,7 +23,6 @@
     {
       "id": "area", "title": "What the Area Is", "subtitle": "The bench, by the Laws — and the four rules that define it.",
       "blocks": [
-        { "type": "image", "graphic": "ref-ar-flag", "caption": "The assistant works the touchline right alongside the technical area." },
         { "type": "callout", "heading": "By the Laws of the Game", "body": ["The technical area — the bench or dugout — is the space outside the field for the named team officials, the substitutes and substituted players. The exceptions: when you allow a physio or team doctor on to treat a player, or when substitutes are warming up where you direct. At many levels it isn't even marked, and each team has its own. It exists for one reason — to reduce conflict with the match officials and the opposition."] },
         { "type": "table", "title": "What the Laws require", "columns": ["Requirement", "Detail"],
           "rows": [
@@ -52,7 +51,6 @@
     {
       "id": "line", "title": "Coaching or Dissent", "subtitle": "Instruction to your own players is fine. Aiming it at the officials is not.",
       "blocks": [
-        { "type": "image", "graphic": "ref-signal", "caption": "A clear signal and calm presence keep the sideline settled." },
         { "type": "callout", "heading": "The one rule", "body": ["Everyone in the technical area must behave in a responsible manner. Coaching their own team is allowed. Dissent, delaying the game, and leaving the area to confront an official are not."] },
         { "type": "compare", "id": "cmp", "title": "Which side of the line?",
           "cards": [
@@ -65,7 +63,6 @@
     {
       "id": "manage", "title": "Manage, Don't Police", "subtitle": "Small habits that keep the area calm long before anyone needs a card.",
       "blocks": [
-        { "type": "image", "graphic": "ref-ar-line", "caption": "Lean on your crew — the assistant holds the line with you." },
         { "type": "list", "heading": "Five habits that keep it calm",
           "items": [
             "Manage early — a calm word at the first sign beats a sanction later.",
@@ -81,7 +78,6 @@
     {
       "id": "sanctions", "title": "Warn, Caution, Dismiss", "subtitle": "Team officials can be carded too — and the level is your judgement, not a fixed sequence.",
       "blocks": [
-        { "type": "image", "graphic": "ref-card-caution", "caption": "The caution: shown clearly, so everyone knows a line was crossed." },
         { "type": "prose", "body": ["Team officials are held to the same responsible-behaviour standard, and under the current Laws they can be shown cards — just like players. You have three levels to work with."] },
         { "type": "compare", "id": "ladder", "title": "The three levels",
           "cards": [
