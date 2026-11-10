@@ -731,10 +731,25 @@ function brandMetaForHost(host) {
     siteName: 'NCYSA Learn',
   };
 }
+// Cache-busting stamp for the SPA's own assets, from the newest of app.js /
+// styles.css / graphics.js at boot. A deploy rewrites those files (new mtime),
+// so the stamp changes and browsers fetch the new versions immediately instead
+// of serving a stale cached copy.
+const ASSET_VER = (() => {
+  try {
+    const mtimes = ['app.js', 'styles.css', 'graphics.js']
+      .map((f) => fs.statSync(path.join(__dirname, 'public', f)).mtimeMs);
+    return String(Math.floor(Math.max(...mtimes)));
+  } catch { return String(Date.now()); }
+})();
 function sendIndexHtml(req, res) {
   const file = path.join(__dirname, 'public', 'index.html');
   let html;
   try { html = fs.readFileSync(file, 'utf8'); } catch { return res.sendFile(file); }
+  // Version the app's own JS/CSS so clients never run a stale cached bundle, and
+  // keep the shell itself revalidated so a new stamp is always picked up.
+  html = html.replace(/(href|src)="(\/(?:styles\.css|graphics\.js|app\.js))"/g, `$1="$2?v=${ASSET_VER}"`);
+  res.setHeader('Cache-Control', 'no-cache');
   const m = brandMetaForHost(req.headers.host);
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
   const base = `${proto}://${String(req.headers.host || '').split(',')[0]}`;
