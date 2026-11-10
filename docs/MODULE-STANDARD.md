@@ -17,13 +17,19 @@ standard.
 - **Title + subtitle.** Every standard page has a punchy `title` (2–5 words) and a
   one-line `subtitle` (6–14 words) that frames the page — not a repeat of the title.
   Headings use a display face (Archivo); subtitle is a lighter lead line.
-- **Lead with the visual or video, then the teaching text.**
 - Plain, encouraging, second-person coaching voice.
 
 ## Media
 
-- **Images:** referee photos via `graphic` (one of the known keys) plus an
-  `imageBrief`. Non-refereeing topics omit `graphic`.
+- **Cover hero:** the cover page's first block is an `image` whose `graphic` is a
+  real referee **photo** key (`ref-crew`, `ref-coin-toss`, `ref-card-yellow`,
+  `ref-card-caution`, `ref-signal`, `ref-signal-red`, `ref-ar-flag`, `ref-ar-line`,
+  `player-duel`, `player-gk`). The player renders it as a full-bleed hero (photo
+  background, title + meta over a scrim). Pick one that fits the topic and vary it.
+  Non-refereeing topics omit the cover photo.
+- **Photos live ONLY in the cover hero** — no `image`/photo blocks on content
+  pages. Pedagogical SVG diagrams inside carousel/scenario/imageSelect are fine
+  (via the SVG `graphic` keys).
 - **Video:** only when a **real URL** exists.
   - `narration.videoUrl` or `videoDecision.clipUrl` = a full `https` link to an
     `.mp4`, or a YouTube/Vimeo page (auto-embedded 16:9).

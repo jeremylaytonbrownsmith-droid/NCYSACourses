@@ -4137,15 +4137,14 @@ async function viewCourseAdmin(flash) {
         <span class="ai-ready" id="aiReady" hidden>● AI ready</span>
         <div class="spark">✨</div>
         <h3>Build a course with AI</h3>
-        <p>Describe a topic or paste your source material — AI writes the reading lessons and a graded quiz in your format. It’s saved as a private <strong>Draft</strong> you review and edit before publishing, and you can export any course to SCORM or a web page afterward.</p>
+        <p>Describe a topic or paste your source material — AI builds a polished, Captivate-style interactive module in your house standard: a photo cover hero, interactive pages, and (for a full lesson) a scored assessment. It’s saved as a private <strong>Draft</strong> you review and edit before publishing, and you can export any course to SCORM or a web page afterward.</p>
       </div>
       <form class="ai-body" id="aiBuildForm">
         <div id="aiUnavailable" class="ai-unavail" hidden></div>
         <div class="ai-fieldlabel">What should it build?</div>
         <div class="ai-format" role="radiogroup" aria-label="Lesson type">
-          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="tenttalk"><span class="fmt-card"><b>Tent Talk</b><em>Short info session — a few pages, no test. For a quick point of emphasis.</em></span></label>
-          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="full" checked><span class="fmt-card"><b>Full interactive lesson</b><em>Captivate-style — pages, gated knowledge checks and a scored assessment.</em></span></label>
-          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="classic"><span class="fmt-card"><b>Reading + quiz</b><em>Classic reading lessons and a graded quiz.</em></span></label>
+          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="full" checked><span class="fmt-card"><b>Education Module</b><em>Captivate-style lesson — photo cover, interactive pages, gated knowledge checks and a scored assessment.</em></span></label>
+          <label class="fmt-opt"><input type="radio" name="lessonFormat" value="tenttalk"><span class="fmt-card"><b>Tent Talk</b><em>Short info session — photo cover, a few interactive pages, no test. For a quick point of emphasis.</em></span></label>
         </div>
         <label>Course title <span style="font-weight:400;color:var(--ink-soft)">(optional)</span>
           <input name="title" placeholder="Leave blank to let AI name it" />
