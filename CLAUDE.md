@@ -121,6 +121,21 @@ the AI builder, and export to SCORM / web page.
   can't curl-verify a live deploy — say so rather than claiming it's up.
 - Develop on the designated feature branch; if its PR already merged, restart the
   branch from `origin/main` for follow-up work.
+- **CI gate:** `.github/workflows/test.yml` runs `npm run check:modules` + the full
+  Playwright suite on every PR into `main` and every push to `main`. It is only a
+  *hard* gate once branch protection is on (GitHub → Settings → Branches → rule
+  for `main` → "Require status checks to pass" → `test`); until then a red check
+  can still be merged past. Run the whole suite locally with `npm test` (~3.5 min,
+  163 tests) or one file with `npx playwright test tests/<name>.spec.js --trace off`.
+  **One Playwright run at a time** — the config starts its own server on port 3100
+  and refuses to reuse one. When a test goes red, check first whether the test is
+  stale (a deliberate product change) before touching the product: the first
+  dry-run found 5 red tests and none was a bug. **Running the suite rewrites
+  `screenshots/*.png`** (the e2e journey captures them) — `git checkout --
+  screenshots/` before committing, and always `git add` named files, never `-A`.
+- `keepalive.yml` pings `ncysalearn.app` every 10 min to keep a **free** Render
+  instance warm; it only logs the status (not an alert). Once the service's
+  Instance Type is paid (always-on), it is redundant and can be deleted.
 
 ## Interactive course format (`getmatchready.module/v1`)
 

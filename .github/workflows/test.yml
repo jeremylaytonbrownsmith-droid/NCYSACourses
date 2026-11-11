@@ -1,0 +1,58 @@
+# CI gate: the Playwright suite + the module audit must pass before a change
+# lands on main. Runs on every pull request into main and on every push to main.
+#
+# To make this a TRUE gate (a PR cannot be merged while it is red), turn on
+# branch protection once: GitHub → Settings → Branches → Add rule for `main` →
+# "Require status checks to pass before merging" → pick "test". Without that
+# setting this workflow still runs and reports, but a red check can be merged
+# past.
+#
+# The Playwright config prefers the system Chromium at /opt/pw-browsers/chromium
+# when present and falls back to Playwright's own download otherwise — CI takes
+# the fallback, which is why we install Chromium here.
+name: test
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A newer push to the same branch cancels the run it supersedes.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Audit the code-managed modules
+        run: npm run check:modules
+
+      - name: Run the Playwright suite
+        run: npx playwright test --trace off --reporter=line
+
+      # Only on failure, keep the failure screenshots so a red run can be read
+      # without re-running it locally.
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
