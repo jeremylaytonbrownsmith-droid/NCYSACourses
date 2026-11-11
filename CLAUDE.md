@@ -133,7 +133,18 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   filenames, course.json untouched (its `.jws.json` signature stays valid) — then
   re-upload to the same lesson; progress is per lesson id. Module 1 went 353 →
   96 MB that way. Evolve's "remember progress" is OFF in these exports
-  (`config.publish.useLocalStorage:false`); only US Soccer can flip that. **The course's "Start
+  (`config.publish.useLocalStorage:false`); only US Soccer can flip that.
+  **Lightbox rescue:** Evolve's "click to enlarge" images (6 in Mentor module 1)
+  open a `position:fixed` overlay INSIDE the frame, whose close ✕ is at the
+  frame's top edge — which slides UNDER the sticky `.topnav` once the learner has
+  scrolled, so they saw a full-screen picture with no way out and pressed Back →
+  "leave?" → restart (the frame can't scroll above the window; the header is
+  what covers it). The
+  player watches the same-origin frame DOM (`watchOverlays` in
+  `renderScormLesson`): a viewport-covering fixed overlay scrolls the frame top
+  into view, and while one is open browser Back closes it (`onPopGuard` →
+  `closeOverlay`) instead of offering to leave. Generic, no Evolve selectors.
+  Covered by `tests/lightbox-guard.spec.js`. **The course's "Start
   Here" text (`course.instructions`, the Designer's Start Here box) renders as the
   FIRST line inside that 📘 guide** (`#mgIntro`, above the steps and outside the
   part the Hide button collapses) for HTML-package lessons — e.g. the Mentor /
