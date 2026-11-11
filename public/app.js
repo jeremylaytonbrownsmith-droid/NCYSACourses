@@ -2134,6 +2134,94 @@ function renderScormLesson(pane, course, lesson, lp) {
     });
   }
 
+  // ---- Enlarged-image (lightbox) rescue --------------------------------------
+  // Evolve's "click to enlarge" opens a position:fixed overlay INSIDE the module
+  // frame, so its close ✕ sits at the top of the frame — which is scrolled off
+  // screen whenever the learner is partway down the page. They see a full-screen
+  // picture with no way out and reach for browser Back, which on a module that
+  // keeps no saved place means starting over (reported on Mentor module 1, "The
+  // Coaching Pathway"; that module has six such images). The frame is
+  // same-origin, so we watch its DOM: when a viewport-covering fixed overlay
+  // appears, bring the frame's top into view so the ✕ is visible; and while one
+  // is open, Back closes it instead of offering to leave (see onPopGuard).
+  // Generic on purpose — no Evolve-specific selectors — so any package with an
+  // in-frame overlay gets the same rescue.
+  let overlayEl = null, overlayObs = null, overlayBackMisses = 0;
+  function frameDoc() {
+    try { const fr = document.getElementById('scormFrame'); return (fr && fr.contentWindow && fr.contentWindow.document) || null; }
+    catch (e) { return null; } // cross-origin — can't happen for packages we serve, but never throw
+  }
+  function isBigFixed(el, win) {
+    try {
+      if (!el || el.nodeType !== 1) return false;
+      const cs = win.getComputedStyle(el);
+      if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') return false;
+      const r = el.getBoundingClientRect();
+      return r.width >= win.innerWidth * 0.8 && r.height >= win.innerHeight * 0.8;
+    } catch (e) { return false; }
+  }
+  // The overlay is the added node itself or sits within two levels of it (a
+  // portal container → backdrop → panel) — look that far and no further.
+  function findOverlay(node, win) {
+    if (isBigFixed(node, win)) return node;
+    if (!node || node.nodeType !== 1) return null;
+    for (const c of node.children) {
+      if (isBigFixed(c, win)) return c;
+      for (const g of c.children) if (isBigFixed(g, win)) return g;
+    }
+    return null;
+  }
+  function overlayOpen() {
+    const d = frameDoc();
+    if (!overlayEl || !d || !d.body || !d.body.contains(overlayEl) || !isBigFixed(overlayEl, d.defaultView)) { overlayEl = null; return false; }
+    return true;
+  }
+  function revealFrameTop() {
+    const fr = document.getElementById('scormFrame');
+    if (!fr) return;
+    const nav = document.querySelector('.topnav');
+    const offset = (nav && getComputedStyle(nav).position === 'sticky') ? nav.offsetHeight + 8 : 8;
+    const top = fr.getBoundingClientRect().top;
+    if (top < offset) window.scrollBy({ top: top - offset, behavior: 'smooth' });
+  }
+  // Close the open overlay the way the package expects: its own close control
+  // when we can find one, otherwise Escape. Returns true once it is gone.
+  function closeOverlay() {
+    const d = frameDoc();
+    if (!d || !overlayEl) return true;
+    const btn = overlayEl.querySelector('button[aria-label*="close" i], button[title*="close" i], [class*="close" i], [data-action="close"]');
+    if (btn) btn.click();
+    else {
+      const esc = () => new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+      try { (d.activeElement || d.body).dispatchEvent(esc()); } catch (e) { /* ignore */ }
+      try { d.dispatchEvent(esc()); } catch (e) { /* ignore */ }
+    }
+    return !overlayOpen();
+  }
+  function watchOverlays() {
+    const d = frameDoc();
+    if (!d || !d.body) return;
+    if (overlayObs) overlayObs.disconnect();
+    overlayEl = null;
+    overlayObs = new MutationObserver((muts) => {
+      const win = d.defaultView;
+      let looked = 0;
+      for (const m of muts) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1 || looked++ > 60) continue; // bounded per batch — React re-renders are chatty
+          const ov = findOverlay(n, win);
+          if (ov) { overlayEl = ov; revealFrameTop(); return; }
+        }
+      }
+    });
+    overlayObs.observe(d.body, { childList: true, subtree: true });
+  }
+  if (fsFrame) {
+    fsFrame.addEventListener('load', () => setTimeout(watchOverlays, 0));
+    const d0 = frameDoc();
+    if (d0 && d0.readyState === 'complete' && d0.body && d0.body.childElementCount) watchOverlays();
+  }
+
   function goNext() {
     const idx = course.lessons.findIndex((l) => l.id === lesson.id);
     const next = course.lessons[idx + 1];
@@ -2516,6 +2604,17 @@ function renderScormLesson(pane, course, lesson, lp) {
   function onPopGuard() {
     if (persistence !== 'nosave' || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
     backArmed = false;
+    // Back while an enlarged image / overlay is open inside the module means
+    // "close that", not "leave": close it, bring the frame top into view, keep
+    // the guard armed. Only if the overlay refuses to close twice running do we
+    // fall through to the normal leave prompt, so Back can never be a dead end.
+    if (overlayOpen()) {
+      const closed = closeOverlay();
+      revealFrameTop();
+      overlayBackMisses = closed ? 0 : overlayBackMisses + 1;
+      if (closed || overlayBackMisses < 2) { armBackGuard(); return; }
+    }
+    overlayBackMisses = 0;
     if (window.confirm('Leave this module? Your place in it will be lost — you would start it over.')) {
       window.removeEventListener('popstate', onPopGuard);
       history.back(); // they confirmed — perform the real back navigation now
@@ -2600,6 +2699,7 @@ function renderScormLesson(pane, course, lesson, lp) {
   // the learner leaves the lesson.
   window.addEventListener('hashchange', function cleanup() {
     stopBeat();
+    if (overlayObs) { overlayObs.disconnect(); overlayObs = null; }
     document.removeEventListener('visibilitychange', onVisibility);
     try { delete window.API; } catch (e) { window.API = undefined; }
     try { delete window.API_1484_11; } catch (e) { window.API_1484_11 = undefined; }
