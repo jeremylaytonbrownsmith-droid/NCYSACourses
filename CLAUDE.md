@@ -113,6 +113,19 @@ module**, and **mark a module complete for a learner** (how you credit someone
 like Jay for modules they already finished — no backend work). Plus course CRUD,
 the AI builder, and export to SCORM / web page.
 
+**Layout gotcha (phones):** the cards below the KPI row live in `.admin-grid`, a
+single-column CSS grid that **must stay `grid-template-columns: minmax(0, 1fr)`**
+with `min-width: 0` on its cards. All cards share that one track; an implicit
+`auto` track grows to the widest card's minimum content, so one card with a
+wide row made EVERY card (collapsed ones too) 405px on a 390px phone and the
+page scrolled sideways. The wide row was a `<select>` — a select sizes itself to
+its **longest option** (a course title), so `.filter-bar input/select` carry
+`max-width: 100%; min-width: 0`; keep that on any new select in a card. To check
+any dashboard layout change at phone width,
+render it headless and measure `scrollWidth` vs `innerWidth` (the dashboard
+needs an admin login — log in via `/api/login` and copy the cookie into the
+browser context) rather than eyeballing a screenshot.
+
 ## Deploy flow
 
 - Merging to `main` auto-deploys to Render (~1 min; free tier may 502 briefly on
