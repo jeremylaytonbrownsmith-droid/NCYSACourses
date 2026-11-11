@@ -3951,7 +3951,7 @@ async function viewCourseAdmin(flash) {
       slot.innerHTML = `
         <div class="editor-form">
           <h3>Demo launch link</h3>
-          <p class="form-hint">A working, <strong>signed</strong> launch link — the same kind a partner (e.g. OMS) mints on their side. It opens this course as a demo referee (no password) and expires in ${r.expiresInMinutes} minutes. Use it to show the integration live: open it, finish the module, and the completion webhook fires.</p>
+          <p class="form-hint">A working, <strong>signed</strong> launch link — the same kind a partner (e.g. OMS) mints on their side. It opens this course as a demo referee (no password) and expires in ${r.expiresInMinutes} minutes. It opens on <strong>this course's organization site</strong>, so the learner sees that org's branding. Use it to show the integration live: open it, finish the module, and the completion webhook fires.</p>
           <textarea id="lk-${cid}" rows="3" readonly style="width:100%;font-family:monospace;font-size:.78rem">${esc(r.url)}</textarea>
           <div class="form-actions">
             <button class="btn btn-accent btn-sm" id="lkcopy-${cid}">Copy link</button>
@@ -5567,6 +5567,19 @@ async function publicCourses() {
   try { _publicCourses = (await api('/api/courses')).courses; } catch { _publicCourses = []; }
   return _publicCourses;
 }
+// One course by id, from its own record — for a course that is NOT in the public
+// list: a draft being previewed through a signed demo/launch link, or a course
+// opened on a domain other than its org's. The endpoint needs a signed-in,
+// enrolled viewer (a launched demo learner is both; staff always qualify), so an
+// anonymous or unenrolled visitor simply gets null and the caller falls through.
+const _courseById = {};
+async function courseById(id) {
+  if (id in _courseById) return _courseById[id];
+  let c = null;
+  try { c = (await api(`/api/courses/${encodeURIComponent(id)}`)).course || null; } catch { c = null; }
+  _courseById[id] = c;
+  return c;
+}
 let _brandMap = null;
 async function brandMap() {
   if (_brandMap) return _brandMap;
@@ -5595,8 +5608,13 @@ async function brandForHash(hash) {
   let m = hash.match(/^#\/course\/([\w-]+)/);
   if (m) {
     if (map[m[1]]) return map[m[1]];
+    // Not in the public list (a draft previewed via a demo/launch link, or a course
+    // opened off its org's domain): brand from the course's OWN record. The header
+    // must follow the course's organization — an NCSRA course never wears the
+    // host domain's (OMG) identity just because of where the link was opened.
+    const c = (await publicCourses()).find((x) => x.id === m[1]) || await courseById(m[1]);
+    if (c && c.coBrandName) return { name: c.coBrandName, logo: c.coLogoUrl || orgLogo(c.orgId || DEFAULT_ORG), audience: c.audience, orgId: c.orgId || DEFAULT_ORG };
     // A referee course with no explicit co-brand still shows NCSRA, not NCYSA.
-    const c = (await publicCourses()).find((x) => x.id === m[1]);
     if (c && c.audience === 'referees') return { ...NCSRA_BRAND, logo: c.coLogoUrl || NCSRA_LOGO };
     return null;
   }

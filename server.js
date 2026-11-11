@@ -18,7 +18,7 @@ const QRCode = require('qrcode'); // certificate verify QR codes (generated as d
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims, publicBaseForOrg } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
 const { normalizeModuleDoc, enforceInfoSession } = require('./lib/moduledoc');
@@ -2780,7 +2780,9 @@ app.get('/api/admin/presence', requireDashboard, (req, res) => {
 
 // ---- Deadline reminders ----------------------------------------------------
 function courseLink(course) {
-  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+  // Reminder emails land on the course's own org domain (an NC learner's reminder
+  // must not open on OMG's site) — same rule as demo/launch links.
+  const base = publicBaseForOrg(orgOf(course), {});
   return `${base}/#/course/${course.id}`;
 }
 // Send one reminder email for an incomplete, dated enrollment. Uses the shared
@@ -3377,8 +3379,10 @@ app.post('/api/admin/integration/test-link', requireEditor, (req, res) => {
   // Sign with the course's org secret so the demo link verifies under per-org
   // isolation (falls back to the global secret when no per-org secret is set).
   const token = signToken(claims, secretForOrg(orgOf(course)), expiresInSec);
-  // Prefer the branded public domain over the raw Render host for shared links.
-  const base = (process.env.PUBLIC_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  // The link must open on the COURSE'S org domain (OMG → getmatchready.app; NC →
+  // ncysalearn.app). It used to use PUBLIC_URL for every course, so an NCSRA demo
+  // link opened on OMG's domain and the whole site rendered as OMG.
+  const base = publicBaseForOrg(orgOf(course), { requestBase: `${req.protocol}://${req.get('host')}` });
   res.json({ url: `${base}/launch?token=${token}`, expiresInMinutes: Math.round(expiresInSec / 60) });
 });
 

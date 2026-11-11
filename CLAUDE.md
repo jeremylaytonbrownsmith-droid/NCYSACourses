@@ -154,6 +154,21 @@ browser context) rather than eyeballing a screenshot.
   a Free instance) was deleted — don't re-add it. A slow first load is NOT the
   instance sleeping; look for the real cause. The Render *workspace* plan
   (Hobby/Pro) is separate from the compute plan and doesn't affect uptime.
+- **One domain per org — links must respect it.** `getmatchready.app` IS OMG's
+  site; NCYSA/NCSRA is `ncysalearn.app` (`DOMAIN_ORG` in `app.js`). Every
+  learner-facing link the server mints — the Designer's **demo/launch link** and
+  **reminder emails** — goes through `publicBaseForOrg(org, …)` in
+  `lib/integration.js`: NC → `ncysalearn.app`, OMG → `getmatchready.app`,
+  overridable with `PUBLIC_URL_NCYSA` / `PUBLIC_URL_OMG`; with no `PUBLIC_URL` at
+  all (dev, tests) links stay on the request host. It used to use `PUBLIC_URL` for
+  every course, so an NCSRA demo link opened on OMG's domain under an OMG header.
+  The **header brand follows the course's own record** (`coBrandName` /
+  `coLogoUrl` / `orgId`), fetched per course when it isn't in the public list — so
+  a **draft** previewed via a demo link is branded correctly too. Only with no
+  course in view does the header fall back to the domain's org (OMG on
+  getmatchready.app) or plain NCYSA. Covered by `tests/launch-domain.spec.js`.
+  After this change, **re-mint** any demo link made earlier — old ones still
+  point at the product domain.
 
 ## Interactive course format (`getmatchready.module/v1`)
 
