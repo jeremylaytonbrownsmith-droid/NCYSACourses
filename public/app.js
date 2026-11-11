@@ -2057,12 +2057,16 @@ function renderScormLesson(pane, course, lesson, lp) {
   const guideBody = (lesson.startGuide && String(lesson.startGuide).trim())
     ? String(lesson.startGuide)
     : `<ol>
-         <li><strong>Choose how you’re taking it.</strong> On the module’s opening screen, pick <strong>“Review Independently”</strong> — you’re going through it on your own, so nothing is scored or shared with a room. Then click <strong>Start Session</strong>.</li>
-         <li><strong>Move through the slides.</strong> Use <strong>Next Slide</strong> / <strong>Previous Slide</strong> at the bottom of the module. It’s long (around 194 slides). <strong>This module does not save your place</strong> — plan to finish it in one sitting.</li>
-         <li><strong>Want a bigger view?</strong> Click <strong>⛶ Full screen</strong> just below, or use the <strong>☰ menu</strong> inside the module to hide its sidebar.</li>
+         <li><strong>Choose how you’re taking it.</strong> The first time you open it, pick <strong>“Review Independently”</strong> on the module’s opening screen — you’re going through it on your own, so nothing is scored or shared with a room. Then click <strong>Start Session</strong>.</li>
+         <li><strong>Move through the slides.</strong> Use <strong>Next Slide</strong> / <strong>Previous Slide</strong> at the bottom of the module. It’s long (around 194 slides). <span id="mgSave" class="mg-save"></span></li>
+         <li><strong>Want a bigger view?</strong> Click <strong>⛶ Full screen</strong> just below, press <strong>F</strong> inside the module for <strong>Presentation Mode</strong> (a clean single-screen view), or use the <strong>☰ menu</strong> inside the module to hide its sidebar.</li>
          <li><strong>Some videos are silent on purpose.</strong> A few clips have no narration by design — that’s normal. Keep going.</li>
-         <li><strong>You finish automatically.</strong> When you reach the last slide the module <strong>marks itself complete</strong> and your <strong>certificate is issued</strong> — you don’t need to click anything else. If you have to leave before the end, you’ll start this module over next time.</li>
+         <li><strong>You finish automatically.</strong> When you reach the last slide the module <strong>marks itself complete</strong> and your <strong>certificate is issued</strong> — you don’t need to click anything else.<span id="mgSaveEnd" class="mg-save"></span></li>
        </ol>`;
+  // #mgSave / #mgSaveEnd are filled by paintPersistence() from EVIDENCE of whether
+  // this package saves the learner's place (see `persistence` below) — never a
+  // hard-coded "saved" or "finish in one sitting" claim. Mentor+ bookmarks every
+  // slide through our LMS API and resumes on any device; an Evolve export doesn't.
   const guideHtml = (isHtmlPkg && !lp.completed && !missing)
     ? `<div class="module-guide" id="moduleGuide">
          <div class="mg-head">
@@ -2233,6 +2237,20 @@ function renderScormLesson(pane, course, lesson, lp) {
   // True once the package calls the SCORM API (Initialize/SetValue) — i.e. it is
   // self-reporting, so the manual fallback link stays hidden for good.
   let apiUsed = false;
+  // What we know about whether this package SAVES the learner's place:
+  //   'unknown' — nothing yet (first visit; the package hasn't written a bookmark)
+  //   'saves'   — it wrote a bookmark / suspend blob through our LMS API, or one is
+  //               already on record from an earlier visit → we hand it back next
+  //               time and it resumes where they left off (Mentor+ does exactly
+  //               this on every slide; verified end to end, any device)
+  //   'nosave'  — it keeps its place in memory only: the Evolve outline was
+  //               detected, or a plain page never touched the API after 90s of use
+  // Every "your place is saved" / "finish in one sitting" message, the ⚠️ banner
+  // and the leave/back guards follow THIS — never a hard-coded claim (a false
+  // "saved" promise once caused the "I lost my spot" emails; a false "not saved"
+  // pushes people to grind 194 slides in one go). Proof of saving always wins.
+  let persistence = (saved.location || saved.suspendData) ? 'saves' : 'unknown';
+  let backArmed = false, backRegistered = false; // leave/back guard state (see below)
   const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s)) % 60).padStart(2, '0')}`;
 
   const actionsEl = document.getElementById('scormActions');
@@ -2240,7 +2258,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     actionsEl.innerHTML =
       (required > 0
         ? `<div class="scorm-gate"><div class="progress-track"><div class="progress-fill" id="scormFill" style="width:0%"></div></div><span class="meta" id="scormHint"></span></div>`
-        : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you finish. Your place is saved if you leave.</span>`) +
+        : `<span class="meta" id="scormHint">Work through the whole module — it marks itself complete when you finish.<span id="scormSaved"></span></span>`) +
       // Hidden by default: only a non-self-reporting HTML page ever reveals this
       // (see paintGate). Mentor+ and any SCORM-aware module self-complete, so the
       // learner never sees a manual button.
@@ -2271,6 +2289,9 @@ function renderScormLesson(pane, course, lesson, lp) {
       // the manual link. A self-reporting module (Mentor+) never trips this.
       const row = document.getElementById('htmlDoneRow');
       if (row) row.hidden = done || apiUsed || active < 90;
+      // Same evidence: a page that never touched the API after 90s keeps its place
+      // (if at all) in memory only → one-sitting warning + leave guards.
+      if (!done && !apiUsed && active >= 90) notePersistence('nosave');
       return;
     }
     const hint = document.getElementById('scormHint');
@@ -2358,7 +2379,7 @@ function renderScormLesson(pane, course, lesson, lp) {
     if (done) return; // keep polling even after reachedEnd, so a missed completion
     const st = evolveStatus(); // ping is retried until the server actually confirms
     if (!st) return;
-    enableBackGuard(); // Evolve detected → turn on the no-persistence protections
+    notePersistence('nosave'); // Evolve detected → it keeps its place in memory only → warning + leave guards
     // Breadcrumb so detection can be verified/tuned from the browser console.
     if (Date.now() - evoLastLog > 15000) { evoLastLog = Date.now(); try { console.debug(`[evolve] ${st.complete}/${st.total} pages complete`); } catch (e) { /* ignore */ } }
     if (st.complete > 0 && st.complete >= st.total) {
@@ -2396,6 +2417,9 @@ function renderScormLesson(pane, course, lesson, lp) {
     LMSGetValue: function (k) { return cmi[k] != null ? String(cmi[k]) : ''; },
     LMSSetValue: function (k, v) {
       cmi[k] = v;
+      // A bookmark / resume blob written through the API is proof the package
+      // saves the learner's place (we store it and hand it back next visit).
+      if ((k === 'cmi.core.lesson_location' || k === 'cmi.suspend_data') && String(v == null ? '' : v).length) notePersistence('saves');
       if (k === 'cmi.core.lesson_status') {
         if ((v === 'completed' || v === 'passed') && !reachedEnd) {
           reachedEnd = true;
@@ -2443,8 +2467,10 @@ function renderScormLesson(pane, course, lesson, lp) {
     GetValue: function (k) { return s2[k] != null ? String(s2[k]) : ''; },
     SetValue: function (k, v) {
       s2[k] = v;
-      if (k === 'cmi.location') cmi['cmi.core.lesson_location'] = v;
-      else if (k === 'cmi.suspend_data') cmi['cmi.suspend_data'] = v;
+      if (k === 'cmi.location' || k === 'cmi.suspend_data') {
+        cmi[k === 'cmi.location' ? 'cmi.core.lesson_location' : 'cmi.suspend_data'] = v;
+        if (String(v == null ? '' : v).length) notePersistence('saves'); // same proof as the 1.2 path
+      }
       else if (k === 'cmi.score.raw') cmi['cmi.core.score.raw'] = v;
       else if (k === 'cmi.score.min') cmi['cmi.core.score.min'] = v;
       else if (k === 'cmi.score.max') cmi['cmi.core.score.max'] = v;
@@ -2469,12 +2495,14 @@ function renderScormLesson(pane, course, lesson, lp) {
   paintGate({ activeSeconds: active, required });
   startBeat();
 
-  // Accidental-exit guard: an in-progress HTML (Evolve) module keeps its place
-  // only in memory, so a reload / tab-close / browser-back wipes it with no way to
-  // restore (the package stores nothing). Warn before leaving. Dropped the moment
-  // the module completes (finalize) or the learner intentionally leaves (cleanup).
+  // Accidental-exit guard: a module we KNOW keeps its place only in memory
+  // (persistence === 'nosave', e.g. an Evolve export) loses it on a reload /
+  // tab-close / browser-back with no way to restore. Warn before leaving. Never
+  // armed for a package that bookmarks through the LMS (it just resumes), and
+  // dropped the moment the module completes (finalize) or the learner
+  // intentionally leaves (cleanup).
   function beforeUnloadGuard(e) {
-    if ((isHtml || evoSeen) && !done) { e.preventDefault(); e.returnValue = ''; return ''; }
+    if (persistence === 'nosave' && !done) { e.preventDefault(); e.returnValue = ''; return ''; }
   }
   window.addEventListener('beforeunload', beforeUnloadGuard);
 
@@ -2484,10 +2512,9 @@ function renderScormLesson(pane, course, lesson, lp) {
   // module stays intact — we then confirm. Decline → re-arm the sentinel (stay).
   // Confirm → remove the guard and actually go back. Only while an HTML module is
   // in progress; cleared on completion (finalize) and on leaving (cleanup).
-  let backArmed = false, backRegistered = false;
-  function armBackGuard() { if ((isHtml || evoSeen) && !backArmed) { try { history.pushState({ gmrGuard: 1 }, ''); backArmed = true; } catch (e) { /* ignore */ } } }
+  function armBackGuard() { if (persistence === 'nosave' && !backArmed) { try { history.pushState({ gmrGuard: 1 }, ''); backArmed = true; } catch (e) { /* ignore */ } } }
   function onPopGuard() {
-    if ((!isHtml && !evoSeen) || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
+    if (persistence !== 'nosave' || done) { window.removeEventListener('popstate', onPopGuard); backArmed = false; return; }
     backArmed = false;
     if (window.confirm('Leave this module? Your place in it will be lost — you would start it over.')) {
       window.removeEventListener('popstate', onPopGuard);
@@ -2501,8 +2528,8 @@ function renderScormLesson(pane, course, lesson, lp) {
     backRegistered = true;
     armBackGuard();
     window.addEventListener('popstate', onPopGuard);
-    // One-time caution banner for these non-persisting modules (shown once the
-    // Evolve outline is detected, so it never appears on a module that saves).
+    // One-time caution banner — only once we have EVIDENCE the package doesn't
+    // save (notePersistence('nosave')), so it never appears on a module that does.
     try {
       if (!done && !document.getElementById('evoWarn')) {
         const shell = document.querySelector('.scorm-shell');
@@ -2515,7 +2542,43 @@ function renderScormLesson(pane, course, lesson, lp) {
       }
     } catch (e) { /* ignore */ }
   }
-  if (isHtml) enableBackGuard();
+  function disableBackGuard() {
+    backRegistered = false; backArmed = false;
+    try { window.removeEventListener('popstate', onPopGuard); } catch (e) { /* ignore */ }
+    const w = document.getElementById('evoWarn');
+    if (w && w.parentNode) w.parentNode.removeChild(w);
+  }
+  // Record new evidence about whether the package saves its place, and make the
+  // guards + wording follow it. Proof of saving wins over a "doesn't save" guess —
+  // never scare a learner whose place IS kept.
+  function notePersistence(next) {
+    if (persistence === next || done) return;
+    if (next === 'nosave' && persistence === 'saves') return;
+    persistence = next;
+    if (next === 'nosave') enableBackGuard(); else disableBackGuard();
+    paintPersistence();
+  }
+  // The guide's save sentences (#mgSave in step 2, #mgSaveEnd in step 5) and the
+  // hint's (#scormSaved) — blank while unknown. An admin's custom startGuide has
+  // no such spans, so it is left exactly as written.
+  function paintPersistence() {
+    const saveEl = document.getElementById('mgSave');
+    const endEl = document.getElementById('mgSaveEnd');
+    const hintEl = document.getElementById('scormSaved');
+    const cls = 'mg-save ' + persistence;
+    if (saveEl) {
+      saveEl.className = cls;
+      saveEl.innerHTML = persistence === 'saves'
+        ? '<strong>Your place is saved as you go.</strong> If you need to stop, come back later — on any device, signed in — and you’ll pick up where you left off.'
+        : (persistence === 'nosave' ? '<strong>This module does not save your place</strong> — plan to finish it in one sitting.' : '');
+    }
+    if (endEl) {
+      endEl.className = cls;
+      endEl.textContent = persistence === 'nosave' ? ' If you have to leave before the end, you’ll start this module over next time.' : '';
+    }
+    if (hintEl) hintEl.textContent = persistence === 'saves' ? ' Your place is saved if you leave.' : '';
+  }
+  paintPersistence(); // a return visit with a bookmark on record says "saved" from the start
 
   // HTML package: the learner marks it complete once the time gate is met. This
   // sets the status the server needs (completed) and syncs — the server confirms
