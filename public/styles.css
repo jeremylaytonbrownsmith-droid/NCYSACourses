@@ -478,7 +478,16 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 
 .admin-wrap { max-width: 1320px; margin: 36px auto; padding: 0 20px; }
 .admin-wrap h1 { margin-bottom: 4px; }
-.admin-grid { display: grid; gap: 22px; margin-top: 24px; }
+/* Single column, but it MUST be minmax(0, 1fr), not an implicit `auto` track. All
+   the cards share this one track, and an `auto` track grows to the widest card's
+   minimum content — so one card with a wide row (side-by-side buttons, a filter
+   input next to a select) widened EVERY card: on a 390px phone the KPI cards
+   measured 372px while every .admin-card measured 405px, collapsed ones
+   included, and the page scrolled sideways. minmax(0, 1fr) pins the track to the
+   container; min-width:0 lets a card be exactly that wide, so an over-wide child
+   overflows inside its card (scrolling there on desktop) instead of the page. */
+.admin-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; margin-top: 24px; }
+.admin-grid > .admin-card { min-width: 0; }
 .admin-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; overflow-x: auto; }
 .admin-card h2 { font-size: 1.1rem; margin-bottom: 14px; }
 /* Keep a long list (notifications, records) as a compact panel that scrolls
@@ -859,7 +868,11 @@ details.mail > pre { padding-bottom: 12px; margin-top: 4px; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .card-head h2 { margin: 0; }
 .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-.filter-bar input, .filter-bar select { padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); }
+/* max-width:100% + min-width:0 matter: a <select> sizes itself to its LONGEST
+   option (a course title), so without them the course filter ran 381px wide
+   inside a 348px phone card and pushed the page sideways. Capped, it shrinks and
+   ellipsizes its label instead of dictating the row's width. */
+.filter-bar input, .filter-bar select { padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); max-width: 100%; min-width: 0; }
 .filter-bar #fltSearch { flex: 1; min-width: 180px; }
 .date-flt { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
 .filter-count { margin-top: 10px; font-size: 0.82rem; color: var(--ink-soft); }
