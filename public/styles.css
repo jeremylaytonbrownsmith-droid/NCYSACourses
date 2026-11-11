@@ -1000,6 +1000,18 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .module-guide.collapsed .mg-body { display: none; }
 .module-guide.collapsed { border-left-color: var(--line); }
 .module-guide.collapsed .mg-head h3 { color: var(--ink-soft); }
+/* The course's Start Here text (course.instructions) as the FIRST line inside the
+   guide — between the heading and the numbered steps, and OUTSIDE the part the
+   Hide button collapses, so it stays visible on every visit. If the admin used
+   the editor's ⚠ Important callout it already carries its own frame, so we add
+   none; plain text gets that same "Important" look so it never reads as just
+   another step. */
+.module-guide .mg-intro { margin: 10px 0 0; color: var(--ink-body); line-height: 1.5; }
+.module-guide .mg-intro > :first-child { margin-top: 0; }
+.module-guide .mg-intro > :last-child { margin-bottom: 0; }
+.module-guide .mg-intro:not(:has(.callout)) { background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #b45309; border-radius: 10px; padding: 11px 14px; }
+.module-guide .mg-intro:not(:has(.callout)) strong { color: #b45309; }
+.module-guide .mg-intro + .mg-body { margin-top: 12px; }
 
 /* Bunny CDN box in the Module storage panel */
 .cdn-box { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; background: #f6f8fc; }
