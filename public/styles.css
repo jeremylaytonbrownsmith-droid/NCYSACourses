@@ -459,6 +459,16 @@ body.pseudo-fs-lock .lesson-pane { animation: none !important; transform: none !
 .certificate .seal { font-size: 2.6rem; margin-top: 18px; }
 
 /* ---------- notifications & admin ---------- */
+/* Referee-portal sections (Referees / Mentors / Assignors): a labelled band above
+   each group's card grid. Only rendered when a portal has more than one group. */
+.portal-group { margin-top: 30px; }
+.portal-group:first-of-type { margin-top: 0; }
+.portal-group-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.portal-group-head h3 { font-size: 1.08rem; margin: 0; }
+.portal-group-sub { color: var(--ink-soft); font-size: .9rem; }
+.portal-group-count { margin-left: auto; color: var(--ink-soft); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+@media (max-width: 640px) { .portal-group-count { margin-left: 0; } }
+
 .notif-list { max-width: 720px; margin: 40px auto; padding: 0 20px; }
 .notif {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);

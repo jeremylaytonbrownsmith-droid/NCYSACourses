@@ -300,6 +300,18 @@ Course Designer → ＋ New course (set **Organization**) → ＋ Add lesson →
 **Interactive module (block JSON)** → paste/validate JSON (**Check JSON**) →
 Add lesson → **Publish**. A printable cheat-sheet of this lives with the team.
 
+**Referee-portal sections.** `#/referees` groups referee-audience courses into
+fixed-order sections — **Referees · Mentors · Assignors** — each with a subtitle
+and count (`groupedCourseGrid` / `trackOf` in `app.js`). A course's section is its
+explicit `track` (the Designer's **Section** dropdown; stored only as
+`referee|mentor|assignor`, empty = auto) or, by default, inferred from the title
+("Mentor" → Mentors, "Assignor" → Assignors, else Referees) — so existing courses
+needed no edits. Inside a section, first-time courses come before recertification
+(title/badge matching "recert"); otherwise the Designer's up/down order holds.
+Headings appear only when a portal has **more than one** section, so OMG's
+single-track portal keeps its plain grid. Covered by `tests/portal-sections.spec.js`.
+Keep card **badges** consistent by hand: "First-time" / "Recertification".
+
 ## Working style for this user
 
 Short, concise, plain answers. Do the work; don't over-explain or present long
