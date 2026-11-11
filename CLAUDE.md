@@ -211,7 +211,15 @@ browser context) rather than eyeballing a screenshot.
   course in view does the header fall back to the domain's org (OMG on
   getmatchready.app) or plain NCYSA. Covered by `tests/launch-domain.spec.js`.
   After this change, **re-mint** any demo link made earlier — old ones still
-  point at the product domain.
+  point at the product domain. **The Render hostname redirects.** The service
+  also answers on `ncysa-learn.onrender.com`; a page opened there loads every
+  file (videos included) from onrender.com, which a school network's Microsoft
+  filter blocked while allowing `ncysalearn.app`. A middleware near the top of
+  `server.js` 301-redirects GET/HEAD page loads on any `*.onrender.com` host to
+  `ORG_FRONT_DOORS.ncysa` (override `PUBLIC_URL_NCYSA`), keeping the path; the
+  browser carries the `#/route`. Exempt: `/health` (Render's check), `/api/`,
+  `/launch`, `/scorm/`. Covered by `tests/canonical-host.spec.js`. Hand out only
+  `ncysalearn.app` / `getmatchready.app` links; never the onrender one.
 
 ## Interactive course format (`getmatchready.module/v1`)
 

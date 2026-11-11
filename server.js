@@ -18,7 +18,7 @@ const QRCode = require('qrcode'); // certificate verify QR codes (generated as d
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
 const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
-const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims, publicBaseForOrg } = require('./lib/integration');
+const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims, publicBaseForOrg, ORG_FRONT_DOORS } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
 const { sanitizeLessonHtml } = require('./lib/sanitize');
 const { normalizeModuleDoc, enforceInfoSession } = require('./lib/moduledoc');
@@ -667,6 +667,25 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   if (isHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
   next();
+});
+// Canonical host. The service also answers on Render's own hostname
+// (ncysa-learn.onrender.com). A learner who lands there — an old bookmark, the
+// link in the Render dashboard, a search result — loads EVERY file from
+// onrender.com, videos included, and at least one school network's Microsoft
+// filter blocks that host while allowing ncysalearn.app. So a page load on any
+// *.onrender.com host is sent to the NCYSA front door with a permanent redirect
+// (the browser carries the #/route along). Exempt: /health (Render's own check
+// needs a 200), the JSON API, partner /launch links (they carry their own base),
+// and /scorm/ package files (never bounce media/fonts cross-origin — the page
+// redirects first, so those requests don't arise). GET/HEAD only.
+const ONRENDER_HOST = /\.onrender\.com$/i;
+const CANONICAL_NCYSA = (process.env.PUBLIC_URL_NCYSA || ORG_FRONT_DOORS.ncysa).replace(/\/+$/, '');
+app.use((req, res, next) => {
+  const host = String(req.get('host') || '').split(':')[0];
+  if (!ONRENDER_HOST.test(host)) return next();
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (/^\/(health$|api\/|launch\b|scorm\/)/.test(req.path)) return next();
+  return res.redirect(301, CANONICAL_NCYSA + req.originalUrl);
 });
 // Always revalidate the app shell (HTML/JS/CSS) so a new deploy is picked up on
 // the next page load instead of a stale cached copy lingering in the browser.
