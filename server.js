@@ -1430,6 +1430,60 @@ function hiddenSlidesForPackage(pkg) {
   return [];
 }
 
+// Is this uploaded package an Evolve (Intellum) "web" export — US Soccer's Mentor
+// Foundations modules? Evolve bakes its tracking mode in at export: a web export
+// never talks to the LMS, keeps its place in memory only, and we complete it by
+// watching its course outline (checkEvolveComplete in app.js). It is NOT a
+// presenter-style HTML package like Mentor+, so it must never carry the
+// `htmlPackage` flag — that flag turns on the 📘 Mentor+ guide ("Review
+// Independently", 194 slides…) and the manual "mark it complete" fallback, which
+// on a module that can't self-report is a skip hole. Signature: the launch page
+// mounts `#ev-root`, or course.json + manifest.json + assets/main.min.js sit
+// beside it. Memoized — a stored package never changes.
+const evolveCache = new Map();
+function isEvolvePackage(packageId, launchFile) {
+  const pkg = String(packageId || '').replace(/[^A-Za-z0-9._-]/g, '');
+  if (!pkg) return false;
+  const key = pkg + '|' + (launchFile || '');
+  if (evolveCache.has(key)) return evolveCache.get(key);
+  let hit = false;
+  for (const root of [SCORM_DIR, BUNDLED_SCORM_DIR]) {
+    const base = path.resolve(root, pkg);
+    if (!fs.existsSync(base)) continue;
+    try {
+      const launch = path.resolve(base, String(launchFile || 'index.html').replace(/\\/g, '/'));
+      if (launch.startsWith(base + path.sep)) {
+        if (fs.existsSync(launch) && fs.statSync(launch).isFile()) {
+          const fd = fs.openSync(launch, 'r');
+          try {
+            const buf = Buffer.alloc(65536);
+            const n = fs.readSync(fd, buf, 0, buf.length, 0);
+            hit = /id=["']ev-root["']/.test(buf.toString('utf8', 0, n));
+          } finally { fs.closeSync(fd); }
+        }
+        const dir = path.dirname(launch);
+        if (!hit) hit = ['course.json', 'manifest.json', path.join('assets', 'main.min.js')].every((f) => fs.existsSync(path.join(dir, f)));
+      }
+    } catch { hit = false; }
+    break;
+  }
+  evolveCache.set(key, hit);
+  return hit;
+}
+// A Mentor lesson re-uploaded before Evolve was recognised was saved with
+// htmlPackage:true (the uploader called every manifest-less zip "html"). Correct
+// it on the way out, so the player and the Designer both see the truth; the next
+// Designer save then persists the corrected flag. Non-Evolve lessons are untouched.
+function withEvolveFlag(course) {
+  if (!course || !Array.isArray(course.lessons)) return course;
+  let changed = false;
+  const lessons = course.lessons.map((l) => {
+    if (l && l.type === 'scorm' && l.htmlPackage && l.packageId && isEvolvePackage(l.packageId, l.launchFile)) { changed = true; return { ...l, htmlPackage: false }; }
+    return l;
+  });
+  return changed ? { ...course, lessons } : course;
+}
+
 // Read a package's manifest.js and pull out its ITEMS ("i"/"v" per slide) and
 // TITLES arrays. Returns null when the file is missing or ITEMS can't be parsed
 // (so a non-slideshow package is never touched). Also returns the raw text and
@@ -1849,6 +1903,7 @@ function invalidateUserSessions(db, userId) {
 // ---------- course helpers ----------
 // Public view of a course: strips quiz answers so they never reach the client.
 function publicCourse(course) {
+  course = withEvolveFlag(course);
   return {
     ...course,
     lessons: course.lessons.map((l) =>
@@ -4019,6 +4074,10 @@ async function processLocalZip(tmpZip, nameHint, opts = {}) {
     fs.rmSync(tmpZip, { force: true }); tmpZip = null; // extraction done — drop the temp zip
 
     if (!wrote) throw Object.assign(new Error('The .zip was empty.'), { status: 400 });
+    // An Evolve web export (US Soccer's Mentor Foundations) is its own kind: the
+    // Designer and the partner upload set `htmlPackage` only for kind "html", so
+    // an Evolve lesson never gets the Mentor+ guide / manual-complete fallback.
+    if (kind === 'html' && isEvolvePackage(packageId, launchFile)) kind = 'evolve';
     // Offload videos to the Bunny CDN if configured (streams; no-op otherwise).
     // opts.noCdn keeps the videos on the server instead: some players (e.g. the
     // US Soccer Mentor+ presenter) stream their own video in a way our CDN rewrite
@@ -4597,7 +4656,7 @@ app.get('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   const course = allCourses().find((c) => c.id === req.params.courseId);
   if (!course) return res.status(404).json({ error: 'Course not found' });
   if (!courseInScope(req, res, course)) return;
-  res.json({ course });
+  res.json({ course: withEvolveFlag(course) });
 });
 
 // SPA fallback — same per-domain title/preview as the front door.
