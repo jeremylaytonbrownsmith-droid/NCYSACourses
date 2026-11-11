@@ -91,7 +91,11 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   once per regression (state is empty afterward). The explicit admin
   `{reset:true}` path returns before this, so a deliberate "start over" never
   alerts. This is a monitor to catch new/unknown causes before a learner emails —
-  not a fix for a cause we know.
+  not a fix for a cause we know. Covered by `tests/reset-alert.spec.js` (run a
+  single spec with `npx playwright test tests/<name>.spec.js --trace off`).
+  **Blind spot:** HTML/Evolve (Mentor) modules send no `suspend_data`, so a lost
+  place there is invisible to this alert — only SCORM (the recert modules) is
+  watched.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
