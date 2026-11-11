@@ -118,7 +118,22 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   from `persistence`. An admin's custom `lesson.startGuide` has none of those
   spans, so check its wording by hand. Covered by `tests/html-resume.spec.js`.
   The guide also tells learners about the package's **Presentation Mode (F key)**
-  for a clean single-screen view. **The course's "Start
+  for a clean single-screen view. **Evolve web exports are their own upload
+  kind** (`isEvolvePackage` in `server.js`: launch page mounts `#ev-root`, or
+  `course.json` + `manifest.json` + `assets/main.min.js` beside it → upload
+  `kind:'evolve'`), so the Designer never sets `htmlPackage` on a Mentor lesson —
+  that flag is for presenter-style packages (Mentor+) and would put the Mentor+
+  📘 guide and the manual "mark it complete" fallback (a skip hole) on an Evolve
+  module. A Mentor lesson saved with the flag before this existed is corrected on
+  read (`withEvolveFlag` in `publicCourse` + the admin course GET). Covered by
+  `tests/evolve-package.spec.js`. **Shrinking an Evolve package's assets** (the
+  Mentor Foundations export shipped at 353 MB: six 6016-px photos at 10–43 MB
+  and a 185 MB MP4) is a plain file swap inside the zip — `sips -Z 1920` on the
+  images, `avconvert --preset PresetAppleM4V720pHD` on the video, same
+  filenames, course.json untouched (its `.jws.json` signature stays valid) — then
+  re-upload to the same lesson; progress is per lesson id. Module 1 went 353 →
+  96 MB that way. Evolve's "remember progress" is OFF in these exports
+  (`config.publish.useLocalStorage:false`); only US Soccer can flip that. **The course's "Start
   Here" text (`course.instructions`, the Designer's Start Here box) renders as the
   FIRST line inside that 📘 guide** (`#mgIntro`, above the steps and outside the
   part the Hide button collapses) for HTML-package lessons — e.g. the Mentor /
