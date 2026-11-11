@@ -146,6 +146,12 @@ browser context) rather than eyeballing a screenshot.
   dry-run found 5 red tests and none was a bug. **Running the suite rewrites
   `screenshots/*.png`** (the e2e journey captures them) — `git checkout --
   screenshots/` before committing, and always `git add` named files, never `-A`.
+  **Test gotcha — registering through the UI:** after clicking "Create account",
+  wait for the nav greeting (`expect(page.locator('.topnav')).toContainText('Hi,
+  <First>')`) BEFORE calling the API or navigating. The `/api/register` response
+  sets the cookie, but the SPA sets `me.user` one more round trip later; navigate
+  earlier and `viewCourse` bounces to `#/register`, which shows up as a flaky
+  120s timeout on a slow CI runner. The never-flaky tests already do this.
 - **Hosting:** the `ncysa-learn` Render web service runs on the **Standard compute
   plan** (1 CPU / 2 GB, always-on — Render renamed "Instance Type" to "Compute
   Plan"; it's under the service's MANAGE → Compute). Its primary domain is
@@ -299,6 +305,18 @@ prompt + `docs/MODULE-STANDARD.md`, so generated courses stay on standard.
 Course Designer → ＋ New course (set **Organization**) → ＋ Add lesson → type
 **Interactive module (block JSON)** → paste/validate JSON (**Check JSON**) →
 Add lesson → **Publish**. A printable cheat-sheet of this lives with the team.
+
+**Referee-portal sections.** `#/referees` groups referee-audience courses into
+fixed-order sections — **Referees · Mentors · Assignors** — each with a subtitle
+and count (`groupedCourseGrid` / `trackOf` in `app.js`). A course's section is its
+explicit `track` (the Designer's **Section** dropdown; stored only as
+`referee|mentor|assignor`, empty = auto) or, by default, inferred from the title
+("Mentor" → Mentors, "Assignor" → Assignors, else Referees) — so existing courses
+needed no edits. Inside a section, first-time courses come before recertification
+(title/badge matching "recert"); otherwise the Designer's up/down order holds.
+Headings appear only when a portal has **more than one** section, so OMG's
+single-track portal keeps its plain grid. Covered by `tests/portal-sections.spec.js`.
+Keep card **badges** consistent by hand: "First-time" / "Recertification".
 
 ## Working style for this user
 

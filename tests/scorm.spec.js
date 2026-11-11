@@ -230,6 +230,7 @@ test('a video lesson with a Vimeo link renders an inline embedded player (native
   await page.fill('#firstName', 'Em'); await page.fill('#lastName', 'Bed');
   await page.fill('#email', `em.bed+${Date.now()}@example.com`);
   await page.click('button:has-text("Create account")');
+  await expect(page.locator('.topnav')).toContainText('Hi, Em'); // SPA has me.user — safe to navigate
   await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
 
   await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
@@ -300,6 +301,7 @@ test('the Law Changes slideshow shows one slide at a time with Next gated', asyn
       page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
       page.click('button:has-text("Create account")'),
     ]);
+    await expect(page.locator('.topnav')).toContainText('Hi, Slide'); // SPA has me.user — safe to navigate
     const enrolled = await page.request.post(`${BASE}/api/courses/omg-law-changes-2026-27/enroll`);
     expect(enrolled.ok()).toBeTruthy();
 
@@ -332,6 +334,7 @@ test('a video slide plays the clip inline on the slide (no separate lesson, no f
   await page.fill('#firstName', 'Vid'); await page.fill('#lastName', 'Slide');
   await page.fill('#email', `vid.slide+${Date.now()}@example.com`);
   await page.click('button:has-text("Create account")');
+  await expect(page.locator('.topnav')).toContainText('Hi, Vid'); // SPA has me.user — safe to navigate
   await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
 
   await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
@@ -374,6 +377,12 @@ test('a linkOut video slide opens Vimeo in a tab (like Captivate) instead of emb
     page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
     page.click('button:has-text("Create account")'),
   ]);
+  // Two races live here. The register RESPONSE sets the cookie (so enroll works),
+  // but the SPA sets me.user only after its own follow-up /api/me round trip —
+  // navigate before that and viewCourse sees no user, bounces to #/register, and
+  // #slideNav never appears (a 120s timeout on a slow CI runner). Waiting for the
+  // nav greeting is the signal the SPA is signed in, same as the tests that never flake.
+  await expect(page.locator('.topnav')).toContainText('Hi, Link');
   const enrolled = await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
   expect(enrolled.ok()).toBeTruthy();
 

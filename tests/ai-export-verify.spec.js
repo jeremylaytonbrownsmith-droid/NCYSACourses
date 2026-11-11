@@ -138,6 +138,7 @@ test('AI-built course becomes a real course a learner can take and complete', as
     page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
     page.click('button:has-text("Create account")'),
   ]);
+  await expect(page.locator('.topnav')).toContainText('Hi, AiLearner'); // SPA has me.user — safe to navigate
   const enrolled = await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
   expect(enrolled.ok()).toBeTruthy();
 

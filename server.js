@@ -2055,6 +2055,7 @@ app.get('/api/courses', (req, res) => {
         id: c.id, title: c.title, tagline: c.tagline, description: c.description,
         badge: c.badge, estMinutes: Math.max(1, Math.round(Number(c.estMinutes) || estimateCourseMinutes(c))), heroEmoji: c.heroEmoji,
         audience: c.audience || 'everyone',
+        track: c.track || null, // explicit portal section, or null = inferred from the title
         orgId: orgOf(c),
         coBrandName: c.coBrandName || null,
         coLogoUrl: c.coLogoUrl || null,
@@ -3154,6 +3155,11 @@ function buildLesson(body) {
   return { ...base, html: sanitizeLessonHtml(body.html), passPercent: Math.min(100, Math.max(0, Number(body.passPercent) || 80)), questions };
 }
 
+// Referee-portal sections a course can be filed under. Optional: with no value the
+// portal infers the section from the title (trackOf in public/app.js), so existing
+// courses group correctly with no edits. Stored only when it is a known value.
+const TRACKS = new Set(['referee', 'mentor', 'assignor']);
+
 app.post('/api/admin/courses', requireEditor, (req, res) => {
   const b = req.body || {};
   if (!b.title) return res.status(400).json({ error: 'Course title is required' });
@@ -3165,6 +3171,7 @@ app.post('/api/admin/courses', requireEditor, (req, res) => {
     description: String(b.description || ''),
     badge: String(b.badge || 'Course'),
     audience: ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience) ? b.audience : 'everyone',
+    ...(TRACKS.has(String(b.track || '').toLowerCase()) ? { track: String(b.track).toLowerCase() } : {}),
     // Organization the course belongs to (which portal shows it). A partner can
     // only ever create in its own org; others use the requested org (or default).
     orgId: reqOrgScope(req) || (ORGS[String(b.orgId || '').toLowerCase()] ? String(b.orgId).toLowerCase() : DEFAULT_ORG),
@@ -3440,6 +3447,9 @@ app.put('/api/admin/courses/:courseId', requireEditor, (req, res) => {
   for (const f of ['title', 'tagline', 'description', 'badge', 'heroEmoji', 'completionRedirectUrl', 'instructions',
     'coBrandName', 'coLogoUrl', 'certOrg', 'certTitle', 'certPrefix']) if (b[f] != null) course[f] = String(b[f]);
   if (b.audience && ['everyone', 'coaches', 'referees', 'staff'].includes(b.audience)) course.audience = b.audience;
+  // Portal section: a known value sets it; an empty value clears it back to "auto"
+  // (inferred from the title); anything else is ignored.
+  if (b.track != null) { const t = String(b.track).trim().toLowerCase(); if (TRACKS.has(t)) course.track = t; else if (t === '') delete course.track; }
   // Certificate accent colors (border/title + seal). Accept only a valid hex, or
   // an empty string to clear back to the default gold/navy scheme.
   for (const f of ['certAccent', 'certAccent2']) {

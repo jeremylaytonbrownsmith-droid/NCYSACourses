@@ -522,6 +522,47 @@ async function viewHome() {
     <footer class="footer">© ${new Date().getFullYear()} North Carolina Youth Soccer Association · NCYSA Learn</footer>`;
 }
 
+// Referee-portal sections. A course's section is its explicit `track` (the
+// Designer's "Section" dropdown) or, by default, inferred from its title — so the
+// existing courses group correctly with no edits: "…Mentor…" → Mentors,
+// "…Assignor…" → Assignors, everything else → Referees. Sections render in a
+// fixed order and only when they have courses; headings appear only when MORE
+// than one section does, so a single-track portal (OMG today) keeps its plain grid.
+const TRACK_ORDER = ['referee', 'mentor', 'assignor'];
+const TRACK_META = {
+  referee: { title: 'Referees', sub: 'Certification and recertification for match officials' },
+  mentor: { title: 'Mentors', sub: 'Mentor and Mentor+ development courses' },
+  assignor: { title: 'Assignors', sub: 'First-time and recertification courses for assignors' },
+};
+function trackOf(c) {
+  if (c && TRACK_ORDER.includes(c.track)) return c.track;
+  const t = String((c && c.title) || '');
+  if (/mentor/i.test(t)) return 'mentor';
+  if (/assignor/i.test(t)) return 'assignor';
+  return 'referee';
+}
+// Within a section: first-time / new courses before recertification; otherwise
+// the admin's order (the Designer's up/down arrows) is kept.
+function sortTrack(list) {
+  const isRecert = (c) => /recert/i.test(`${c.title || ''} ${c.badge || ''}`);
+  return [...list.filter((c) => !isRecert(c)), ...list.filter(isRecert)];
+}
+function groupedCourseGrid(list) {
+  const groups = TRACK_ORDER
+    .map((k) => ({ k, meta: TRACK_META[k], items: sortTrack(list.filter((c) => trackOf(c) === k)) }))
+    .filter((g) => g.items.length);
+  if (groups.length <= 1) return `<div class="course-grid">${(groups[0] ? groups[0].items : list).map(courseCard).join('')}</div>`;
+  return groups.map((g) => `
+    <section class="portal-group" data-track="${g.k}" aria-labelledby="pg-${g.k}">
+      <div class="portal-group-head">
+        <h3 id="pg-${g.k}">${esc(g.meta.title)}</h3>
+        <span class="portal-group-sub">${esc(g.meta.sub)}</span>
+        <span class="portal-group-count">${g.items.length} course${g.items.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="course-grid">${g.items.map(courseCard).join('')}</div>
+    </section>`).join('');
+}
+
 function courseCard(c) {
   // A course with no lessons yet isn't ready to take — show a locked "Coming
   // soon" button so it can't be opened. It flips to a real Enroll/Continue
@@ -796,7 +837,7 @@ async function viewReferees() {
         <p class="lead">${esc(lead)}</p>
       </div>
       ${refCourses.length
-        ? `<div class="course-grid">${refCourses.map(courseCard).join('')}</div>`
+        ? groupedCourseGrid(refCourses)
         : `<div class="card notice-card"><h3>Referee courses are coming soon</h3>
              <p>Guided, trackable referee training is on the way. <a href="#/register">Create a free account</a>
              and we'll have your profile ready.</p></div>`}
@@ -4434,6 +4475,12 @@ async function viewCourseAdmin(flash) {
       <label>Description<textarea name="description" rows="2">${c ? esc(c.description || '') : ''}</textarea></label>
       <div class="form-row">
         <label>Badge<input name="badge" value="${c ? esc(c.badge) : 'Course'}" /></label>
+        <label>Section (referee portal)<select name="track">
+          <option value=""${!(c && c.track) ? ' selected' : ''}>Auto — from the title</option>
+          <option value="referee"${c && c.track === 'referee' ? ' selected' : ''}>Referees</option>
+          <option value="mentor"${c && c.track === 'mentor' ? ' selected' : ''}>Mentors</option>
+          <option value="assignor"${c && c.track === 'assignor' ? ' selected' : ''}>Assignors</option>
+        </select></label>
         <label>Est. minutes<input name="estMinutes" type="number" value="${c ? c.estMinutes : 30}" /></label>
         <label>Deadline — days to finish<input name="dueDays" type="number" min="0" max="365" value="${c ? (c.dueDays || 0) : 0}" placeholder="0 = none" /></label>
       </div>
