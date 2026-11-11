@@ -10,6 +10,15 @@
 # The Playwright config prefers the system Chromium at /opt/pw-browsers/chromium
 # when present and falls back to Playwright's own download otherwise — CI takes
 # the fallback, which is why we install Chromium here.
+#
+# Why NOT `playwright install --with-deps`: the gate's very first run died in that
+# step, before a single test ran — apt-get on the runner couldn't resolve Ubuntu's
+# mirrors for ten minutes. Its log showed every library Chromium needs was already
+# on the image; the only packages apt was adding were optional CJK/Cyrillic fonts
+# this suite never uses. The browser itself comes from Playwright's CDN, not apt.
+# So: install the browser only, and don't let Ubuntu mirror health decide whether
+# main is deployable. If a future image ever lacks a lib, Chromium fails to LAUNCH
+# with a clear error naming it — fix that explicitly rather than re-adding apt.
 name: test
 on:
   pull_request:
@@ -24,21 +33,26 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not `ubuntu-latest`: on the first run `latest` resolved to a
+    # weeks-old 26.04 image whose apt mirrors were unreachable. 24.04 is the
+    # mature LTS and Playwright's canonical CI target.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Matches package.json "engines" (>=24.22.1 <25). The first run used 22
+          # and npm flagged EBADENGINE — CI should run the Node the app declares.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium for Playwright (browser only — see header)
+        run: npx playwright install chromium
 
       - name: Audit the code-managed modules
         run: npm run check:modules
