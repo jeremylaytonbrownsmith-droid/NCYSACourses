@@ -1012,6 +1012,10 @@ textarea:focus-visible, .lesson-item:focus-visible, .role-card:focus-visible, .q
 .module-guide .mg-intro:not(:has(.callout)) { background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #b45309; border-radius: 10px; padding: 11px 14px; }
 .module-guide .mg-intro:not(:has(.callout)) strong { color: #b45309; }
 .module-guide .mg-intro + .mg-body { margin-top: 12px; }
+/* The guide's "saved / not saved" sentences follow the player's evidence
+   (renderScormLesson → paintPersistence); green = it resumes, amber = one sitting. */
+.module-guide .mg-save.saves strong { color: #15803d; }
+.module-guide .mg-save.nosave strong { color: #b45309; }
 
 /* Bunny CDN box in the Module storage panel */
 .cdn-box { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; background: #f6f8fc; }

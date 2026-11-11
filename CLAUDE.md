@@ -93,16 +93,32 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   alerts. This is a monitor to catch new/unknown causes before a learner emails —
   not a fix for a cause we know. Covered by `tests/reset-alert.spec.js` (run a
   single spec with `npx playwright test tests/<name>.spec.js --trace off`).
-  **Blind spot:** HTML/Evolve (Mentor) modules send no `suspend_data`, so a lost
-  place there is invisible to this alert — only SCORM (the recert modules) is
-  watched.
-- **HTML/Mentor modules never save a learner's place** (the package keeps it in
-  memory only). The player shows a ⚠️ "finish in one sitting" banner + leave/back
-  guards for them. The default 📘 "Before you start" guide (`guideBody` in
-  `renderScormLesson`) **must never claim the place is saved or mention "Resume
-  Later"** — it once did, which directly caused the "I lost my spot" emails. An
-  admin can override that guide per lesson via `lesson.startGuide`; if a live
-  Mentor lesson has a custom guide, check it says the same. **The course's "Start
+  **Blind spot:** only packages that write `suspend_data`/`location` are watched —
+  Mentor+ and the SCORM recert modules are; the Evolve Mentor course sends
+  neither, so a lost place there is invisible to this alert.
+- **Does an HTML-package module save the learner's place? Depends on the package,
+  and the player decides from EVIDENCE** (`persistence` in `renderScormLesson`:
+  `unknown` → `saves` or `nosave`). **Mentor+** (US Soccer's "U.S. Refereeing Way"
+  presenter package: `js/scorm.js` + `js/state.js` + `js/app.js`) finds our
+  `window.API` up the parent chain, writes a slide bookmark
+  (`cmi.core.lesson_location` = `item-N`) and a JSON resume blob
+  (`cmi.suspend_data`, ≤4096 chars) on every slide, and on boot restores from that
+  blob BEFORE its own localStorage — so it **resumes on any device, signed in**.
+  Verified end to end with the package's real bridge (first visit → save →
+  heartbeats don't wipe it → reload resumes → a new browser resumes). The old "I
+  lost my spot" emails were our since-removed 3-minute away-reset wiping that blob,
+  not the package. The **Evolve Mentor** course (uploaded with `htmlPackage:false`,
+  detected by its `.ev-*` outline) truly keeps its place in memory only. Rules:
+  `saves` (a bookmark/suspend write seen, or one already on record) → the 📘 guide
+  + hint say "your place is saved", no banner, no leave/back guards; `nosave`
+  (Evolve outline, or a plain page that never touched the API after 90 s active)
+  → ⚠️ "finish in one sitting" banner + guards + the guide says so; `unknown` →
+  say nothing about saving. **Never hard-code a saved / not-saved claim** in the
+  guide (`#mgSave`/`#mgSaveEnd`), hint (`#scormSaved`) or banner — it must come
+  from `persistence`. An admin's custom `lesson.startGuide` has none of those
+  spans, so check its wording by hand. Covered by `tests/html-resume.spec.js`.
+  The guide also tells learners about the package's **Presentation Mode (F key)**
+  for a clean single-screen view. **The course's "Start
   Here" text (`course.instructions`, the Designer's Start Here box) renders as the
   FIRST line inside that 📘 guide** (`#mgIntro`, above the steps and outside the
   part the Hide button collapses) for HTML-package lessons — e.g. the Mentor /
