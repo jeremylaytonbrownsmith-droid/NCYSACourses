@@ -1006,8 +1006,13 @@ async function viewCourse(courseId, lessonId) {
   if (lesson.type === 'module') await ensureOrgLibrary(course.orgId || '');
 
   const typeLabel = { text: 'Reading', video: 'Video', quiz: 'Exam', scorm: 'Module', slides: 'Slides', module: 'Interactive' };
+  // An HTML-package module shows the 📘 "Before you start" guide, and the course's
+  // Start Here text renders INSIDE that guide as its first line (renderScormLesson)
+  // — so don't also stack the separate Start Here box above it. Every other lesson
+  // type keeps the box here. Same condition the guide itself uses.
+  const introInGuide = lesson.type === 'scorm' && !!lesson.htmlPackage && !(lp && lp.completed) && !!lesson.packageId;
   app.innerHTML = `
-    ${course.instructions ? `<details class="course-intro" open>
+    ${course.instructions && !introInGuide ? `<details class="course-intro" open>
       <summary>Start here — how this works</summary>
       <div class="course-intro-body lesson-content">${course.instructions}</div>
     </details>` : ''}
@@ -2064,9 +2069,15 @@ function renderScormLesson(pane, course, lesson, lp) {
            <h3>📘 Before you start — how to get through this module</h3>
            <button type="button" class="mg-toggle" id="mgToggle" aria-expanded="true" aria-controls="mgBody">Hide</button>
          </div>
+         ${course.instructions ? `<div class="mg-intro lesson-content" id="mgIntro">${course.instructions}</div>` : ''}
          <div class="mg-body" id="mgBody">${guideBody}</div>
        </div>`
     : '';
+  // ^ The course's Start Here text (e.g. "recertifying as a Mentor does NOT make you
+  //   a Mentor+") is the FIRST line of the guide, above the how-to steps and outside
+  //   the part the Hide button collapses — so it stays visible even for a learner
+  //   who hid the steps on an earlier visit. viewCourse suppresses the separate
+  //   Start Here box for these modules so the note isn't shown twice.
   pane.innerHTML = `
     ${lessonHeader(lesson, course)}
     ${lesson.html ? `<div class="lesson-content">${lesson.html}</div>` : ''}

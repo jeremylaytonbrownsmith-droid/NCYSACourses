@@ -102,7 +102,13 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   `renderScormLesson`) **must never claim the place is saved or mention "Resume
   Later"** — it once did, which directly caused the "I lost my spot" emails. An
   admin can override that guide per lesson via `lesson.startGuide`; if a live
-  Mentor lesson has a custom guide, check it says the same.
+  Mentor lesson has a custom guide, check it says the same. **The course's "Start
+  Here" text (`course.instructions`, the Designer's Start Here box) renders as the
+  FIRST line inside that 📘 guide** (`#mgIntro`, above the steps and outside the
+  part the Hide button collapses) for HTML-package lessons — e.g. the Mentor /
+  Mentor+ eligibility note. `viewCourse` suppresses the separate Start Here box
+  there so it isn't shown twice; every other lesson type keeps the box above the
+  player. Admins edit the text in the Designer, never in code.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
