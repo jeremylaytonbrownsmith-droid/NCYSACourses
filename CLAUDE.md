@@ -133,9 +133,14 @@ the AI builder, and export to SCORM / web page.
   dry-run found 5 red tests and none was a bug. **Running the suite rewrites
   `screenshots/*.png`** (the e2e journey captures them) — `git checkout --
   screenshots/` before committing, and always `git add` named files, never `-A`.
-- `keepalive.yml` pings `ncysalearn.app` every 10 min to keep a **free** Render
-  instance warm; it only logs the status (not an alert). Once the service's
-  Instance Type is paid (always-on), it is redundant and can be deleted.
+- **Hosting:** the `ncysa-learn` Render web service runs on the **Standard compute
+  plan** (1 CPU / 2 GB, always-on — Render renamed "Instance Type" to "Compute
+  Plan"; it's under the service's MANAGE → Compute). Its primary domain is
+  `ncysalearn.app`; `getmatchready.app` is the product/OMG host. Because the
+  instance never sleeps, the old `keepalive.yml` cron (a 10-minute ping to wake
+  a Free instance) was deleted — don't re-add it. A slow first load is NOT the
+  instance sleeping; look for the real cause. The Render *workspace* plan
+  (Hobby/Pro) is separate from the compute plan and doesn't affect uptime.
 
 ## Interactive course format (`getmatchready.module/v1`)
 
