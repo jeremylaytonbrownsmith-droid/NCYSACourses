@@ -2012,10 +2012,10 @@ function renderScormLesson(pane, course, lesson, lp) {
     ? String(lesson.startGuide)
     : `<ol>
          <li><strong>Choose how you’re taking it.</strong> On the module’s opening screen, pick <strong>“Review Independently”</strong> — you’re going through it on your own, so nothing is scored or shared with a room. Then click <strong>Start Session</strong>.</li>
-         <li><strong>Move through the slides.</strong> Use <strong>Next Slide</strong> / <strong>Previous Slide</strong> at the bottom of the module. It’s long (around 194 slides) — take your time. Your place is saved automatically, so you can stop and come back.</li>
+         <li><strong>Move through the slides.</strong> Use <strong>Next Slide</strong> / <strong>Previous Slide</strong> at the bottom of the module. It’s long (around 194 slides). <strong>This module does not save your place</strong> — plan to finish it in one sitting.</li>
          <li><strong>Want a bigger view?</strong> Click <strong>⛶ Full screen</strong> just below, or use the <strong>☰ menu</strong> inside the module to hide its sidebar.</li>
          <li><strong>Some videos are silent on purpose.</strong> A few clips have no narration by design — that’s normal. Keep going.</li>
-         <li><strong>You finish automatically.</strong> When you reach the last slide the module <strong>marks itself complete</strong> and your <strong>certificate is issued</strong> — you don’t need to click anything else. Leaving early? Choose <strong>Resume Later</strong>.</li>
+         <li><strong>You finish automatically.</strong> When you reach the last slide the module <strong>marks itself complete</strong> and your <strong>certificate is issued</strong> — you don’t need to click anything else. If you have to leave before the end, you’ll start this module over next time.</li>
        </ol>`;
   const guideHtml = (isHtmlPkg && !lp.completed && !missing)
     ? `<div class="module-guide" id="moduleGuide">

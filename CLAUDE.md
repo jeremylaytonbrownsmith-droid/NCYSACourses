@@ -96,6 +96,13 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   **Blind spot:** HTML/Evolve (Mentor) modules send no `suspend_data`, so a lost
   place there is invisible to this alert — only SCORM (the recert modules) is
   watched.
+- **HTML/Mentor modules never save a learner's place** (the package keeps it in
+  memory only). The player shows a ⚠️ "finish in one sitting" banner + leave/back
+  guards for them. The default 📘 "Before you start" guide (`guideBody` in
+  `renderScormLesson`) **must never claim the place is saved or mention "Resume
+  Later"** — it once did, which directly caused the "I lost my spot" emails. An
+  admin can override that guide per lesson via `lesson.startGuide`; if a live
+  Mentor lesson has a custom guide, check it says the same.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
