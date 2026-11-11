@@ -1,0 +1,72 @@
+# CI gate: the Playwright suite + the module audit must pass before a change
+# lands on main. Runs on every pull request into main and on every push to main.
+#
+# To make this a TRUE gate (a PR cannot be merged while it is red), turn on
+# branch protection once: GitHub → Settings → Branches → Add rule for `main` →
+# "Require status checks to pass before merging" → pick "test". Without that
+# setting this workflow still runs and reports, but a red check can be merged
+# past.
+#
+# The Playwright config prefers the system Chromium at /opt/pw-browsers/chromium
+# when present and falls back to Playwright's own download otherwise — CI takes
+# the fallback, which is why we install Chromium here.
+#
+# Why NOT `playwright install --with-deps`: the gate's very first run died in that
+# step, before a single test ran — apt-get on the runner couldn't resolve Ubuntu's
+# mirrors for ten minutes. Its log showed every library Chromium needs was already
+# on the image; the only packages apt was adding were optional CJK/Cyrillic fonts
+# this suite never uses. The browser itself comes from Playwright's CDN, not apt.
+# So: install the browser only, and don't let Ubuntu mirror health decide whether
+# main is deployable. If a future image ever lacks a lib, Chromium fails to LAUNCH
+# with a clear error naming it — fix that explicitly rather than re-adding apt.
+name: test
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A newer push to the same branch cancels the run it supersedes.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # Pinned, not `ubuntu-latest`: on the first run `latest` resolved to a
+    # weeks-old 26.04 image whose apt mirrors were unreachable. 24.04 is the
+    # mature LTS and Playwright's canonical CI target.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches package.json "engines" (>=24.22.1 <25). The first run used 22
+          # and npm flagged EBADENGINE — CI should run the Node the app declares.
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright (browser only — see header)
+        run: npx playwright install chromium
+
+      - name: Audit the code-managed modules
+        run: npm run check:modules
+
+      - name: Run the Playwright suite
+        run: npx playwright test --trace off --reporter=line
+
+      # Only on failure, keep the failure screenshots so a red run can be read
+      # without re-running it locally.
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

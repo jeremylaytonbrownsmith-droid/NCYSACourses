@@ -130,8 +130,16 @@ test('AI-built course becomes a real course a learner can take and complete', as
   await page.goto('/#/register');
   await page.fill('#firstName', 'AiLearner'); await page.fill('#lastName', 'Test');
   await page.fill('#email', `ai.learner+${Date.now()}@example.com`);
-  await page.click('button:has-text("Create account")');
-  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+  // Wait for the registration to actually land (the session cookie is set by the
+  // /api/register response, not by the click) before making API calls through the
+  // browser's cookie jar — otherwise the enroll below can race the cookie and 401,
+  // and the first /complete then fails with "Enroll in this course first".
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
+    page.click('button:has-text("Create account")'),
+  ]);
+  const enrolled = await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+  expect(enrolled.ok()).toBeTruthy();
 
   const reading = course.lessons.filter((l) => l.type === 'text');
   expect(reading.length).toBe(2);

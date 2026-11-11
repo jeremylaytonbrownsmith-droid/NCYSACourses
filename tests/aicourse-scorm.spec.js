@@ -242,13 +242,14 @@ test('the Build-with-AI panel renders the modern studio UI', async ({ page, cont
   await expect(page.locator('.ai-studio .ai-hero h3')).toHaveText('Build a course with AI');
   await expect(page.locator('#aiBuildForm textarea[name="sourceText"]')).toBeVisible();
   await expect(page.locator('#aiBuildForm textarea[name="videoUrls"]')).toBeVisible();       // video links field
-  // Lesson-type selector: Tent Talk / Full interactive / Reading + quiz
-  await expect(page.locator('#aiBuildForm input[name="lessonFormat"]')).toHaveCount(3);
-  // Default is the interactive module, so the classic reading-pace field is hidden…
+  // Course-type selector: exactly two — Education Module (full) and Tent Talk.
+  // The old Reading + quiz ("classic") route is retired from the UI (see CLAUDE.md,
+  // "Two course types only"), so it must NOT be offered.
+  const fmt = page.locator('#aiBuildForm input[name="lessonFormat"]');
+  await expect(fmt).toHaveCount(2);
+  await expect(page.locator('#aiBuildForm input[name="lessonFormat"][value="classic"]')).toHaveCount(0);
+  // The interactive module is the default, so the classic reading-pace field never shows.
   await expect(page.locator('#aiBuildForm input[name="lessonMinSeconds"]')).toBeHidden();
-  // …and choosing the Reading + quiz route reveals it.
-  await page.locator('.fmt-opt:has(input[value="classic"]) .fmt-card').click();
-  await expect(page.locator('#aiBuildForm input[name="lessonMinSeconds"]')).toBeVisible();   // pacing field
   await expect(page.locator('#aiBuildSubmit')).toBeVisible();
 });
 

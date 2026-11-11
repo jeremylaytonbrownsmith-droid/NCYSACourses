@@ -250,7 +250,11 @@ test('the native Law Changes course is seeded for OMG: slides (video on the last
   expect(r.ok()).toBeTruthy();
   const c = (await r.json()).course;
   expect(c.orgId).toBe('omg');
-  expect(c.published).toBe(true);
+  // Ships UNPUBLISHED by design: the omg-law-changes-unpublish-v1 migration in
+  // server.js took it off the OMG portal, and ensureCourse leaves `published`
+  // alone so that choice sticks. This test guards the seed's SHAPE, not its
+  // visibility — the slideshow walkthrough below publishes it for itself.
+  expect(c.published).toBe(false);
   expect(c.coBrandName).toMatch(/OMG/);
   // Two lessons only: the slideshow (with the video ON its final slide) and the quiz.
   expect(c.lessons.length).toBe(2);
@@ -280,17 +284,33 @@ test('the native Law Changes course is seeded for OMG: slides (video on the last
 });
 
 test('the Law Changes slideshow shows one slide at a time with Next gated', async ({ page, playwright }) => {
-  await page.goto('/#/register');
-  await page.fill('#firstName', 'Slide'); await page.fill('#lastName', 'Viewer');
-  await page.fill('#email', `slide.viewer+${Date.now()}@example.com`);
-  await page.click('button:has-text("Create account")');
-  await page.request.post(`${BASE}/api/courses/omg-law-changes-2026-27/enroll`);
+  // The course ships UNPUBLISHED by design (see the test above), and a learner can
+  // only open a published course — so publish it for this walkthrough and put it
+  // back afterwards, leaving the seed exactly as the portal expects it.
+  const api = await playwright.request.newContext({ baseURL: BASE });
+  await api.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } });
+  await api.post('/api/admin/courses/omg-law-changes-2026-27/publish', { data: { published: true } });
+  try {
+    await page.goto('/#/register');
+    await page.fill('#firstName', 'Slide'); await page.fill('#lastName', 'Viewer');
+    await page.fill('#email', `slide.viewer+${Date.now()}@example.com`);
+    // Wait for the registration to land (the cookie comes from the /api/register
+    // response, not the click) before calling the API through the browser's jar.
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
+      page.click('button:has-text("Create account")'),
+    ]);
+    const enrolled = await page.request.post(`${BASE}/api/courses/omg-law-changes-2026-27/enroll`);
+    expect(enrolled.ok()).toBeTruthy();
 
-  await page.goto('/#/course/omg-law-changes-2026-27/lesson/law-changes-slides');
-  await expect(page.locator('#slideImg')).toBeVisible();                 // one image, not a scroll of nine
-  await expect(page.locator('#slideCount')).toHaveText('Slide 1 of 9');
-  await expect(page.locator('#slideImg')).toHaveAttribute('src', /slide-1\.jpeg/);
-  await expect(page.locator('#slideNav')).toBeDisabled();                // 15s gate holds Next
+    await page.goto('/#/course/omg-law-changes-2026-27/lesson/law-changes-slides');
+    await expect(page.locator('#slideImg')).toBeVisible();                 // one image, not a scroll of nine
+    await expect(page.locator('#slideCount')).toHaveText('Slide 1 of 9');
+    await expect(page.locator('#slideImg')).toHaveAttribute('src', /slide-1\.jpeg/);
+    await expect(page.locator('#slideNav')).toBeDisabled();                // 15s gate holds Next
+  } finally {
+    await api.post('/api/admin/courses/omg-law-changes-2026-27/publish', { data: { published: false } });
+  }
 });
 
 test('a video slide plays the clip inline on the slide (no separate lesson, no forced new tab)', async ({ page, playwright }) => {
@@ -347,8 +367,15 @@ test('a linkOut video slide opens Vimeo in a tab (like Captivate) instead of emb
   await page.goto('/#/register');
   await page.fill('#firstName', 'Link'); await page.fill('#lastName', 'Out');
   await page.fill('#email', `link.out+${Date.now()}@example.com`);
-  await page.click('button:has-text("Create account")');
-  await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+  // Wait for the registration to land before calling the API through the browser's
+  // cookie jar — otherwise enroll can race the session cookie and 401 silently,
+  // and the lesson page then never renders the slideshow (#slideNav never appears).
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/register') && r.ok()),
+    page.click('button:has-text("Create account")'),
+  ]);
+  const enrolled = await page.request.post(`${BASE}/api/courses/${courseId}/enroll`);
+  expect(enrolled.ok()).toBeTruthy();
 
   await page.goto(`/#/course/${courseId}/lesson/${lessonId}`);
   await page.click('#slideNav'); // to the video slide
