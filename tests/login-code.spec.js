@@ -133,18 +133,18 @@ test.describe('switch ON (own server)', () => {
     expect(unknown.status()).toBe(404);
   });
 
-  test('the code email is branded for the portal: NCSRA for referees, NCYSA Learn otherwise', async ({ playwright }) => {
+  test('the code email is NCSRA on the NC site — from the referee portal and from the plain sign-in page', async ({ playwright }) => {
     const ref = await fresh(playwright);
     const refEmail = `refbrand+${Date.now()}@example.com`;
     await ref.post('/api/register', { data: { firstName: 'Ref', lastName: 'Brand', email: refEmail, portal: 'referee' } });
-    const coach = await fresh(playwright);
-    const coachEmail = `coachbrand+${Date.now()}@example.com`;
-    await coach.post('/api/register', { data: { firstName: 'Coach', lastName: 'Brand', email: coachEmail } });
+    const plain = await fresh(playwright);
+    const plainEmail = `plainbrand+${Date.now()}@example.com`;
+    await plain.post('/api/register', { data: { firstName: 'Plain', lastName: 'Brand', email: plainEmail } }); // no portal hint at all
     const admin = await fresh(playwright);
     expect((await admin.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
     const outbox = (await (await admin.get('/api/admin/overview')).json()).outbox;
     const toRef = outbox.find((m) => m.to === refEmail);
-    const toCoach = outbox.find((m) => m.to === coachEmail);
+    const toPlain = outbox.find((m) => m.to === plainEmail);
     expect(toRef.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
     expect(toRef.body).toContain('North Carolina Soccer Referee Association');
     expect(toRef.fromName).toBe('NCSRA Referee Education');
@@ -155,27 +155,27 @@ test.describe('switch ON (own server)', () => {
     expect(toRef.html).toContain(`letter-spacing:.3em;color:#10045a">${code}<`);
     expect(toRef.html).toContain('North Carolina Soccer Referee Association · NCSRA Referee Education');
     expect(toRef.html).not.toContain('Youth Soccer');
-    expect(toCoach.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
-    expect(toCoach.fromName).toBe('NCYSA Learn');
-    expect(toCoach.html).toContain(`${BASE}/media/ncysa-logo.png`);
+    // The header stays white (Gmail dark mode recolors solid dark blocks).
+    expect(toRef.html).toContain('<td style="background:#ffffff;padding:18px 28px;border-bottom:4px solid #b82f2f">');
+    expect(toPlain.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
+    expect(toPlain.fromName).toBe('NCSRA Referee Education');
   });
 
-  test('a returning referee learner gets the NCSRA code email even from the plain sign-in page', async ({ playwright }) => {
-    // A designer publishes a referee course; the learner signs up (from the
-    // referee portal), enrolls, then later signs in from the generic page.
+  test('a learner enrolled only in non-referee courses gets the NCYSA Learn code email', async ({ playwright }) => {
+    // A designer publishes a coach course; the learner signs up, enrolls in it
+    // and nothing else, then later signs in again from the generic page.
     const designer = await fresh(playwright);
     expect((await designer.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } })).ok()).toBeTruthy();
-    const course = (await (await designer.post('/api/admin/courses', { data: { title: `NCSRA Brand Course ${Date.now()}`, audience: 'referees' } })).json()).course;
+    const course = (await (await designer.post('/api/admin/courses', { data: { title: `Coaching Brand Course ${Date.now()}`, audience: 'everyone' } })).json()).course;
     await designer.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 50, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
     await designer.post(`/api/admin/courses/${course.id}/publish`, { data: { published: true } });
 
-    const email = `returning+${Date.now()}@example.com`;
+    const email = `coachonly+${Date.now()}@example.com`;
     const first = await fresh(playwright);
-    const reg = await (await first.post('/api/register', { data: { firstName: 'Rae', lastName: 'Returning', email, portal: 'referee' } })).json();
+    const reg = await (await first.post('/api/register', { data: { firstName: 'Cole', lastName: 'Coach', email } })).json();
     expect((await first.post('/api/login/verify', { data: { code: reg.devCode } })).ok()).toBeTruthy();
     expect((await first.post(`/api/courses/${course.id}/enroll`)).ok()).toBeTruthy();
 
-    // New browser, plain sign-in page: no portal hint in the request at all.
     const later = await fresh(playwright);
     const r = await (await later.post('/api/login', { data: { email } })).json();
     expect(r.codeRequired).toBe(true);
@@ -183,9 +183,24 @@ test.describe('switch ON (own server)', () => {
     expect((await admin.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
     const outbox = (await (await admin.get('/api/admin/overview')).json()).outbox;
     const mail = outbox.filter((m) => m.to === email).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
-    expect(mail.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
-    expect(mail.fromName).toBe('NCSRA Referee Education');
-    expect(mail.html).toContain('/media/ncsra-logo.png');
+    expect(mail.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
+    expect(mail.fromName).toBe('NCYSA Learn');
+    expect(mail.html).toContain(`${BASE}/media/ncysa-logo.png`);
+  });
+
+  test('in the browser: "Start over" on the code screen returns to the form it replaced', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/#/register`);
+    await page.fill('#firstName', 'Sam');
+    await page.fill('#lastName', 'Startover');
+    await page.fill('#email', `sam+${Date.now()}@example.com`);
+    await page.click('button:has-text("Create account")');
+    await expect(page.locator('.auth-wrap h2')).toHaveText('Check your email');
+    await page.click('#startOver');
+    await expect(page.locator('#firstName')).toBeVisible(); // back on Create account, same hash
+    expect(page.url()).toContain('#/register');
+    await ctx.close();
   });
 
   test('in the browser: Create account → code screen → signed in, and the session survives a reload', async ({ browser }) => {

@@ -200,23 +200,30 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   (a course's own `certOrg` still wins); coach/staff courses stay NCYSA Learn;
   partner orgs use their `coBrandName`. The sender *display name* is per email
   (`sendEmail({fromName})` in `lib/notifier.js`); the address is always the
-  configured sender. Sign-in code emails are branded by `signinBrand(req)`:
-  the SPA sends `portal:'referee'|'coach'` with register/login/resend, so a
-  referee gets "123456 is your NCSRA Referee Education sign-in code"; the
-  product/OMG domain gets GetMatchReady; else NCYSA Learn. Covered by
-  `tests/email-brand.spec.js` and the brand test in `tests/login-code.spec.js`.
-  A **returning learner** signing in from the plain sign-in page (no portal in
-  view, so the SPA sends `portal:'coach'`) is still branded NCSRA when their
-  enrollments include an NC referee course (`isRefereeLearner` in
-  `signinBrand(req, email)`) — that is how jls5797's first live code came out
-  "NCYSA Learn". The dashboard's "Send test email" has no course to brand it,
+  configured sender. Sign-in code emails are branded by `signinBrand(req,
+  email)`: the product/OMG domain → GetMatchReady; otherwise **the NC site
+  defaults to NCSRA** ("123456 is your NCSRA Referee Education sign-in code") —
+  it is the referee association's site for learners — and only a learner whose
+  enrollments are all non-referee courses (`learnerTrack(email) === 'coach'`)
+  gets NCYSA Learn. The SPA's `portal:'referee'|'coach'` hint only forces NCSRA
+  when the referee portal was in view; the plain sign-in page sends 'coach',
+  which proves nothing (jls5797's first two live codes came out "NCYSA Learn"
+  because the default used to follow that hint). Covered by
+  `tests/email-brand.spec.js` and the brand tests in `tests/login-code.spec.js`.
+  The code screen's **"Start over"** re-renders the form it replaced
+  (`#startOver` in `viewLoginCode`; `from:'register'` is carried from
+  `viewRegister`) because the code screen shares the form's hash, so a plain
+  `href="#/login"` did nothing. The dashboard's "Send test email" has no course to brand it,
   so it speaks as the **sender address** (`senderBrand()` in `lib/notifier.js`):
   an `@ncsra.org` sender → NCSRA; `@getmatchready.app` → GetMatchReady; else
   NCYSA Learn. Covered in `tests/email-brand.spec.js` (spawns a server on 3111
   with `SMTP_FROM=noreply@ncsra.org`). **Every email uses one HTML layout**
-  (`emailLayout()` in `lib/notifier.js`: navy header with the org crest +
-  long/short name and the red stripe, white card, "long · short" footer;
-  table-based, inline styles). `BRANDS` (ncsra / ncysa / gmr) carries each
+  (`emailLayout()` in `lib/notifier.js`: **white** header with the org crest +
+  long/short name in navy over the red stripe, white card, "long · short"
+  footer; table-based, inline styles). The header is white on purpose — Gmail's
+  dark mode recolors every solid background and a navy header came out **pink**
+  on an iPhone; a white one just turns dark and stays readable. Don't put brand
+  colour in large blocks; keep it in text, the crest and the stripe. `BRANDS` (ncsra / ncysa / gmr) carries each
   voice's names, org and crest; `brandLogoUrl()` makes the crest absolute on the
   org's public domain via `publicBaseForOrg` (request host in dev/tests, so
   tests assert `${BASE}/media/ncsra-logo.png`). The sign-in code email

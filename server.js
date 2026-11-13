@@ -2023,26 +2023,29 @@ const STAFF_SIGNIN_MSG = 'That email has a staff account — please use the staf
 // Carolina Soccer Referee Association (NCSRA); the product/OMG domain is
 // GetMatchReady; everything else is NCYSA Learn. The SPA says which portal the
 // learner is on (`portal` in the request body); the host decides the rest.
-// A returning learner who signs in from the plain sign-in page (no portal in
-// view) is still a referee if that is what they have been taking — brand by
-// their enrollments rather than defaulting them to NCYSA Learn.
-function isRefereeLearner(email) {
+// What a returning learner has been taking: 'referee' if any enrollment is an
+// NC referee course, 'coach' if they are enrolled only in other courses, null
+// for an unknown or never-enrolled address.
+function learnerTrack(email) {
   const db = load();
   const key = String(email || '').toLowerCase();
   const user = db.users.find((u) => u.email.toLowerCase() === key);
-  if (!user) return false;
-  return db.enrollments.some((e) => {
-    if (e.userId !== user.id) return false;
-    const c = db.courses.find((x) => x.id === e.courseId);
-    return !!c && orgOf(c) === 'ncysa' && (c.audience === 'referees' || /ncsra/i.test(c.coBrandName || ''));
-  });
+  if (!user) return null;
+  const mine = db.enrollments.filter((e) => e.userId === user.id).map((e) => db.courses.find((x) => x.id === e.courseId)).filter(Boolean);
+  if (!mine.length) return null;
+  const isRef = (c) => orgOf(c) === 'ncysa' && (c.audience === 'referees' || /ncsra/i.test(c.coBrandName || ''));
+  return mine.some(isRef) ? 'referee' : 'coach';
 }
+// The NC site is the referee association's site for learners, so a sign-in
+// code is NCSRA unless the learner is demonstrably a coach (enrolled only in
+// non-referee courses). The SPA's `portal` is only a hint that the referee
+// portal was in view; a plain sign-in page sends 'coach', which proves nothing.
 function signinBrand(req, email) {
   const meta = brandMetaForHost(req.get('host'));
   if (meta.siteName === 'GetMatchReady') return EMAIL_BRANDS.gmr;
   if (String((req.body || {}).portal || '') === 'referee') return EMAIL_BRANDS.ncsra;
-  if (email && isRefereeLearner(email)) return EMAIL_BRANDS.ncsra;
-  return EMAIL_BRANDS.ncysa;
+  if (email && learnerTrack(email) === 'coach') return EMAIL_BRANDS.ncysa;
+  return EMAIL_BRANDS.ncsra;
 }
 // Email a fresh code for this address and bind it to this browser. `profile`
 // carries a new learner's name (null for an existing account). A resend from the
