@@ -159,13 +159,19 @@ test.describe('switch ON (own server)', () => {
     expect(toRef.html).toContain('<td style="background:#ffffff;padding:18px 28px;border-bottom:4px solid #b82f2f">');
     expect(toPlain.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
     expect(toPlain.fromName).toBe('NCSRA Referee Education');
-    // Only an explicit coach context (headed to a coach course/catalog) says NCYSA Learn.
+    // Only an explicit coaching context (headed to a coach course/catalog) says NCYSA Learn.
     const coach = await fresh(playwright);
     const coachEmail = `coachctx+${Date.now()}@example.com`;
-    await coach.post('/api/register', { data: { firstName: 'Coach', lastName: 'Context', email: coachEmail, portal: 'coach' } });
+    await coach.post('/api/register', { data: { firstName: 'Coach', lastName: 'Context', email: coachEmail, portal: 'coaching' } });
     const toCoach = (await (await admin.get('/api/admin/overview')).json()).outbox.find((m) => m.to === coachEmail);
     expect(toCoach.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
     expect(toCoach.html).toContain(`${BASE}/media/ncysa-logo.png`);
+    // The legacy 'coach' hint from an older app.js (a tab left open across a deploy) proves nothing.
+    const stale = await fresh(playwright);
+    const staleEmail = `stale+${Date.now()}@example.com`;
+    await stale.post('/api/register', { data: { firstName: 'Stale', lastName: 'Tab', email: staleEmail, portal: 'coach' } });
+    const toStale = (await (await admin.get('/api/admin/overview')).json()).outbox.find((m) => m.to === staleEmail);
+    expect(toStale.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
   });
 
   test('a returning learner is branded by what they take: coach-only courses → NCYSA Learn, anything else → NCSRA', async ({ playwright }) => {

@@ -5910,14 +5910,17 @@ async function applyBrandForHash(hash) {
 function inPortal() { return !!activeBrand; }
 // How the server should brand a sign-in code email. 'referee' when a referee
 // portal or referee course is in view (the brand is carried through the
-// sign-in pages when such a destination is pending); 'coach' only when the
+// sign-in pages when such a destination is pending); 'coaching' only when the
 // learner was clearly headed somewhere coach-side (a coach course or the coach
 // catalog); '' when the plain sign-in page can't tell — the server then decides
 // from what the learner has been taking, defaulting to NCSRA on the NC site.
+// (Older copies of this file still send 'coach' from the plain page; the server
+// treats that legacy value as "can't tell", so a tab left open never flips a
+// referee's email to NCYSA Learn.)
 function signinPortal() {
   if (inPortal()) return 'referee';
   const dest = afterAuthHash || '';
-  if (/^#\/(course\/|coaches|staff)/.test(dest)) return 'coach';
+  if (/^#\/(course\/|coaches|staff)/.test(dest)) return 'coaching';
   return '';
 }
 

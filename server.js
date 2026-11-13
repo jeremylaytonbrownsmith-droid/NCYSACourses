@@ -2044,15 +2044,17 @@ function learnerTrack(email) {
 }
 // The NC site is the referee association's site for learners, so a sign-in
 // code is NCSRA unless something says coach: the SPA's `portal` hint
-// ('referee' = a referee portal/course was in view; 'coach' = they were headed
-// to a coach course or catalog; '' = the plain sign-in page, which can't tell),
-// then what the learner has been taking.
+// ('referee' = a referee portal/course was in view; 'coaching' = they were
+// headed to a coach course or catalog; '' = the plain sign-in page, which can't
+// tell), then what the learner has been taking. The legacy hint 'coach' — which
+// older copies of app.js (a tab left open across a deploy) send from the plain
+// page — proves nothing and is treated like ''.
 function signinBrand(req, email) {
   const meta = brandMetaForHost(req.get('host'));
   if (meta.siteName === 'GetMatchReady') return EMAIL_BRANDS.gmr;
   const hint = String((req.body || {}).portal || '');
   if (hint === 'referee') return EMAIL_BRANDS.ncsra;
-  if (hint === 'coach') return EMAIL_BRANDS.ncysa;
+  if (hint === 'coaching') return EMAIL_BRANDS.ncysa;
   return (email && learnerTrack(email) === 'coach') ? EMAIL_BRANDS.ncysa : EMAIL_BRANDS.ncsra;
 }
 // Email a fresh code for this address and bind it to this browser. `profile`
