@@ -209,7 +209,20 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   Learn. **Live email delivery** is Gmail SMTP with a Google **app password**
   in `SMTP_PASS` (the account in `SMTP_USER`; `SMTP_FROM` must match it); when
   Gmail rejects it the outbox shows `smtp-error … 535 … BadCredentials` on every
-  entry — fix by generating a new app password, never by switching accounts.
+  entry — fix by generating a new app password for the same account.
+  **Sender address:** NCSRA's domain is **`ncsra.org`**, DNS managed in the
+  user's **Wix** dashboard (Domain settings), and its mail is **Google
+  Workspace** (MX `smtp.google.com`, `google._domainkey` DKIM already in DNS).
+  So the professional sender is simply a Workspace mailbox on `ncsra.org` with
+  its own app password: `SMTP_USER` = `SMTP_FROM` = that address, host/port
+  unchanged, no DNS edits, no new provider, no cost beyond the seat NCSRA
+  already pays for. Workspace caps one mailbox at ~2,000 messages per rolling
+  day — far above normal code + certificate traffic for 2,500 referees, but if
+  it is ever hit, the fallback is **Zoho ZeptoMail** over SMTP
+  (`smtp.zeptomail.com:587`, user `emailapikey`, pass = Send Mail token,
+  `SMTP_FROM` required; first 10,000 emails free, then $2.50 per 10,000, no
+  daily cap, DKIM/bounce records go in the Wix DNS page). Brevo's free plan
+  (300/day, hard cap) is not suitable — one deadline day would stop codes.
 
 ## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
 
