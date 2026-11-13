@@ -262,6 +262,22 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   a dedicated free Gmail, `ncsra.referee.education@gmail.com` (NCSRA logo on
   its profile) — kept, unused. Brevo's free plan (300/day, hard cap) and
   Resend's (100/day) are not suitable — one deadline day would stop codes.
+  **Deliverability notes (2026-11-13 pilot):** Gmail inboxes got codes
+  straight away; a Wake County schools address (`@wcpss.net`, Microsoft 365)
+  got it in **Junk** — a new sending domain, not a failure; the code screen
+  already says to check spam. Remedies, in order: mark "Not junk", complete
+  Zoho's **Customer Validation** form (left panel of cpaas.zoho.com; needed
+  before real volume anyway), publish a `_dmarc.ncsra.org` TXT `v=DMARC1;
+  p=none` in Wix if none exists, and advise referees to sign up with a personal
+  email. Zoho's Analytics → Email → bounces is the place to look when "the code
+  never came": a **Soft bounce / host not reachable** there was NOT a code — it
+  was the org copy of a completion notice to `education@ncysa.org`, the
+  `NCYSA_NOTIFY_EMAIL` placeholder default in `lib/notifier.js`, which is not a
+  real mailbox. Set `NCYSA_NOTIFY_EMAIL` (and `OMG_NOTIFY_EMAIL` /
+  `PARTNER_NOTIFY_EMAIL`) in Render to real addresses to stop that bounce.
+  Pilot list as of this writing: jls5797@gmail.com, the staff admin address
+  (never gets a code), jsmith25@wcpss.net, centerpointwebdesignbyjr@gmail.com,
+  jeremylaytons@gmail.com. Next step is `LEARNER_EMAIL_CODE=on`.
 
 ## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
 
