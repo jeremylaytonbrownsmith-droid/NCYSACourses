@@ -154,6 +154,36 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
 - **Interactive module** lessons: `renderModuleLesson` tracks per-page element
   completion against each page's `completionRequires`; the rings fill as you go.
 
+## Sign-in & accounts
+
+- **Staff/admin/partner**: email + password (`scrypt` hash, constant-time compare,
+  per-account lockout, reserved staff emails can't be self-registered). Sessions
+  are random tokens in an `HttpOnly; SameSite=Lax; Secure` cookie, 30 days,
+  expiry enforced server-side.
+- **Learners are passwordless.** Default (switch off): typing an email signs you
+  in — the original demo behaviour, which means anyone who knows a referee's
+  email can open their account. **With `LEARNER_EMAIL_CODE=on`** (Render env var;
+  the rollout switch and the kill switch — no deploy needed either way) sign-in
+  is **verified by an emailed 6-digit code**: `/api/register` and `/api/login`
+  answer `{codeRequired:true, email}` and set an `HttpOnly` `login_challenge`
+  cookie instead of a session; the SPA shows `viewLoginCode` ("Check your
+  email"); `POST /api/login/verify {code}` opens the session (and creates a NEW
+  learner only now, from the name carried on the challenge — abandoned sign-ups
+  create nothing); `POST /api/login/code {email}` resends. Rules in
+  `issueLoginCode`: random 6 digits, 10-min life, single use, 5 wrong guesses
+  burn it, salted-HMAC storage, bound to the requesting browser (the challenge
+  cookie), caps of 5/email and 300/site per 15 min, codes in memory only (a
+  restart = "request a new code"). Staff emails never get a code (403
+  `needsPassword`). The session is renewed on use, so an active learner sees a
+  code once per device. **Email delivery is required:** in production with no
+  provider configured the flow answers 503 rather than pretend; in dev/test (no
+  provider, `NODE_ENV` ≠ production) the response carries `devCode`, which is
+  how `tests/login-code.spec.js` works — it spawns its own server on port 3108
+  with the switch ON, because every other spec relies on the main test server's
+  switch-OFF behaviour. `/api/me` exposes `codeLogin` so the sign-in copy
+  matches the mode. Subject line: "123456 is your NCYSA Learn sign-in code"
+  (site name follows the host, GetMatchReady on the product domain).
+
 ## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
 
 In the SPA: learner progress by course, live presence, **reset a learner's
