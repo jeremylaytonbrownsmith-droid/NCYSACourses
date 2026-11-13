@@ -757,7 +757,8 @@ function viewLogin() {
     alt,
     onSubmit: async (v) => {
       try {
-        const r = await api('/api/login', { method: 'POST', body: v });
+        // `portal` only brands the sign-in code email (NCSRA for the referee portal).
+        const r = await api('/api/login', { method: 'POST', body: { ...v, portal: inPortal() ? 'referee' : 'coach' } });
         if (r.codeRequired) return viewLoginCode(r);
         await refreshMe();
         const dest = afterAuthHash; afterAuthHash = null;
@@ -815,7 +816,7 @@ function viewRegister() {
       : 'No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
-      const r = await api('/api/register', { method: 'POST', body: v });
+      const r = await api('/api/register', { method: 'POST', body: { ...v, portal: referee ? 'referee' : 'coach' } });
       if (r.codeRequired) return viewLoginCode(r);
       await refreshMe();
       const dest = afterAuthHash; afterAuthHash = null;
@@ -829,6 +830,7 @@ function viewRegister() {
 // Same screen for a new account and a returning learner.
 function viewLoginCode(r) {
   const email = r.email || '';
+  const portal = inPortal() ? 'referee' : 'coach'; // brands a resent code email the same way
   authForm({
     title: 'Check your email',
     sub: `We sent a 6-digit code to <strong>${esc(email)}</strong>. Type it below — it expires in 10 minutes and works once.`,
@@ -849,7 +851,7 @@ function viewLoginCode(r) {
   document.getElementById('resendCode')?.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
-      const again = await api('/api/login/code', { method: 'POST', body: { email } });
+      const again = await api('/api/login/code', { method: 'POST', body: { email, portal } });
       toast('New code sent — check your email.');
       if (again.devCode) viewLoginCode(again);
     } catch (err) { toast(err.message, true); }

@@ -133,6 +133,25 @@ test.describe('switch ON (own server)', () => {
     expect(unknown.status()).toBe(404);
   });
 
+  test('the code email is branded for the portal: NCSRA for referees, NCYSA Learn otherwise', async ({ playwright }) => {
+    const ref = await fresh(playwright);
+    const refEmail = `refbrand+${Date.now()}@example.com`;
+    await ref.post('/api/register', { data: { firstName: 'Ref', lastName: 'Brand', email: refEmail, portal: 'referee' } });
+    const coach = await fresh(playwright);
+    const coachEmail = `coachbrand+${Date.now()}@example.com`;
+    await coach.post('/api/register', { data: { firstName: 'Coach', lastName: 'Brand', email: coachEmail } });
+    const admin = await fresh(playwright);
+    expect((await admin.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
+    const outbox = (await (await admin.get('/api/admin/overview')).json()).outbox;
+    const toRef = outbox.find((m) => m.to === refEmail);
+    const toCoach = outbox.find((m) => m.to === coachEmail);
+    expect(toRef.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
+    expect(toRef.body).toContain('North Carolina Soccer Referee Association');
+    expect(toRef.fromName).toBe('NCSRA Referee Education');
+    expect(toCoach.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
+    expect(toCoach.fromName).toBe('NCYSA Learn');
+  });
+
   test('in the browser: Create account → code screen → signed in, and the session survives a reload', async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
