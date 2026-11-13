@@ -205,30 +205,35 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   referee gets "123456 is your NCSRA Referee Education sign-in code"; the
   product/OMG domain gets GetMatchReady; else NCYSA Learn. Covered by
   `tests/email-brand.spec.js` and the brand test in `tests/login-code.spec.js`.
-  The dashboard's "Send test email" is a platform diagnostic and stays NCYSA
-  Learn. **Live email delivery** is Gmail SMTP with a Google **app password**
-  in `SMTP_PASS` (the account in `SMTP_USER`; `SMTP_FROM` must match it); when
-  Gmail rejects it the outbox shows `smtp-error … 535 … BadCredentials` on every
-  entry — fix by generating a new app password for the same account.
-  **Sender address:** since 2026-11-13 the live sender is a dedicated free
-  Gmail account, **`ncsra.referee.education@gmail.com`** (profile name "NCSRA
-  Referee Education", NCSRA logo as its photo), set up as a stopgap because
-  nobody with NCSRA Workspace admin was reachable. NCSRA's domain is
-  **`ncsra.org`**, DNS managed in the user's **Wix** dashboard (Domain
-  settings), and its mail is **Google Workspace for Nonprofits** (MX
-  `smtp.google.com`, `google._domainkey` DKIM already in DNS) — only an
-  `@ncsra.org` admin can open admin.google.com; the user's Gmail accounts
-  can't. The intended final sender is a free Workspace mailbox such as
-  `referees@ncsra.org` (ask the Workspace admin to create it): then
-  `SMTP_USER` = `SMTP_FROM` = that address with its own app password, host/port
-  unchanged, no DNS edits, no new provider, no cost. Expected traffic is
-  ~100 emails/day at most, so a free Gmail's ~500/day cap is not a concern. Workspace caps one mailbox at ~2,000 messages per rolling
-  day — far above normal code + certificate traffic for 2,500 referees, but if
-  it is ever hit, the fallback is **Zoho ZeptoMail** over SMTP
-  (`smtp.zeptomail.com:587`, user `emailapikey`, pass = Send Mail token,
-  `SMTP_FROM` required; first 10,000 emails free, then $2.50 per 10,000, no
-  daily cap, DKIM/bounce records go in the Wix DNS page). Brevo's free plan
-  (300/day, hard cap) is not suitable — one deadline day would stop codes.
+  The dashboard's "Send test email" has no course to brand it, so it speaks as
+  the **sender address** (`senderBrand()` in `lib/notifier.js`): an
+  `@ncsra.org` sender → NCSRA Referee Education / North Carolina Soccer Referee
+  Association; `@getmatchready.app` → GetMatchReady; anything else → NCYSA
+  Learn. Covered in `tests/email-brand.spec.js` (spawns a server on 3111 with
+  `SMTP_FROM=noreply@ncsra.org`).
+  **Live email delivery (since 2026-11-13) is Zoho ZeptoMail over SMTP**, sending
+  as **`noreply@ncsra.org`**: `SMTP_HOST=smtp.zeptomail.com`, `SMTP_PORT=587`,
+  `SMTP_FROM=noreply@ncsra.org`, and the credentials from the Zoho CPaaS console
+  (cpaas.zoho.com → Agents → agent_1 → SMTP/API). **Gotcha:** that page shows
+  TWO username/password pairs — "Weaker password" (`SMTP_USER` =
+  `emailappsmtp.<id>`, password = one you Generate and name) and "More secure"
+  (`SMTP_USER` = `emailapikey`, password = the Send Mail token). Mixing a
+  password from one with the username of the other gives `535 5.7.8
+  Authentication Failed`; we use the `emailappsmtp.…` username with the
+  GetMatchReady password. ZeptoMail is pay-as-you-go: first 10,000 emails
+  free, then $2.50 per 10,000 (credits last 6 months), no daily cap — fine for
+  the expected ~100 emails/day. Its DKIM TXT (`13104113._domainkey`) and bounce
+  CNAME (`bounce-zem`) live in NCSRA's **Wix** DNS for **`ncsra.org`** (Domain
+  settings), both Verified; the domain is associated to agent_1. ncsra.org's
+  mailboxes are **Google Workspace for Nonprofits** (MX `smtp.google.com`,
+  `google._domainkey`), but only an `@ncsra.org` admin can open
+  admin.google.com, so the Workspace-mailbox route (a free `referees@ncsra.org`
+  with a Google app password, `SMTP_USER`=`SMTP_FROM`=that address, host
+  `smtp.gmail.com`) stays an option for when that admin is reachable; replies to
+  `noreply@` bounce until such a mailbox exists. The earlier stopgap sender was
+  a dedicated free Gmail, `ncsra.referee.education@gmail.com` (NCSRA logo on
+  its profile) — kept, unused. Brevo's free plan (300/day, hard cap) and
+  Resend's (100/day) are not suitable — one deadline day would stop codes.
 
 ## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
 
