@@ -108,6 +108,7 @@ test.describe('test email from an @ncsra.org sender (own server)', () => {
     expect(mail.subject).toBe('NCSRA Referee Education — test email');
     expect(mail.fromName).toBe('NCSRA Referee Education');
     expect(mail.body).toContain('— NCSRA Referee Education');
+    expect(mail.html).toContain(`${NBASE}/media/ncsra-logo.png`); // the crest, served from the request host in dev
     expect(mail.html).toContain('North Carolina Soccer Referee Association · NCSRA Referee Education');
     expect(mail.html).not.toContain('Youth Soccer');
   });
