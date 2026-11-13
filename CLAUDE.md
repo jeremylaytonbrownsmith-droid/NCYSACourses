@@ -205,9 +205,11 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   defaults to NCSRA** ("123456 is your NCSRA Referee Education sign-in code") —
   it is the referee association's site for learners. Only something that says
   coach flips it to NCYSA Learn: the SPA's `portal` hint (`signinPortal()` in
-  `app.js`: `'referee'` when a referee portal/course is in view, `'coach'` only
-  when the pending destination is a coach course or the coach/staff catalog,
-  `''` from the plain sign-in page), else `learnerTrack(email)`, which looks
+  `app.js`: `'referee'` when a referee portal/course is in view, `'coaching'`
+  only when the pending destination is a coach course or the coach/staff
+  catalog, `''` from the plain sign-in page; the **legacy value `'coach'`**,
+  which older app.js copies send from the plain page — a tab left open across a
+  deploy — is treated as `''`, never as a coach signal), else `learnerTrack(email)`, which looks
   only at **NC** enrollments: any referee course → referee; otherwise explicit
   `coaches`/`staff` courses → coach; `everyone` courses and OMG courses say
   nothing (a test account enrolled in a bit of everything must not read as a
