@@ -1986,7 +1986,14 @@ function progressSummary(course, progress, staff) {
 // only — a restart just means "request a new code". A brand-new learner's name
 // rides on the challenge and the account is created only once the code checks
 // out, so typos and abandoned sign-ups never create users.
-const LEARNER_EMAIL_CODE = /^(1|true|on|yes)$/i.test(String(process.env.LEARNER_EMAIL_CODE || ''));
+// TEMPORARILY FORCED OFF (2026-11-13). The live site's email delivery is broken —
+// every outbox entry reads Gmail SMTP "535 Username and Password not accepted" —
+// so a sign-in code could never arrive and the switch locked every fresh sign-in
+// out. Hard-off here is the kill switch that doesn't depend on finding the env
+// var. Restore the line below once the dashboard's "Send test email" reports
+// smtp-delivered / brevo-delivered:
+//   const LEARNER_EMAIL_CODE = /^(1|true|on|yes)$/i.test(String(process.env.LEARNER_EMAIL_CODE || ''));
+const LEARNER_EMAIL_CODE = false;
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_MAX_ATTEMPTS = 5;
 const _codes = new Map(); // challengeId -> { emailKey, email, hash, salt, exp, attempts, profile }
