@@ -2019,6 +2019,16 @@ function challengeCookie(req, chId, clear) {
   return `login_challenge=${clear ? '' : chId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${clear ? 0 : Math.floor(CODE_TTL_MS / 1000)}${isHttps(req) ? '; Secure' : ''}`;
 }
 const STAFF_SIGNIN_MSG = 'That email has a staff account — please use the staff sign-in with your password.';
+// Brand for a sign-in email. The referee portal on the NC site is the North
+// Carolina Soccer Referee Association (NCSRA); the product/OMG domain is
+// GetMatchReady; everything else is NCYSA Learn. The SPA says which portal the
+// learner is on (`portal` in the request body); the host decides the rest.
+function signinBrand(req) {
+  const meta = brandMetaForHost(req.get('host'));
+  if (meta.siteName === 'GetMatchReady') return { short: 'GetMatchReady', long: 'GetMatchReady' };
+  if (String((req.body || {}).portal || '') === 'referee') return { short: 'NCSRA Referee Education', long: 'North Carolina Soccer Referee Association' };
+  return { short: 'NCYSA Learn', long: 'North Carolina Youth Soccer Association' };
+}
 // Email a fresh code for this address and bind it to this browser. `profile`
 // carries a new learner's name (null for an existing account). A resend from the
 // same browser keeps the pending sign-up's name and retires the previous code.
@@ -2043,11 +2053,12 @@ function issueLoginCode(req, res, { email, profile }) {
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const salt = crypto.randomBytes(16).toString('hex');
   _codes.set(chId, { emailKey, email, hash: codeHash(code, salt), salt, exp: Date.now() + CODE_TTL_MS, attempts: 0, profile: profile || null });
-  const site = brandMetaForHost(req.get('host')).siteName || 'NCYSA Learn';
+  const site = signinBrand(req);
   sendEmail({
     to: email,
-    subject: `${code} is your ${site} sign-in code`,
-    body: `Your ${site} sign-in code is ${code}\n\nEnter it on the sign-in page. It expires in 10 minutes and works once.\n\nIf you didn’t ask for a code, you can ignore this email — nobody can sign in without it.`,
+    fromName: site.short,
+    subject: `${code} is your ${site.short} sign-in code`,
+    body: `Your ${site.short} sign-in code is ${code}\n\nEnter it on the sign-in page. It expires in 10 minutes and works once.\n\nIf you didn’t ask for a code, you can ignore this email — nobody can sign in without it.\n\n— ${site.long}`,
   });
   res.setHeader('Set-Cookie', challengeCookie(req, chId));
   return res.json({ ok: true, codeRequired: true, sent: true, email, ...(dev ? { devCode: code } : {}) });

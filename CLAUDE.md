@@ -192,8 +192,24 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   how `tests/login-code.spec.js` works — it spawns its own server on port 3108
   with the switch ON, because every other spec relies on the main test server's
   switch-OFF behaviour. `/api/me` exposes `codeLogin` so the sign-in copy
-  matches the mode. Subject line: "123456 is your NCYSA Learn sign-in code"
-  (site name follows the host, GetMatchReady on the product domain).
+  matches the mode. **Email branding follows the audience, not the org record:**
+  referee courses on the NC site (`audience:'referees'` or `coBrandName` ~
+  NCSRA) belong to the **North Carolina Soccer Referee Association** — their
+  completion emails say "Your NCSRA certificate — …", are signed and sent as
+  "NCSRA Referee Education", footer "North Carolina Soccer Referee Association"
+  (a course's own `certOrg` still wins); coach/staff courses stay NCYSA Learn;
+  partner orgs use their `coBrandName`. The sender *display name* is per email
+  (`sendEmail({fromName})` in `lib/notifier.js`); the address is always the
+  configured sender. Sign-in code emails are branded by `signinBrand(req)`:
+  the SPA sends `portal:'referee'|'coach'` with register/login/resend, so a
+  referee gets "123456 is your NCSRA Referee Education sign-in code"; the
+  product/OMG domain gets GetMatchReady; else NCYSA Learn. Covered by
+  `tests/email-brand.spec.js` and the brand test in `tests/login-code.spec.js`.
+  The dashboard's "Send test email" is a platform diagnostic and stays NCYSA
+  Learn. **Live email delivery** is Gmail SMTP with a Google **app password**
+  in `SMTP_PASS` (the account in `SMTP_USER`; `SMTP_FROM` must match it); when
+  Gmail rejects it the outbox shows `smtp-error … 535 … BadCredentials` on every
+  entry — fix by generating a new app password, never by switching accounts.
 
 ## Admin dashboard (`requireDashboard` / `requireEditor` / `requireAdmin`)
 
