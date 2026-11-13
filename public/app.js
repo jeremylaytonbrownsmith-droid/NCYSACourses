@@ -817,7 +817,7 @@ function viewRegister() {
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
       const r = await api('/api/register', { method: 'POST', body: { ...v, portal: referee ? 'referee' : 'coach' } });
-      if (r.codeRequired) return viewLoginCode(r);
+      if (r.codeRequired) return viewLoginCode({ ...r, from: 'register' });
       await refreshMe();
       const dest = afterAuthHash; afterAuthHash = null;
       location.hash = dest || '#/';
@@ -836,7 +836,7 @@ function viewLoginCode(r) {
     sub: `We sent a 6-digit code to <strong>${esc(email)}</strong>. Type it below — it expires in 10 minutes and works once.`,
     fields: [{ name: 'code', label: 'Sign-in code', type: 'text', auto: 'one-time-code', placeholder: '123456' }],
     submitLabel: 'Sign in',
-    note: 'Didn’t get it? Check your spam folder, or <a href="#" id="resendCode">send a new code</a>. Wrong address? <a href="#/login">Start over</a>.'
+    note: 'Didn’t get it? Check your spam folder, or <a href="#" id="resendCode">send a new code</a>. Wrong address? <a href="#" id="startOver">Start over</a>.'
       + (r.devCode ? `<br><span class="meta">Dev only (no email provider configured): your code is <strong id="devCode">${esc(r.devCode)}</strong>.</span>` : ''),
     alt: '',
     onSubmit: async (v) => {
@@ -855,6 +855,14 @@ function viewLoginCode(r) {
       toast('New code sent — check your email.');
       if (again.devCode) viewLoginCode(again);
     } catch (err) { toast(err.message, true); }
+  });
+  // "Start over" returns to the form this code screen replaced. The code screen
+  // is drawn at the same #/login or #/register hash, so a plain link to that
+  // hash changes nothing — re-render the form directly.
+  document.getElementById('startOver')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (r.from === 'register') return location.hash === '#/register' ? viewRegister() : (location.hash = '#/register');
+    return location.hash === '#/login' ? viewLogin() : (location.hash = '#/login');
   });
 }
 
