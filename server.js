@@ -2023,29 +2023,37 @@ const STAFF_SIGNIN_MSG = 'That email has a staff account — please use the staf
 // Carolina Soccer Referee Association (NCSRA); the product/OMG domain is
 // GetMatchReady; everything else is NCYSA Learn. The SPA says which portal the
 // learner is on (`portal` in the request body); the host decides the rest.
-// What a returning learner has been taking: 'referee' if any enrollment is an
-// NC referee course, 'coach' if they are enrolled only in other courses, null
-// for an unknown or never-enrolled address.
+// What a returning learner has been taking on the NC site: 'referee' if any NC
+// enrollment is a referee course; 'coach' if their NC enrollments are only
+// explicit coach/staff courses; null when nothing says (no NC enrollments, or
+// only 'everyone' courses — a test account enrolled in a bit of everything, or
+// an OMG course, must not read as a coach).
 function learnerTrack(email) {
   const db = load();
   const key = String(email || '').toLowerCase();
   const user = db.users.find((u) => u.email.toLowerCase() === key);
   if (!user) return null;
-  const mine = db.enrollments.filter((e) => e.userId === user.id).map((e) => db.courses.find((x) => x.id === e.courseId)).filter(Boolean);
-  if (!mine.length) return null;
-  const isRef = (c) => orgOf(c) === 'ncysa' && (c.audience === 'referees' || /ncsra/i.test(c.coBrandName || ''));
-  return mine.some(isRef) ? 'referee' : 'coach';
+  const mine = db.enrollments.filter((e) => e.userId === user.id)
+    .map((e) => db.courses.find((x) => x.id === e.courseId))
+    .filter((c) => c && orgOf(c) === 'ncysa');
+  const isRef = (c) => c.audience === 'referees' || /ncsra/i.test(c.coBrandName || '');
+  const isCoach = (c) => c.audience === 'coaches' || c.audience === 'staff';
+  if (mine.some(isRef)) return 'referee';
+  if (mine.some(isCoach)) return 'coach';
+  return null;
 }
 // The NC site is the referee association's site for learners, so a sign-in
-// code is NCSRA unless the learner is demonstrably a coach (enrolled only in
-// non-referee courses). The SPA's `portal` is only a hint that the referee
-// portal was in view; a plain sign-in page sends 'coach', which proves nothing.
+// code is NCSRA unless something says coach: the SPA's `portal` hint
+// ('referee' = a referee portal/course was in view; 'coach' = they were headed
+// to a coach course or catalog; '' = the plain sign-in page, which can't tell),
+// then what the learner has been taking.
 function signinBrand(req, email) {
   const meta = brandMetaForHost(req.get('host'));
   if (meta.siteName === 'GetMatchReady') return EMAIL_BRANDS.gmr;
-  if (String((req.body || {}).portal || '') === 'referee') return EMAIL_BRANDS.ncsra;
-  if (email && learnerTrack(email) === 'coach') return EMAIL_BRANDS.ncysa;
-  return EMAIL_BRANDS.ncsra;
+  const hint = String((req.body || {}).portal || '');
+  if (hint === 'referee') return EMAIL_BRANDS.ncsra;
+  if (hint === 'coach') return EMAIL_BRANDS.ncysa;
+  return (email && learnerTrack(email) === 'coach') ? EMAIL_BRANDS.ncysa : EMAIL_BRANDS.ncsra;
 }
 // Email a fresh code for this address and bind it to this browser. `profile`
 // carries a new learner's name (null for an existing account). A resend from the
