@@ -210,13 +210,19 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   in `SMTP_PASS` (the account in `SMTP_USER`; `SMTP_FROM` must match it); when
   Gmail rejects it the outbox shows `smtp-error … 535 … BadCredentials` on every
   entry — fix by generating a new app password for the same account.
-  **Sender address:** NCSRA's domain is **`ncsra.org`**, DNS managed in the
-  user's **Wix** dashboard (Domain settings), and its mail is **Google
-  Workspace** (MX `smtp.google.com`, `google._domainkey` DKIM already in DNS).
-  So the professional sender is simply a Workspace mailbox on `ncsra.org` with
-  its own app password: `SMTP_USER` = `SMTP_FROM` = that address, host/port
-  unchanged, no DNS edits, no new provider, no cost beyond the seat NCSRA
-  already pays for. Workspace caps one mailbox at ~2,000 messages per rolling
+  **Sender address:** since 2026-11-13 the live sender is a dedicated free
+  Gmail account, **`ncsra.referee.education@gmail.com`** (profile name "NCSRA
+  Referee Education", NCSRA logo as its photo), set up as a stopgap because
+  nobody with NCSRA Workspace admin was reachable. NCSRA's domain is
+  **`ncsra.org`**, DNS managed in the user's **Wix** dashboard (Domain
+  settings), and its mail is **Google Workspace for Nonprofits** (MX
+  `smtp.google.com`, `google._domainkey` DKIM already in DNS) — only an
+  `@ncsra.org` admin can open admin.google.com; the user's Gmail accounts
+  can't. The intended final sender is a free Workspace mailbox such as
+  `referees@ncsra.org` (ask the Workspace admin to create it): then
+  `SMTP_USER` = `SMTP_FROM` = that address with its own app password, host/port
+  unchanged, no DNS edits, no new provider, no cost. Expected traffic is
+  ~100 emails/day at most, so a free Gmail's ~500/day cap is not a concern. Workspace caps one mailbox at ~2,000 messages per rolling
   day — far above normal code + certificate traffic for 2,500 referees, but if
   it is ever hit, the fallback is **Zoho ZeptoMail** over SMTP
   (`smtp.zeptomail.com:587`, user `emailapikey`, pass = Send Mail token,
