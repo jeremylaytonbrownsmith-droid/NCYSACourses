@@ -758,7 +758,7 @@ function viewLogin() {
     onSubmit: async (v) => {
       try {
         // `portal` only brands the sign-in code email (NCSRA for the referee portal).
-        const r = await api('/api/login', { method: 'POST', body: { ...v, portal: inPortal() ? 'referee' : 'coach' } });
+        const r = await api('/api/login', { method: 'POST', body: { ...v, portal: signinPortal() } });
         if (r.codeRequired) return viewLoginCode(r);
         await refreshMe();
         const dest = afterAuthHash; afterAuthHash = null;
@@ -816,7 +816,7 @@ function viewRegister() {
       : 'No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
-      const r = await api('/api/register', { method: 'POST', body: { ...v, portal: referee ? 'referee' : 'coach' } });
+      const r = await api('/api/register', { method: 'POST', body: { ...v, portal: signinPortal() } });
       if (r.codeRequired) return viewLoginCode({ ...r, from: 'register' });
       await refreshMe();
       const dest = afterAuthHash; afterAuthHash = null;
@@ -830,7 +830,7 @@ function viewRegister() {
 // Same screen for a new account and a returning learner.
 function viewLoginCode(r) {
   const email = r.email || '';
-  const portal = inPortal() ? 'referee' : 'coach'; // brands a resent code email the same way
+  const portal = signinPortal(); // brands a resent code email the same way
   authForm({
     title: 'Check your email',
     sub: `We sent a 6-digit code to <strong>${esc(email)}</strong>. Type it below — it expires in 10 minutes and works once.`,
@@ -5908,6 +5908,18 @@ async function applyBrandForHash(hash) {
 }
 // True when the current context is a co-branded (e.g. NCSRA referee) portal.
 function inPortal() { return !!activeBrand; }
+// How the server should brand a sign-in code email. 'referee' when a referee
+// portal or referee course is in view (the brand is carried through the
+// sign-in pages when such a destination is pending); 'coach' only when the
+// learner was clearly headed somewhere coach-side (a coach course or the coach
+// catalog); '' when the plain sign-in page can't tell — the server then decides
+// from what the learner has been taking, defaulting to NCSRA on the NC site.
+function signinPortal() {
+  if (inPortal()) return 'referee';
+  const dest = afterAuthHash || '';
+  if (/^#\/(course\/|coaches|staff)/.test(dest)) return 'coach';
+  return '';
+}
 
 // ----- "We'll be right back" (server updating / cold-start) ---------------
 // Render's free service is briefly unreachable during a deploy or when it

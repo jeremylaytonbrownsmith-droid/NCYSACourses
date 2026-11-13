@@ -203,13 +203,17 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   configured sender. Sign-in code emails are branded by `signinBrand(req,
   email)`: the product/OMG domain → GetMatchReady; otherwise **the NC site
   defaults to NCSRA** ("123456 is your NCSRA Referee Education sign-in code") —
-  it is the referee association's site for learners — and only a learner whose
-  enrollments are all non-referee courses (`learnerTrack(email) === 'coach'`)
-  gets NCYSA Learn. The SPA's `portal:'referee'|'coach'` hint only forces NCSRA
-  when the referee portal was in view; the plain sign-in page sends 'coach',
-  which proves nothing (jls5797's first two live codes came out "NCYSA Learn"
-  because the default used to follow that hint). Covered by
-  `tests/email-brand.spec.js` and the brand tests in `tests/login-code.spec.js`.
+  it is the referee association's site for learners. Only something that says
+  coach flips it to NCYSA Learn: the SPA's `portal` hint (`signinPortal()` in
+  `app.js`: `'referee'` when a referee portal/course is in view, `'coach'` only
+  when the pending destination is a coach course or the coach/staff catalog,
+  `''` from the plain sign-in page), else `learnerTrack(email)`, which looks
+  only at **NC** enrollments: any referee course → referee; otherwise explicit
+  `coaches`/`staff` courses → coach; `everyone` courses and OMG courses say
+  nothing (a test account enrolled in a bit of everything must not read as a
+  coach — jls5797's first three live codes came out "NCYSA Learn" for exactly
+  these reasons). Covered by `tests/email-brand.spec.js` and the brand tests in
+  `tests/login-code.spec.js`.
   The code screen's **"Start over"** re-renders the form it replaced
   (`#startOver` in `viewLoginCode`; `from:'register'` is carried from
   `viewRegister`) because the code screen shares the form's hash, so a plain

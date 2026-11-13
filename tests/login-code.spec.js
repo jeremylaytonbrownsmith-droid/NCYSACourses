@@ -159,33 +159,49 @@ test.describe('switch ON (own server)', () => {
     expect(toRef.html).toContain('<td style="background:#ffffff;padding:18px 28px;border-bottom:4px solid #b82f2f">');
     expect(toPlain.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
     expect(toPlain.fromName).toBe('NCSRA Referee Education');
+    // Only an explicit coach context (headed to a coach course/catalog) says NCYSA Learn.
+    const coach = await fresh(playwright);
+    const coachEmail = `coachctx+${Date.now()}@example.com`;
+    await coach.post('/api/register', { data: { firstName: 'Coach', lastName: 'Context', email: coachEmail, portal: 'coach' } });
+    const toCoach = (await (await admin.get('/api/admin/overview')).json()).outbox.find((m) => m.to === coachEmail);
+    expect(toCoach.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
+    expect(toCoach.html).toContain(`${BASE}/media/ncysa-logo.png`);
   });
 
-  test('a learner enrolled only in non-referee courses gets the NCYSA Learn code email', async ({ playwright }) => {
-    // A designer publishes a coach course; the learner signs up, enrolls in it
-    // and nothing else, then later signs in again from the generic page.
+  test('a returning learner is branded by what they take: coach-only courses → NCYSA Learn, anything else → NCSRA', async ({ playwright }) => {
     const designer = await fresh(playwright);
     expect((await designer.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } })).ok()).toBeTruthy();
-    const course = (await (await designer.post('/api/admin/courses', { data: { title: `Coaching Brand Course ${Date.now()}`, audience: 'everyone' } })).json()).course;
-    await designer.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 50, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
-    await designer.post(`/api/admin/courses/${course.id}/publish`, { data: { published: true } });
+    const publish = async (title, audience) => {
+      const course = (await (await designer.post('/api/admin/courses', { data: { title, audience } })).json()).course;
+      await designer.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 50, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
+      await designer.post(`/api/admin/courses/${course.id}/publish`, { data: { published: true } });
+      return course;
+    };
+    const coachCourse = await publish(`Coaching Brand Course ${Date.now()}`, 'coaches');
+    const anyCourse = await publish(`General Brand Course ${Date.now()}`, 'everyone');
 
-    const email = `coachonly+${Date.now()}@example.com`;
-    const first = await fresh(playwright);
-    const reg = await (await first.post('/api/register', { data: { firstName: 'Cole', lastName: 'Coach', email } })).json();
-    expect((await first.post('/api/login/verify', { data: { code: reg.devCode } })).ok()).toBeTruthy();
-    expect((await first.post(`/api/courses/${course.id}/enroll`)).ok()).toBeTruthy();
+    // Sign up (no portal hint), verify, enroll — then sign in again from a new browser.
+    const signUpAndEnroll = async (email, courseId) => {
+      const ctx = await fresh(playwright);
+      const reg = await (await ctx.post('/api/register', { data: { firstName: 'Rae', lastName: 'Returning', email } })).json();
+      expect((await ctx.post('/api/login/verify', { data: { code: reg.devCode } })).ok()).toBeTruthy();
+      expect((await ctx.post(`/api/courses/${courseId}/enroll`)).ok()).toBeTruthy();
+      const later = await fresh(playwright);
+      expect((await (await later.post('/api/login', { data: { email } })).json()).codeRequired).toBe(true);
+    };
+    const coachEmail = `coachonly+${Date.now()}@example.com`;
+    const anyEmail = `anyonly+${Date.now()}@example.com`;
+    await signUpAndEnroll(coachEmail, coachCourse.id);
+    await signUpAndEnroll(anyEmail, anyCourse.id);
 
-    const later = await fresh(playwright);
-    const r = await (await later.post('/api/login', { data: { email } })).json();
-    expect(r.codeRequired).toBe(true);
     const admin = await fresh(playwright);
     expect((await admin.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
     const outbox = (await (await admin.get('/api/admin/overview')).json()).outbox;
-    const mail = outbox.filter((m) => m.to === email).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
-    expect(mail.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
-    expect(mail.fromName).toBe('NCYSA Learn');
-    expect(mail.html).toContain(`${BASE}/media/ncysa-logo.png`);
+    const latest = (email) => outbox.filter((m) => m.to === email).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+    expect(latest(coachEmail).subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
+    expect(latest(coachEmail).html).toContain(`${BASE}/media/ncysa-logo.png`);
+    // An "everyone" course says nothing about the learner — the NC default (NCSRA) holds.
+    expect(latest(anyEmail).subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
   });
 
   test('in the browser: "Start over" on the code screen returns to the form it replaced', async ({ browser }) => {
