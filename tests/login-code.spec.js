@@ -157,6 +157,53 @@ test.describe('switch ON (own server)', () => {
   });
 });
 
+test.describe('PILOT: a list of emails (own server)', () => {
+  const PPORT = 3110;
+  const PBASE = `http://localhost:${PPORT}`;
+  const PILOT = `pilot+${Date.now()}@example.com`;
+  let proc, tmp;
+
+  test.beforeAll(async () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'logincode-pilot-'));
+    const env = { ...process.env, DATA_DIR: path.join(tmp, 'data'), PORT: String(PPORT), DISABLE_SCHEDULERS: '1', LEARNER_EMAIL_CODE: `${PILOT}, @pilot.test` };
+    delete env.NODE_ENV; delete env.BREVO_API_KEY; delete env.SENDGRID_API_KEY; delete env.SMTP_HOST; delete env.NOTIFY_WEBHOOK_URL;
+    proc = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '..'), env, stdio: 'ignore' });
+    const deadline = Date.now() + 30000;
+    for (;;) {
+      try { const r = await fetch(`${PBASE}/api/courses`); if (r.ok) break; } catch (e) { /* not up yet */ }
+      if (Date.now() > deadline) throw new Error('pilot test server did not start');
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  });
+  test.afterAll(async () => {
+    if (proc) proc.kill('SIGKILL');
+    if (tmp) { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* ignore */ } }
+  });
+
+  test('only the listed emails and domains get the code; everyone else signs straight in, and the copy stays the old one', async ({ playwright }) => {
+    // Not in the pilot: the original behaviour, untouched.
+    const pub = await fresh(playwright, PBASE);
+    const r = await (await pub.post('/api/register', { data: { firstName: 'Pub', lastName: 'Lic', email: `public+${Date.now()}@example.com` } })).json();
+    expect(r.codeRequired).toBeUndefined();
+    expect(r.user.name).toBe('Pub Lic');
+    expect((await me(pub)).name).toBe('Pub Lic');
+    expect((await (await pub.get('/api/me')).json()).codeLogin).toBe(false);   // sign-in copy unchanged for the public
+    // In the pilot by exact email: the code flow.
+    const pilot = await fresh(playwright, PBASE);
+    const p = await (await pilot.post('/api/register', { data: { firstName: 'Pi', lastName: 'Lot', email: PILOT } })).json();
+    expect(p.codeRequired).toBe(true);
+    expect(await me(pilot)).toBeNull();
+    expect((await pilot.post('/api/login/verify', { data: { code: p.devCode } })).ok()).toBeTruthy();
+    expect((await me(pilot)).email).toBe(PILOT);
+    // In the pilot by domain, case-insensitive.
+    const dom = await fresh(playwright, PBASE);
+    const d = await (await dom.post('/api/register', { data: { firstName: 'Do', lastName: 'Main', email: `Someone@Pilot.Test` } })).json();
+    expect(d.codeRequired).toBe(true);
+    // The resend endpoint follows the same rule.
+    expect((await pub.post('/api/login/code', { data: { email: `public+${Date.now()}@example.com` } })).status()).toBe(404);
+  });
+});
+
 test('with the switch OFF (the main test server), sign-up still signs in directly', async ({ playwright }) => {
   const ctx = await fresh(playwright, MAIN);
   const r = await (await ctx.post('/api/register', { data: { firstName: 'Old', lastName: 'Way', email: `oldway+${Date.now()}@example.com` } })).json();

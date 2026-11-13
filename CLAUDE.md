@@ -162,9 +162,20 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   expiry enforced server-side.
 - **Learners are passwordless.** Default (switch off): typing an email signs you
   in — the original demo behaviour, which means anyone who knows a referee's
-  email can open their account. **With `LEARNER_EMAIL_CODE=on`** (Render env var;
-  the rollout switch and the kill switch — no deploy needed either way) sign-in
-  is **verified by an emailed 6-digit code**: `/api/register` and `/api/login`
+  email can open their account. **`LEARNER_EMAIL_CODE`** (Render env var; the
+  rollout switch and the kill switch — no deploy needed either way) has three
+  modes (`codeLoginMode` / `codeLoginFor` in `server.js`): unset/`off` → nobody;
+  `on` → every learner; **a comma-separated list of emails and/or `@domains`** →
+  a **pilot**, only those addresses (e.g. `jls5797@gmail.com` to test on the live
+  site while the public keeps the old sign-in; the sign-in copy stays the old one
+  in pilot mode, pilot users simply land on the code screen). **Email delivery
+  must work first** — on 2026-11-13 the switch was turned on while the site's
+  Gmail SMTP login was being rejected (`535 Username and Password not accepted`,
+  visible on every Email outbox entry, certificates included), so no code could
+  arrive and every fresh sign-in was locked out; it was hard-forced off, then
+  replaced by this pilot mode. Check the dashboard's **Email outbox → Send test
+  email** reads `smtp-delivered`/`brevo-delivered` before enabling anyone. With it
+  on for a learner, sign-in is **verified by an emailed 6-digit code**: `/api/register` and `/api/login`
   answer `{codeRequired:true, email}` and set an `HttpOnly` `login_challenge`
   cookie instead of a session; the SPA shows `viewLoginCode` ("Check your
   email"); `POST /api/login/verify {code}` opens the session (and creates a NEW

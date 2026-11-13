@@ -1986,14 +1986,29 @@ function progressSummary(course, progress, staff) {
 // only — a restart just means "request a new code". A brand-new learner's name
 // rides on the challenge and the account is created only once the code checks
 // out, so typos and abandoned sign-ups never create users.
-// TEMPORARILY FORCED OFF (2026-11-13). The live site's email delivery is broken —
-// every outbox entry reads Gmail SMTP "535 Username and Password not accepted" —
-// so a sign-in code could never arrive and the switch locked every fresh sign-in
-// out. Hard-off here is the kill switch that doesn't depend on finding the env
-// var. Restore the line below once the dashboard's "Send test email" reports
-// smtp-delivered / brevo-delivered:
-//   const LEARNER_EMAIL_CODE = /^(1|true|on|yes)$/i.test(String(process.env.LEARNER_EMAIL_CODE || ''));
-const LEARNER_EMAIL_CODE = false;
+// Who gets the verified (emailed-code) sign-in — the LEARNER_EMAIL_CODE env var:
+//   unset / off                     → nobody (the original "email signs you in")
+//   on                              → every learner
+//   a list of emails and/or @domains → only those — a PILOT: test it on the live
+//     site with your own learner address (e.g. "jls5797@gmail.com") while the
+//     public keeps the old sign-in; "@ncysa.org" would cover a whole domain.
+// Email delivery must work before any of this is useful: when it was first
+// switched on (2026-11-13) the site's Gmail SMTP login was being rejected, so no
+// code could arrive and every fresh sign-in was locked out — hence the pilot.
+function codeLoginMode() {
+  const raw = String(process.env.LEARNER_EMAIL_CODE || '').trim();
+  if (!raw || /^(0|false|off|no)$/i.test(raw)) return 'off';
+  if (/^(1|true|on|yes)$/i.test(raw)) return 'all';
+  return 'pilot';
+}
+function codeLoginFor(email) {
+  const mode = codeLoginMode();
+  if (mode === 'off') return false;
+  if (mode === 'all') return true;
+  const e = String(email || '').trim().toLowerCase();
+  return String(process.env.LEARNER_EMAIL_CODE).toLowerCase().split(/[,\s;]+/).filter(Boolean)
+    .some((t) => (t.startsWith('@') ? e.endsWith(t) : e === t));
+}
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_MAX_ATTEMPTS = 5;
 const _codes = new Map(); // challengeId -> { emailKey, email, hash, salt, exp, attempts, profile }
@@ -2065,13 +2080,13 @@ app.post('/api/register', (req, res) => {
     if (existing.passHash || STAFF_ROLES.includes(existing.role)) {
       return res.status(403).json({ error: 'That email has a staff account — please use the staff sign-in with your password.', needsPassword: true });
     }
-    if (LEARNER_EMAIL_CODE) return issueLoginCode(req, res, { email: existing.email, profile: null });
+    if (codeLoginFor(existing.email)) return issueLoginCode(req, res, { email: existing.email, profile: null });
     setSession(req, res, existing.id);
     return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
   }
   // New learner. With codes on, the account is created only once the code is
   // verified (the name rides on the challenge until then).
-  if (LEARNER_EMAIL_CODE) return issueLoginCode(req, res, { email, profile: { firstName, lastName, name } });
+  if (codeLoginFor(email)) return issueLoginCode(req, res, { email, profile: { firstName, lastName, name } });
   const user = {
     id: id('usr'), name,
     firstName: firstName || undefined, lastName: lastName || undefined,
@@ -2114,7 +2129,7 @@ app.post('/api/login', (req, res) => {
       return res.status(401).json({ error: 'That email or password is incorrect.', needsPassword: true });
     }
     clearLoginFailures(lockKey); // a good password resets the counter
-  } else if (LEARNER_EMAIL_CODE) {
+  } else if (codeLoginFor(user.email)) {
     // A learner: prove the inbox before opening the account.
     return issueLoginCode(req, res, { email: user.email, profile: null });
   }
@@ -2126,9 +2141,9 @@ app.post('/api/login', (req, res) => {
 // unknown email only gets one when this browser's pending sign-up carries the
 // name (a resend during Create account); otherwise it's sent to Create account.
 app.post('/api/login/code', (req, res) => {
-  if (!LEARNER_EMAIL_CODE) return res.status(404).json({ error: 'Not enabled' });
   const email = String((req.body || {}).email || '').trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+  if (!codeLoginFor(email)) return res.status(404).json({ error: 'Not enabled' });
   const emailKey = email.toLowerCase();
   if (reservedStaffEmails().has(emailKey)) return res.status(403).json({ error: STAFF_SIGNIN_MSG, needsPassword: true });
   const db = load();
@@ -2194,12 +2209,15 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/me', (req, res) => {
   const user = currentUser(req);
   const staffAccess = staffAuthorized(req);
-  if (!user) return res.json({ user: null, staffAccess, codeLogin: LEARNER_EMAIL_CODE });
+  // codeLogin drives the sign-in copy only ("we'll email you a code"): true when
+  // EVERY learner gets the code; a pilot keeps the old copy and the pilot users
+  // simply land on the code screen.
+  if (!user) return res.json({ user: null, staffAccess, codeLogin: codeLoginMode() === 'all' });
   const db = load();
   const unread = db.notifications.filter(
     (n) => n.audience === 'user' && n.userId === user.id && !n.read
   ).length;
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, orgId: user.orgId || null }, unread, staffAccess, codeLogin: LEARNER_EMAIL_CODE });
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, orgId: user.orgId || null }, unread, staffAccess, codeLogin: codeLoginMode() === 'all' });
 });
 
 // Unlock the staff area with the shared access code (sets a signed cookie).
