@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 const QRCode = require('qrcode'); // certificate verify QR codes (generated as data URLs)
 
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
-const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp } = require('./lib/notifier');
+const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp, emailConfigured } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims, publicBaseForOrg, ORG_FRONT_DOORS } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
@@ -1971,9 +1971,68 @@ function progressSummary(course, progress, staff) {
 
 // ---------- auth API ----------
 
-// Passwordless sign-up for the demo: name + email only, no password to create
-// or remember. (For production, add real auth — a password or an emailed
-// magic-link — before storing real learner records.)
+// ---------- learner sign-in: passwordless, verified by an emailed code ----------
+// Learners never set a password. With LEARNER_EMAIL_CODE=on (the rollout switch,
+// set on Render; off = the original "email signs you in" demo behaviour), typing
+// an email no longer opens the account by itself: we email a 6-digit code and the
+// browser that asked for it must type it back. That proves control of the inbox —
+// the same root of trust every "forgot password" flow rests on — and closes the
+// one real gap (anyone who knew a referee's email could sign in as them).
+//
+// Code rules: random 6 digits, 10-minute life, single use, 5 wrong guesses kill
+// it; stored as a salted HMAC, never plain; bound to the requesting browser by an
+// HttpOnly challenge cookie, so a code read over a shoulder is useless elsewhere;
+// per-email and global request caps so nobody can hammer it. Codes live in memory
+// only — a restart just means "request a new code". A brand-new learner's name
+// rides on the challenge and the account is created only once the code checks
+// out, so typos and abandoned sign-ups never create users.
+const LEARNER_EMAIL_CODE = /^(1|true|on|yes)$/i.test(String(process.env.LEARNER_EMAIL_CODE || ''));
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_MAX_ATTEMPTS = 5;
+const _codes = new Map(); // challengeId -> { emailKey, email, hash, salt, exp, attempts, profile }
+function sweepCodes() { const now = Date.now(); for (const [k, v] of _codes) if (v.exp < now) _codes.delete(k); }
+function codeHash(code, salt) { return crypto.createHmac('sha256', salt).update(String(code)).digest('hex'); }
+function readChallenge(req) { const m = (req.headers.cookie || '').match(/(?:^|;\s*)login_challenge=([a-f0-9]+)/); return m ? m[1] : null; }
+function challengeCookie(req, chId, clear) {
+  return `login_challenge=${clear ? '' : chId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${clear ? 0 : Math.floor(CODE_TTL_MS / 1000)}${isHttps(req) ? '; Secure' : ''}`;
+}
+const STAFF_SIGNIN_MSG = 'That email has a staff account — please use the staff sign-in with your password.';
+// Email a fresh code for this address and bind it to this browser. `profile`
+// carries a new learner's name (null for an existing account). A resend from the
+// same browser keeps the pending sign-up's name and retires the previous code.
+function issueLoginCode(req, res, { email, profile }) {
+  sweepCodes();
+  const emailKey = String(email).toLowerCase();
+  const prevId = readChallenge(req);
+  const prev = prevId ? _codes.get(prevId) : null;
+  if (prev && prev.emailKey === emailKey && !profile) profile = prev.profile;
+  if (prevId) _codes.delete(prevId); // one live code per browser
+  if (rateLimited('code:email:' + emailKey, 5, 15 * 60_000) || rateLimited('code:all', 300, 15 * 60_000)) {
+    return res.status(429).json({ error: 'Too many sign-in codes requested. Please wait a few minutes and try again.' });
+  }
+  // No delivery path: production refuses to pretend; dev/test hands the code back
+  // in the response (NODE_ENV is "production" on Render, so this never leaks live).
+  const dev = process.env.NODE_ENV !== 'production' && !emailConfigured();
+  if (!dev && !emailConfigured()) {
+    console.error('[auth] LEARNER_EMAIL_CODE is on but no email provider is configured — learners cannot sign in.');
+    return res.status(503).json({ error: 'Sign-in codes can’t be sent right now. Please try again in a few minutes.' });
+  }
+  const chId = crypto.randomBytes(16).toString('hex');
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  const salt = crypto.randomBytes(16).toString('hex');
+  _codes.set(chId, { emailKey, email, hash: codeHash(code, salt), salt, exp: Date.now() + CODE_TTL_MS, attempts: 0, profile: profile || null });
+  const site = brandMetaForHost(req.get('host')).siteName || 'NCYSA Learn';
+  sendEmail({
+    to: email,
+    subject: `${code} is your ${site} sign-in code`,
+    body: `Your ${site} sign-in code is ${code}\n\nEnter it on the sign-in page. It expires in 10 minutes and works once.\n\nIf you didn’t ask for a code, you can ignore this email — nobody can sign in without it.`,
+  });
+  res.setHeader('Set-Cookie', challengeCookie(req, chId));
+  return res.json({ ok: true, codeRequired: true, sent: true, email, ...(dev ? { devCode: code } : {}) });
+}
+
+// Passwordless sign-up: name + email only, no password to create or remember.
+// With LEARNER_EMAIL_CODE on, this sends the code instead of signing in directly.
 app.post('/api/register', (req, res) => {
   const b = req.body || {};
   const firstName = String(b.firstName || '').trim();
@@ -1999,9 +2058,13 @@ app.post('/api/register', (req, res) => {
     if (existing.passHash || STAFF_ROLES.includes(existing.role)) {
       return res.status(403).json({ error: 'That email has a staff account — please use the staff sign-in with your password.', needsPassword: true });
     }
+    if (LEARNER_EMAIL_CODE) return issueLoginCode(req, res, { email: existing.email, profile: null });
     setSession(req, res, existing.id);
     return res.json({ user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role } });
   }
+  // New learner. With codes on, the account is created only once the code is
+  // verified (the name rides on the challenge until then).
+  if (LEARNER_EMAIL_CODE) return issueLoginCode(req, res, { email, profile: { firstName, lastName, name } });
   const user = {
     id: id('usr'), name,
     firstName: firstName || undefined, lastName: lastName || undefined,
@@ -2044,8 +2107,72 @@ app.post('/api/login', (req, res) => {
       return res.status(401).json({ error: 'That email or password is incorrect.', needsPassword: true });
     }
     clearLoginFailures(lockKey); // a good password resets the counter
+  } else if (LEARNER_EMAIL_CODE) {
+    // A learner: prove the inbox before opening the account.
+    return issueLoginCode(req, res, { email: user.email, profile: null });
   }
   setSession(req, res, user.id);
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
+// Send (again) a sign-in code for an email — the "Didn't get it?" link. An
+// unknown email only gets one when this browser's pending sign-up carries the
+// name (a resend during Create account); otherwise it's sent to Create account.
+app.post('/api/login/code', (req, res) => {
+  if (!LEARNER_EMAIL_CODE) return res.status(404).json({ error: 'Not enabled' });
+  const email = String((req.body || {}).email || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+  const emailKey = email.toLowerCase();
+  if (reservedStaffEmails().has(emailKey)) return res.status(403).json({ error: STAFF_SIGNIN_MSG, needsPassword: true });
+  const db = load();
+  const user = db.users.find((u) => u.email.toLowerCase() === emailKey);
+  if (user && (user.passHash || STAFF_ROLES.includes(user.role))) return res.status(403).json({ error: STAFF_SIGNIN_MSG, needsPassword: true });
+  const prevId = readChallenge(req);
+  const prev = prevId ? _codes.get(prevId) : null;
+  if (!user && !(prev && prev.emailKey === emailKey && prev.profile)) {
+    return res.status(404).json({ error: 'We don’t have an account for that email yet — use Create account.', needsRegister: true });
+  }
+  return issueLoginCode(req, res, { email: user ? user.email : email, profile: null });
+});
+
+// Step two: the code typed back from the same browser. Success opens the session
+// (creating a brand-new learner now, from the name carried on the challenge).
+app.post('/api/login/verify', (req, res) => {
+  sweepCodes();
+  const chId = readChallenge(req);
+  const ch = chId ? _codes.get(chId) : null;
+  if (!ch || ch.burned) return res.status(410).json({ error: 'That code has expired — request a new one.', expired: true });
+  const code = String((req.body || {}).code || '').replace(/\D/g, '');
+  const a = Buffer.from(codeHash(code, ch.salt), 'hex');
+  const b = Buffer.from(ch.hash, 'hex');
+  const ok = code.length === 6 && a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!ok) {
+    ch.attempts += 1;
+    const left = CODE_MAX_ATTEMPTS - ch.attempts;
+    if (left <= 0) {
+      // Burn the code but keep the challenge (and its sign-up name) until it
+      // expires, so "send a new code" still works for a brand-new learner.
+      ch.burned = true;
+      return res.status(410).json({ error: 'Too many wrong codes — request a new one.', expired: true });
+    }
+    return res.status(401).json({ error: `That code isn’t right. ${left} ${left === 1 ? 'try' : 'tries'} left.`, triesLeft: left });
+  }
+  _codes.delete(chId); // single use
+  const db = load();
+  let user = db.users.find((u) => u.email.toLowerCase() === ch.emailKey);
+  if (user && (user.passHash || STAFF_ROLES.includes(user.role))) return res.status(403).json({ error: STAFF_SIGNIN_MSG, needsPassword: true });
+  const now = new Date().toISOString();
+  if (!user) {
+    const p = ch.profile || {};
+    if (!p.name) return res.status(404).json({ error: 'We don’t have an account for that email yet — use Create account.', needsRegister: true });
+    user = { id: id('usr'), name: p.name, firstName: p.firstName || undefined, lastName: p.lastName || undefined, email: ch.email, role: 'learner', createdAt: now, emailVerifiedAt: now };
+    db.users.push(user);
+  } else {
+    user.emailVerifiedAt = now;
+  }
+  save();
+  setSession(req, res, user.id);
+  res.append('Set-Cookie', challengeCookie(req, chId, true));
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
@@ -2060,12 +2187,12 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/me', (req, res) => {
   const user = currentUser(req);
   const staffAccess = staffAuthorized(req);
-  if (!user) return res.json({ user: null, staffAccess });
+  if (!user) return res.json({ user: null, staffAccess, codeLogin: LEARNER_EMAIL_CODE });
   const db = load();
   const unread = db.notifications.filter(
     (n) => n.audience === 'user' && n.userId === user.id && !n.read
   ).length;
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, orgId: user.orgId || null }, unread, staffAccess });
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, orgId: user.orgId || null }, unread, staffAccess, codeLogin: LEARNER_EMAIL_CODE });
 });
 
 // Unlock the staff area with the shared access code (sets a signed cookie).

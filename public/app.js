@@ -741,18 +741,24 @@ function viewLogin() {
   const alt = b
     ? `New to ${name}? <a href="#/register">Create a free account</a>`
     : 'New to NCYSA Learn? <a href="#/register">Create a free account</a><br /><a href="#/staff" class="staff-link">NCYSA staff sign-in →</a>';
+  const codeLogin = !!(me && me.codeLogin);
   authForm({
     title: 'Welcome back',
-    sub: 'Enter your email to continue — no password needed.',
+    sub: codeLogin
+      ? 'Enter your email and we’ll send you a 6-digit sign-in code — no password needed.'
+      : 'Enter your email to continue — no password needed.',
     fields: [
       { name: 'email', label: 'Email', type: 'email', auto: 'email' },
     ],
     submitLabel: 'Continue',
-    note: 'No password required. Your email is only used to save your progress — nothing is sent anywhere.',
+    note: codeLogin
+      ? 'No password required. The code proves it’s really you; your email is only used to save your progress.'
+      : 'No password required. Your email is only used to save your progress — nothing is sent anywhere.',
     alt,
     onSubmit: async (v) => {
       try {
         const r = await api('/api/login', { method: 'POST', body: v });
+        if (r.codeRequired) return viewLoginCode(r);
         await refreshMe();
         const dest = afterAuthHash; afterAuthHash = null;
         location.hash = dest || roleHome(r.user.role);
@@ -804,14 +810,49 @@ function viewRegister() {
     sub: 'Just your name and email — no password to set up.',
     fields,
     submitLabel: 'Create account',
-    note: 'No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
+    note: (me && me.codeLogin)
+      ? 'No password required. We’ll email you a 6-digit code to confirm it’s you; your email is only used to save your progress and issue your certificate.'
+      : 'No password required. Your email is only used to save your progress and issue your certificate — nothing is sent anywhere.',
     alt: 'Already have an account? <a href="#/login">Sign in</a>',
     onSubmit: async (v) => {
-      await api('/api/register', { method: 'POST', body: v });
+      const r = await api('/api/register', { method: 'POST', body: v });
+      if (r.codeRequired) return viewLoginCode(r);
       await refreshMe();
       const dest = afterAuthHash; afterAuthHash = null;
       location.hash = dest || '#/';
     },
+  });
+}
+
+// Step two of a verified passwordless sign-in (LEARNER_EMAIL_CODE on): the server
+// emailed a 6-digit code and this browser holds the matching challenge cookie.
+// Same screen for a new account and a returning learner.
+function viewLoginCode(r) {
+  const email = r.email || '';
+  authForm({
+    title: 'Check your email',
+    sub: `We sent a 6-digit code to <strong>${esc(email)}</strong>. Type it below — it expires in 10 minutes and works once.`,
+    fields: [{ name: 'code', label: 'Sign-in code', type: 'text', auto: 'one-time-code', placeholder: '123456' }],
+    submitLabel: 'Sign in',
+    note: 'Didn’t get it? Check your spam folder, or <a href="#" id="resendCode">send a new code</a>. Wrong address? <a href="#/login">Start over</a>.'
+      + (r.devCode ? `<br><span class="meta">Dev only (no email provider configured): your code is <strong id="devCode">${esc(r.devCode)}</strong>.</span>` : ''),
+    alt: '',
+    onSubmit: async (v) => {
+      const out = await api('/api/login/verify', { method: 'POST', body: { code: v.code } });
+      await refreshMe();
+      const dest = afterAuthHash; afterAuthHash = null;
+      location.hash = dest || roleHome(out.user.role);
+    },
+  });
+  const input = document.getElementById('code');
+  if (input) { input.setAttribute('inputmode', 'numeric'); input.setAttribute('pattern', '[0-9]*'); input.setAttribute('maxlength', '6'); input.focus(); }
+  document.getElementById('resendCode')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      const again = await api('/api/login/code', { method: 'POST', body: { email } });
+      toast('New code sent — check your email.');
+      if (again.devCode) viewLoginCode(again);
+    } catch (err) { toast(err.message, true); }
   });
 }
 
