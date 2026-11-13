@@ -148,8 +148,44 @@ test.describe('switch ON (own server)', () => {
     expect(toRef.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
     expect(toRef.body).toContain('North Carolina Soccer Referee Association');
     expect(toRef.fromName).toBe('NCSRA Referee Education');
+    // The HTML version: NCSRA crest in the header, the code large, the footer signed NCSRA.
+    const code = toRef.subject.slice(0, 6);
+    expect(toRef.html).toContain(`${BASE}/media/ncsra-logo.png`);
+    expect(toRef.html).toContain('Your sign-in code');
+    expect(toRef.html).toContain(`letter-spacing:.3em;color:#10045a">${code}<`);
+    expect(toRef.html).toContain('North Carolina Soccer Referee Association · NCSRA Referee Education');
+    expect(toRef.html).not.toContain('Youth Soccer');
     expect(toCoach.subject).toMatch(/^\d{6} is your NCYSA Learn sign-in code$/);
     expect(toCoach.fromName).toBe('NCYSA Learn');
+    expect(toCoach.html).toContain(`${BASE}/media/ncysa-logo.png`);
+  });
+
+  test('a returning referee learner gets the NCSRA code email even from the plain sign-in page', async ({ playwright }) => {
+    // A designer publishes a referee course; the learner signs up (from the
+    // referee portal), enrolls, then later signs in from the generic page.
+    const designer = await fresh(playwright);
+    expect((await designer.post('/api/login', { data: { email: 'DA@ncsoccer.org', password: 'ncysa-designer-2026' } })).ok()).toBeTruthy();
+    const course = (await (await designer.post('/api/admin/courses', { data: { title: `NCSRA Brand Course ${Date.now()}`, audience: 'referees' } })).json()).course;
+    await designer.post(`/api/admin/courses/${course.id}/lessons`, { data: { type: 'quiz', title: 'Check', passPercent: 50, questions: [{ prompt: 'Sky color?', options: ['Green', 'Blue'], answer: 1 }] } });
+    await designer.post(`/api/admin/courses/${course.id}/publish`, { data: { published: true } });
+
+    const email = `returning+${Date.now()}@example.com`;
+    const first = await fresh(playwright);
+    const reg = await (await first.post('/api/register', { data: { firstName: 'Rae', lastName: 'Returning', email, portal: 'referee' } })).json();
+    expect((await first.post('/api/login/verify', { data: { code: reg.devCode } })).ok()).toBeTruthy();
+    expect((await first.post(`/api/courses/${course.id}/enroll`)).ok()).toBeTruthy();
+
+    // New browser, plain sign-in page: no portal hint in the request at all.
+    const later = await fresh(playwright);
+    const r = await (await later.post('/api/login', { data: { email } })).json();
+    expect(r.codeRequired).toBe(true);
+    const admin = await fresh(playwright);
+    expect((await admin.post('/api/login', { data: ADMIN })).ok()).toBeTruthy();
+    const outbox = (await (await admin.get('/api/admin/overview')).json()).outbox;
+    const mail = outbox.filter((m) => m.to === email).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+    expect(mail.subject).toMatch(/^\d{6} is your NCSRA Referee Education sign-in code$/);
+    expect(mail.fromName).toBe('NCSRA Referee Education');
+    expect(mail.html).toContain('/media/ncsra-logo.png');
   });
 
   test('in the browser: Create account → code screen → signed in, and the session survives a reload', async ({ browser }) => {

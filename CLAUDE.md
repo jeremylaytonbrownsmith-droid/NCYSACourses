@@ -205,12 +205,27 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   referee gets "123456 is your NCSRA Referee Education sign-in code"; the
   product/OMG domain gets GetMatchReady; else NCYSA Learn. Covered by
   `tests/email-brand.spec.js` and the brand test in `tests/login-code.spec.js`.
-  The dashboard's "Send test email" has no course to brand it, so it speaks as
-  the **sender address** (`senderBrand()` in `lib/notifier.js`): an
-  `@ncsra.org` sender → NCSRA Referee Education / North Carolina Soccer Referee
-  Association; `@getmatchready.app` → GetMatchReady; anything else → NCYSA
-  Learn. Covered in `tests/email-brand.spec.js` (spawns a server on 3111 with
-  `SMTP_FROM=noreply@ncsra.org`).
+  A **returning learner** signing in from the plain sign-in page (no portal in
+  view, so the SPA sends `portal:'coach'`) is still branded NCSRA when their
+  enrollments include an NC referee course (`isRefereeLearner` in
+  `signinBrand(req, email)`) — that is how jls5797's first live code came out
+  "NCYSA Learn". The dashboard's "Send test email" has no course to brand it,
+  so it speaks as the **sender address** (`senderBrand()` in `lib/notifier.js`):
+  an `@ncsra.org` sender → NCSRA; `@getmatchready.app` → GetMatchReady; else
+  NCYSA Learn. Covered in `tests/email-brand.spec.js` (spawns a server on 3111
+  with `SMTP_FROM=noreply@ncsra.org`). **Every email uses one HTML layout**
+  (`emailLayout()` in `lib/notifier.js`: navy header with the org crest +
+  long/short name and the red stripe, white card, "long · short" footer;
+  table-based, inline styles). `BRANDS` (ncsra / ncysa / gmr) carries each
+  voice's names, org and crest; `brandLogoUrl()` makes the crest absolute on the
+  org's public domain via `publicBaseForOrg` (request host in dev/tests, so
+  tests assert `${BASE}/media/ncsra-logo.png`). The sign-in code email
+  (`signinCodeEmail()`) shows the code large and alone; the completion email's
+  certificate link now also goes through `publicBaseForOrg(course.orgId)`, so an
+  NC certificate links to ncysalearn.app, not the product domain. A plain-text
+  `body` is always sent alongside. Preview a template by rendering its `html`
+  with Playwright (see the scratchpad script pattern: build with
+  `requestBase:'http://preview.local'`, swap the crest for a `file://` path).
   **Live email delivery (since 2026-11-13) is Zoho ZeptoMail over SMTP**, sending
   as **`noreply@ncsra.org`**: `SMTP_HOST=smtp.zeptomail.com`, `SMTP_PORT=587`,
   `SMTP_FROM=noreply@ncsra.org`, and the credentials from the Zoho CPaaS console

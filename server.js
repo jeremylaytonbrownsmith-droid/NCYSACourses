@@ -16,7 +16,7 @@ const unzipper = require('unzipper'); // streaming unzip — never loads the who
 const QRCode = require('qrcode'); // certificate verify QR codes (generated as data URLs)
 
 const { load, save, id, initFromCloud, status: storeStatus } = require('./lib/store');
-const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp, emailConfigured } = require('./lib/notifier');
+const { onCourseCompleted, sendTestEmail, sendEmail, notifyInApp, emailConfigured, signinCodeEmail, BRANDS: EMAIL_BRANDS } = require('./lib/notifier');
 const compliance = require('./lib/compliance');
 const { signToken, verifyToken, sendCompletionWebhook, integrationEnabled, integrationSecret, integrationApiKey, mapScormStatus, scoreObject, allowedCallbackUrl, secretForOrg, apiKeyForOrg, decodeClaims, publicBaseForOrg, ORG_FRONT_DOORS } = require('./lib/integration');
 const { aiEnabled, generateCourseDraft, generateModuleDraft, editModuleDraft } = require('./lib/aicourse');
@@ -2023,11 +2023,26 @@ const STAFF_SIGNIN_MSG = 'That email has a staff account — please use the staf
 // Carolina Soccer Referee Association (NCSRA); the product/OMG domain is
 // GetMatchReady; everything else is NCYSA Learn. The SPA says which portal the
 // learner is on (`portal` in the request body); the host decides the rest.
-function signinBrand(req) {
+// A returning learner who signs in from the plain sign-in page (no portal in
+// view) is still a referee if that is what they have been taking — brand by
+// their enrollments rather than defaulting them to NCYSA Learn.
+function isRefereeLearner(email) {
+  const db = load();
+  const key = String(email || '').toLowerCase();
+  const user = db.users.find((u) => u.email.toLowerCase() === key);
+  if (!user) return false;
+  return db.enrollments.some((e) => {
+    if (e.userId !== user.id) return false;
+    const c = db.courses.find((x) => x.id === e.courseId);
+    return !!c && orgOf(c) === 'ncysa' && (c.audience === 'referees' || /ncsra/i.test(c.coBrandName || ''));
+  });
+}
+function signinBrand(req, email) {
   const meta = brandMetaForHost(req.get('host'));
-  if (meta.siteName === 'GetMatchReady') return { short: 'GetMatchReady', long: 'GetMatchReady' };
-  if (String((req.body || {}).portal || '') === 'referee') return { short: 'NCSRA Referee Education', long: 'North Carolina Soccer Referee Association' };
-  return { short: 'NCYSA Learn', long: 'North Carolina Youth Soccer Association' };
+  if (meta.siteName === 'GetMatchReady') return EMAIL_BRANDS.gmr;
+  if (String((req.body || {}).portal || '') === 'referee') return EMAIL_BRANDS.ncsra;
+  if (email && isRefereeLearner(email)) return EMAIL_BRANDS.ncsra;
+  return EMAIL_BRANDS.ncysa;
 }
 // Email a fresh code for this address and bind it to this browser. `profile`
 // carries a new learner's name (null for an existing account). A resend from the
@@ -2053,13 +2068,8 @@ function issueLoginCode(req, res, { email, profile }) {
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const salt = crypto.randomBytes(16).toString('hex');
   _codes.set(chId, { emailKey, email, hash: codeHash(code, salt), salt, exp: Date.now() + CODE_TTL_MS, attempts: 0, profile: profile || null });
-  const site = signinBrand(req);
-  sendEmail({
-    to: email,
-    fromName: site.short,
-    subject: `${code} is your ${site.short} sign-in code`,
-    body: `Your ${site.short} sign-in code is ${code}\n\nEnter it on the sign-in page. It expires in 10 minutes and works once.\n\nIf you didn’t ask for a code, you can ignore this email — nobody can sign in without it.\n\n— ${site.long}`,
-  });
+  const site = signinBrand(req, email);
+  sendEmail({ to: email, ...signinCodeEmail({ code, brand: site, requestBase: `${req.protocol}://${req.get('host')}` }) });
   res.setHeader('Set-Cookie', challengeCookie(req, chId));
   return res.json({ ok: true, codeRequired: true, sent: true, email, ...(dev ? { devCode: code } : {}) });
 }
@@ -3281,7 +3291,7 @@ app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
   const to = String(req.body?.to || '').trim() || req.user.email;
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return res.status(400).json({ error: 'Enter a valid email address.' });
   try {
-    const status = await sendTestEmail(to);
+    const status = await sendTestEmail(to, { requestBase: `${req.protocol}://${req.get('host')}` });
     res.json({ to, status, delivered: /delivered/.test(status) });
   } catch (e) {
     res.status(500).json({ error: e.message });
