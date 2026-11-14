@@ -248,9 +248,15 @@ certificate (`maybeCompleteCourse`) and may fire a partner return URL.
   (`SMTP_USER` = `emailapikey`, password = the Send Mail token). Mixing a
   password from one with the username of the other gives `535 5.7.8
   Authentication Failed`; we use the `emailappsmtp.…` username with the
-  GetMatchReady password. ZeptoMail is pay-as-you-go: first 10,000 emails
-  free, then $2.50 per 10,000 (credits last 6 months), no daily cap — fine for
-  the expected ~100 emails/day. Its DKIM TXT (`13104113._domainkey`) and bounce
+  GetMatchReady password. ZeptoMail is pay-as-you-go: 1 credit = 10,000
+  emails = $2.50, purchased credits last 6 months, no daily cap — fine for the
+  expected ~100 emails/day. **The free starter credit expires 30 days after
+  signup (≈ 2026-12-13)**, per Zoho's own email, not 6 months. **When credits
+  run out Zoho stops sending and sign-in codes stop arriving** — the same
+  lockout as the 535 incident — so keep a purchased credit on the account
+  (Subscription in the left menu) and calendar the expiry; a credit costs
+  $2.50. Zoho forbids marketing/bulk mail on this account; we send only
+  transactional (codes, certificates, completion notices). Its DKIM TXT (`13104113._domainkey`) and bounce
   CNAME (`bounce-zem`) live in NCSRA's **Wix** DNS for **`ncsra.org`** (Domain
   settings), both Verified; the domain is associated to agent_1. ncsra.org's
   mailboxes are **Google Workspace for Nonprofits** (MX `smtp.google.com`,
