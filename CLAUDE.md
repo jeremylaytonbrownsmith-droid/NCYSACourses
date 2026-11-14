@@ -362,6 +362,17 @@ browser context) rather than eyeballing a screenshot.
   browser carries the `#/route`. Exempt: `/health` (Render's check), `/api/`,
   `/launch`, `/scorm/`. Covered by `tests/canonical-host.spec.js`. Hand out only
   `ncysalearn.app` / `getmatchready.app` links; never the onrender one.
+  **2026-11-14: Microsoft Defender SmartScreen flagged `ncysa-learn.onrender.com`
+  as "reported unsafe"** — a referee clicking an old onrender course link
+  (circulated in an assignor's email) got a full-page red block in Edge BEFORE
+  our redirect could run; the redirect can't help there. Free-host subdomains
+  with a "sign in with your email" page are a classic SmartScreen heuristic
+  hit. Remedy: (1) every circulated link must be `https://ncysalearn.app/#/…`
+  (the course path is the same), (2) a false-positive report for the onrender
+  host via Microsoft's "Report an unsafe site" page (microsoft.com/wdsi →
+  "I believe this site was incorrectly marked"), (3) check `ncysalearn.app`
+  itself opens clean in Edge. The sandbox can't query SmartScreen; the user
+  checks in Edge.
 
 ## Interactive course format (`getmatchready.module/v1`)
 
